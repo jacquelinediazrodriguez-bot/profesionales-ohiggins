@@ -445,7 +445,28 @@
    }
    await refreshSharedLocks();
  }
+ // Renovar el bloqueo durante una sesión larga de edición.
+ async function renewMyLocks(){
+   if(!isReal()||!document.getElementById('mifrente')?.classList.contains('active'))return;
+   const m=currentDocMesa,id=mesaId(m);if(!id)return;
+   for(const name of ownedLocks()){
+     const {data:ok,error}=await sbAuth.rpc('try_lock_workspace_section',{
+       p_technical_table_id:id,p_section_name:name
+     });
+     if(error||!ok){
+       const ed=document.getElementById(sectionEditorId(name));
+       if(ed)ed.setAttribute('contenteditable','false');
+       localStorage.removeItem(lockKey(m,name));
+       alert('Se perdió el permiso de edición de '+name+'. Su borrador local se conserva; vuelva a solicitar acceso antes de continuar.');
+     }else{
+       localStorage.setItem(lockKey(m,name),JSON.stringify({
+         email:currentUser.correo,nombre:currentUser.nombre,ts:Date.now()
+       }));
+     }
+   }
+ }
  setInterval(pollSharedChanges,25000);
+ setInterval(renewMyLocks,60000);
  window.addEventListener('online',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>flush(m))});
  window.addEventListener('pagehide',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>{if(localStorage.getItem(pendingKey(m))==='1')flush(m)})});
  // Hacer que las solicitudes y los documentos públicos tengan el mismo origen en todos los dispositivos.
