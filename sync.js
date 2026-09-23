@@ -460,17 +460,30 @@
    await refreshSharedAdmin();adminPublicaciones();
  };
  window.signupProfesional=async function(){
-   if(!sbAuth)return alert('Registro no disponible por el momento.');
-   const name=document.getElementById('signupName').value.trim(),email=document.getElementById('signupEmail').value.trim().toLowerCase(),
-      password=document.getElementById('signupPassword').value,status=document.getElementById('signupStatus');
-   if(!name||!email.includes('@')||password.length<8){status.textContent='Complete nombre, correo y una contraseña de al menos 8 caracteres.';return}
-   if(['coordinador@demo.cl','admin@demo.cl'].includes(email)){
-     status.textContent='Use su correo personal o institucional; las direcciones de prueba no admiten cuentas reales.';return
+   const el=id=>document.getElementById(id),status=el('signupStatus');
+   const name=el('signupName').value.trim(),email=el('signupEmail').value.trim().toLowerCase(),password=el('signupPassword').value,button=el('signupSubmit');
+   status.setAttribute('role','status');status.style.color='#a3352a';
+   if(!name||!email.match(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/)||password.length<8){
+     status.textContent='Complete nombre, correo válido y una contraseña de al menos 8 caracteres.';return;
    }
-   status.textContent='Registrando…';
-   const {error}=await sbAuth.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:location.origin+location.pathname}});
-   if(error){console.error(error);status.textContent='No fue posible completar el registro. Revise sus datos e intente nuevamente.';return}
-   status.textContent='Revise su correo para confirmar la cuenta. Administración debe asignarle una Mesa antes de que pueda ingresar.';
+   if(['coordinador@demo.cl','admin@demo.cl'].includes(email)){
+     status.textContent='Las direcciones de demostración no admiten cuentas reales.';return;
+   }
+   if(!sbAuth){status.textContent='El servicio de registro no está disponible. Recargue la página y vuelva a intentar.';return;}
+   if(button)button.disabled=true;status.style.color='#405064';status.textContent='Creando la cuenta. Espere unos segundos…';
+   try{
+     const {data,error}=await sbAuth.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:location.origin+location.pathname}});
+     if(error)throw error;
+     if(!data?.user)throw Error('El servicio no confirmó la creación de la cuenta.');
+     status.style.color='#2e7d62';
+     status.textContent=data.session?'Cuenta creada. Ya puede ingresar con su correo y contraseña. Administración debe habilitar las funciones correspondientes.':'Cuenta registrada. Revise su correo (también Spam) y confirme el enlace. Después ingrese aquí con su correo y contraseña.';
+     el('signupPassword').value='';
+   }catch(error){
+     console.error('Error de registro:',error);
+     const msg=String(error?.message||'');
+     status.style.color='#a3352a';
+     status.textContent=/already registered|already exists|already been registered/i.test(msg)?'Este correo ya está registrado. Use «¿Olvidó su contraseña?» en el acceso.':/rate limit|too many/i.test(msg)?'Se alcanzó el límite temporal de envíos. Espere unos minutos antes de volver a intentarlo.':/invalid email/i.test(msg)?'El correo electrónico no es válido. Revíselo.':/password/i.test(msg)?'La contraseña no cumple los requisitos del servicio. Use al menos 8 caracteres y pruebe otra.':'No se completó el registro: '+(msg||'revise la conexión y vuelva a intentar.');
+   }finally{if(button)button.disabled=false;}
  };
  // Bloqueo compartido: dos profesionales no pueden editar simultáneamente la misma sección.
  const baseAcquire=window.acquireLock,baseRelease=window.releaseMyLocks,baseReleaseSection=window.releaseSectionLock,
