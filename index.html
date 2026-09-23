@@ -242,7 +242,7 @@ async function login(){
   const all=(membership||[]).filter(x=>x.technical_tables?.name).map(x=>({nombre:profile.full_name,correo:e,mesa:x.technical_tables.name,rol:x.is_coordinator?'Coordinador/a de Mesa':x.member_role||'Integrante de Mesa',estado:'Activo'}));
   if(['administrador_general','administrador_plataforma'].includes(profile.role))all.push({nombre:profile.full_name,correo:e,mesa:'Administración',rol:'Administrador General',estado:'Activo'});
   if(!all.length){msg.textContent='Su perfil todavía no tiene Mesas asignadas. Contacte a Administración.';await sbAuth.auth.signOut();return}
-  localStorage.setItem('frentePT_integrantes_roles',JSON.stringify([...getIntegrantes().filter(x=>x.correo?.toLowerCase()!==e),...all]));
+  sessionStorage.setItem('frentePT_real_roles',JSON.stringify(all));
   const isAdmin=all.some(x=>x.rol==='Administrador General');currentUser={nombre:profile.full_name,correo:e,rol:isAdmin?'Administrador General':all[0].rol,mesa:isAdmin?'Administración':all[0].mesa,estado:'Activo',supabaseId:profile.id};
   sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser));
   const cloudOk=await initSharedWorkspace();
