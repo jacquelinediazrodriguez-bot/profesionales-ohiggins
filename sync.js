@@ -49,7 +49,7 @@
      const {data,error}=await sbAuth.rpc('save_workspace_patch',{p_technical_table_id:mesaId(m),p_patch:patch});
      if(error)throw error;
      if(!data||!data.data)throw Error('El servidor no confirmó el guardado');
-     STATE.snapshots[m]=copy({...defaultWork(m),...data.data});
+     STATE.snapshots[m]=copy({...defaultWork(m),...data.data,contenido:migrateContenido(data.data.contenido||{})});
      localStorage.setItem(snapshotKey(m),JSON.stringify(STATE.snapshots[m]));
      if(!Object.keys(diff(STATE.snapshots[m],getWork(m))).length){
        localStorage.removeItem(pendingKey(m));label('Guardado y verificado en la nube ✓');
@@ -82,7 +82,7 @@
    if(error)throw error;
    for(const [m,id] of Object.entries(STATE.ids)){
      const row=(data||[]).find(x=>String(x.technical_table_id)===String(id));
-     const remote=copy({...defaultWork(m),...(row?.data||{})});
+     const remote=copy({...defaultWork(m),...(row?.data||{}),contenido:migrateContenido(row?.data?.contenido||{})});
      const localRaw=localStorage.getItem(workKey(m));
      const local=localRaw?getWork(m):null;
      const oldCloudRaw=localStorage.getItem(snapshotKey(m));
@@ -417,7 +417,7 @@
      if(STATE.busy[m]||localStorage.getItem(pendingKey(m))==='1')continue;
      const remoteRow=(data||[]).find(x=>String(x.technical_table_id)===String(id));
      if(!remoteRow?.data)continue;
-     const remote={...defaultWork(m),...remoteRow.data};
+     const remote={...defaultWork(m),...remoteRow.data,contenido:migrateContenido(remoteRow.data.contenido||{})};
      if(same(remote,STATE.snapshots[m]))continue;
      const local=getWork(m),unsaved=diff(STATE.snapshots[m]||defaultWork(m),local);
      const merged={...remote,...(unsaved||{}),contenido:{...(remote.contenido||{}),...(unsaved.contenido||{})}};
