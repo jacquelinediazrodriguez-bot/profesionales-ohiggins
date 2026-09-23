@@ -334,6 +334,102 @@
    if(error){console.error(error);status.textContent='No fue posible completar el registro. Revise sus datos e intente nuevamente.';return}
    status.textContent='Revise su correo para confirmar la cuenta. Administración debe asignarle una Mesa antes de que pueda ingresar.';
  };
+ // Bloqueo compartido: dos profesionales no pueden editar simultáneamente la misma sección.
+ const baseAcquire=window.acquireLock,baseRelease=window.releaseMyLocks,baseReleaseSection=window.releaseSectionLock,
+   baseLogout=window.logout;
+ let acquiring=null;
+ const ownedLocks=()=>STUDY_SECTION_NAMES.filter(name=>{
+   const x=getLock(currentDocMesa,name);return x&&x.email===currentUser?.correo
+ });
+ async function sendRelease(m,name){
+   if(!mesaId(m)||!STATE.uid)return;
+   try{const {error}=await sbAuth.rpc('release_workspace_section',{
+     p_technical_table_id:mesaId(m),p_section_name:name
+   });if(error)console.warn('No se liberó el bloqueo remoto:',error)}catch(e){console.warn(e)}
+ }
+ async function flushThenRelease(m,names){
+   if(!names.length)return;
+   if(isReal()){
+     clearTimeout(STATE.timers[m]);await flush(m);
+     for(let i=0;i<8&&STATE.busy[m];i++)await new Promise(ok=>setTimeout(ok,300));
+   }
+   for(const name of names)await sendRelease(m,name);
+ }
+ window.releaseMyLocks=function(){
+   if(!isReal())return baseRelease();
+   const m=currentDocMesa,names=ownedLocks().filter(n=>n!==acquiring);
+   baseRelease(); // libera el bloqueo visual local, conservando el bloqueo recién adquirido.
+   if(names.length)void flushThenRelease(m,names);
+ };
+ window.acquireLock=async function(name){
+   if(!isReal())return baseAcquire(name);
+   if(!mesaId(currentDocMesa))return alert('Esta Mesa no está disponible en la nube.');
+   const m=currentDocMesa;
+   const old=getLock(m,name);
+   if(old&&old.email!==currentUser.correo)return alert(old.nombre+' está editando esta sección.');
+   const {data:ok,error}=await sbAuth.rpc('try_lock_workspace_section',{
+     p_technical_table_id:mesaId(m),p_section_name:name});
+   if(error){console.error(error);return alert('No se pudo obtener permiso de edición. Compruebe la conexión.')}
+   if(!ok)return alert('Otro integrante está editando esta sección. Intente nuevamente más tarde.');
+   acquiring=name;
+   try{baseAcquire(name)}finally{acquiring=null}
+ };
+ window.releaseSectionLock=function(name){
+   if(!isReal())return baseReleaseSection(name);
+   const m=currentDocMesa;
+   baseReleaseSection(name); // Guarda los cambios localmente y prepara su sincronización.
+   void flushThenRelease(m,[name]);
+ };
+ async function refreshSharedLocks(){
+   if(!isReal()||!document.getElementById('mifrente')?.classList.contains('active'))return;
+   const m=currentDocMesa,id=mesaId(m);if(!id)return;
+   const {data,error}=await sbAuth.from('workspace_locks').select('section_name,profile_id,locked_at')
+     .eq('technical_table_id',id);
+   if(error)return console.warn('No se pudo consultar el estado de los bloqueos:',error);
+   const now=Date.now();
+   for(const name of STUDY_SECTION_NAMES){
+     const row=(data||[]).find(x=>x.section_name===name&&now-new Date(x.locked_at).getTime()<300000);
+     const current=getLock(m,name);
+     if(row&&row.profile_id!==STATE.uid){
+       localStorage.setItem(lockKey(m,name),JSON.stringify({
+         email:'cloud:'+row.profile_id,nombre:'Otro integrante',ts:new Date(row.locked_at).getTime()
+       }));
+     }else if(current?.email?.startsWith('cloud:'))localStorage.removeItem(lockKey(m,name));
+   }
+ }
+ window.logout=async function(){
+   if(!isReal())return baseLogout();
+   const m=currentDocMesa,locks=ownedLocks();
+   if(document.getElementById('wsTitulo'))syncWorkFromUI(true);
+   clearTimeout(STATE.timers[m]);await flush(m);
+   await flushThenRelease(m,locks);
+   STATE.ready=false;STATE.ids={};STATE.snapshots={};
+   return baseLogout();
+ };
+ // Actualizar otras secciones desde la nube sin sobrescribir lo que se está escribiendo.
+ async function pollSharedChanges(){
+   if(!isReal()||!Object.keys(STATE.ids).length)return;
+   const {data,error}=await sbAuth.from('workspace_documents').select('technical_table_id,data,revision')
+      .in('technical_table_id',Object.values(STATE.ids));
+   if(error)return;
+   for(const [m,id] of Object.entries(STATE.ids)){
+     if(STATE.busy[m]||localStorage.getItem(pendingKey(m))==='1')continue;
+     const remoteRow=(data||[]).find(x=>String(x.technical_table_id)===String(id));
+     if(!remoteRow?.data)continue;
+     const remote={...defaultWork(m),...remoteRow.data};
+     if(same(remote,STATE.snapshots[m]))continue;
+     const local=getWork(m),unsaved=diff(STATE.snapshots[m]||defaultWork(m),local);
+     const merged={...remote,...(unsaved||{}),contenido:{...(remote.contenido||{}),...(unsaved.contenido||{})}};
+     STATE.snapshots[m]=copy(remote);
+     localStorage.setItem(snapshotKey(m),JSON.stringify(remote));
+     original.setWork(m,merged);
+     if(Object.keys(unsaved).length)queue(m);
+     if(m===currentDocMesa&&document.getElementById('wsTitulo'))
+       label('Hay cambios de otros integrantes. Abra de nuevo Mi Trabajo para verlos.');
+   }
+   await refreshSharedLocks();
+ }
+ setInterval(pollSharedChanges,25000);
  window.addEventListener('online',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>flush(m))});
  window.addEventListener('pagehide',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>{if(localStorage.getItem(pendingKey(m))==='1')flush(m)})});
  // Hacer que las solicitudes y los documentos públicos tengan el mismo origen en todos los dispositivos.
