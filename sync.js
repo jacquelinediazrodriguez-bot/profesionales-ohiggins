@@ -342,6 +342,7 @@
      institucion:g('repAdmInstitucion'),region:g('repAdmRegion'),territorio:g('repAdmTerritorio'),
      ambito:g('repAdmAmbito'),telefono:g('repAdmTelefono'),correo:g('repAdmCorreo'),url:g('repAdmUrl'),
      condicionDC:g('repAdmCondicionDC'),fuente:'Administración',oficial:false,
+     partido:'Democracia Cristiana',verificadoDC:true,representacionDC:'Sí',
      actualizado:new Date().toLocaleDateString('es-CL')};
    if(!x.nombre||!x.cargo||!x.region||!x.institucion||!x.url)
      return alert('Complete nombre, cargo, institución, región y fuente de verificación.');
@@ -434,6 +435,10 @@
    if(error){console.error(error);return alert('No se pudo publicar el documento en la biblioteca compartida.')}
    const {error:e2}=await sbAuth.from('publication_requests').update({status:'Publicada',responded_at:new Date().toISOString()}).eq('id',id);
    if(e2){console.error(e2);return alert('El documento se publicó, pero la solicitud necesita revisión administrativa.')}
+   const {error:se}=await sbAuth.rpc('save_workspace_patch',{
+     p_technical_table_id:mesaId(x.mesa),p_patch:{estado:'Publicado'}
+   });
+   if(se)console.warn('La Biblioteca quedó publicada, pero debe revisarse el estado interno:',se);
    await refreshSharedAdmin();await window.loadPublicLibrary();adminPublicaciones();alert('Documento publicado en Biblioteca.');
  };
  window.rechazarSolicitudPublicacion=async function(id){
@@ -441,6 +446,17 @@
    const obs=prompt('Indique la observación para devolver el documento:');if(obs===null)return;
    const {error}=await sbAuth.from('publication_requests').update({status:'Devuelta',observation:obs,responded_at:new Date().toISOString()}).eq('id',id);
    if(error){console.error(error);return alert('No se pudo devolver la solicitud.')}
+   const req=getPubRequests().find(x=>x.id===id);
+   if(req&&mesaId(req.mesa)){
+     const {data:row}=await sbAuth.from('workspace_documents').select('data').eq('technical_table_id',mesaId(req.mesa)).maybeSingle();
+     const comments=[...(row?.data?.comentarios||[])];
+     if(obs.trim())comments.push({id:Date.now(),autor:'Administración',
+       fecha:new Date().toLocaleString('es-CL'),texto:obs.trim(),estado:'Pendiente'});
+     const {error:se}=await sbAuth.rpc('save_workspace_patch',{
+       p_technical_table_id:mesaId(req.mesa),p_patch:{estado:'En elaboración',comentarios:comments}
+     });
+     if(se)console.warn('No se sincronizó la observación con el documento:',se);
+   }
    await refreshSharedAdmin();adminPublicaciones();
  };
  window.signupProfesional=async function(){
@@ -448,6 +464,9 @@
    const name=document.getElementById('signupName').value.trim(),email=document.getElementById('signupEmail').value.trim().toLowerCase(),
       password=document.getElementById('signupPassword').value,status=document.getElementById('signupStatus');
    if(!name||!email.includes('@')||password.length<8){status.textContent='Complete nombre, correo y una contraseña de al menos 8 caracteres.';return}
+   if(['coordinador@demo.cl','admin@demo.cl'].includes(email)){
+     status.textContent='Use su correo personal o institucional; las direcciones de prueba no admiten cuentas reales.';return
+   }
    status.textContent='Registrando…';
    const {error}=await sbAuth.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:location.origin+location.pathname}});
    if(error){console.error(error);status.textContent='No fue posible completar el registro. Revise sus datos e intente nuevamente.';return}
