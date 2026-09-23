@@ -213,8 +213,39 @@ if(sbAuth){
     }
   });
 }
-function login(){const e=$('loginEmail').value.trim().toLowerCase(),p=$('loginPass').value;const rows=getIntegrantes().filter(x=>x.correo.toLowerCase()===e&&x.estado!=='Inactivo');const u=rows.find(x=>x.password===p)||rows.find(x=>x.rol==='Administrador General'&&x.password===p);if(!u){$('loginMsg').textContent='Correo o contraseña incorrectos, o usuario no habilitado.';return}currentUser={nombre:u.nombre,correo:u.correo,password:u.password,rol:u.rol,mesa:u.mesa,estado:u.estado};sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser));if(rows.some(x=>x.rol==='Administrador General')){go('adminarea');adminHome()}else{currentDocMesa=rows.find(x=>x.mesa!=='Administración')?.mesa||u.mesa;go('mifrente');privateTab('panel')}}
-function logout(){currentUser=null;sessionStorage.removeItem('frentePT_user');go('inicio')}
+async function login(){
+ const e=$('loginEmail').value.trim().toLowerCase(),p=$('loginPass').value,msg=$('loginMsg');
+ msg.textContent='';
+ if(!e||!p){msg.textContent='Ingrese correo y contraseña.';return}
+ // Acceso de prueba independiente de los datos guardados en el dispositivo.
+ const d=e==='coordinador@demo.cl'?{nombre:'Coordinador Demo',correo:e,mesa:'Trabajo',rol:'Coordinador/a de Mesa',estado:'Activo',clave:'demo123'}:e==='admin@demo.cl'?{nombre:'Administrador Demo',correo:e,mesa:'Administración',rol:'Administrador General',estado:'Activo',clave:'admin123'}:null;
+ if(d){
+  if(p!==d.clave){msg.textContent='Contraseña de demostración incorrecta.';return}
+  const {clave,...u}=d;
+  let a=getIntegrantes().filter(x=>!(x.correo?.toLowerCase()===e&&x.mesa===u.mesa));
+  a.push({...u,password:clave});localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(a));
+  currentUser=u;sessionStorage.setItem('frentePT_user',JSON.stringify(u));
+  if(u.rol==='Administrador General'){go('adminarea');adminHome()}else{currentDocMesa=u.mesa;go('mifrente');privateTab('panel')}
+  return;
+ }
+ if(!sbAuth){msg.textContent='Servicio de acceso no disponible. Intente más tarde.';return}
+ try{
+  const {data,error}=await sbAuth.auth.signInWithPassword({email:e,password:p});
+  if(error||!data?.user){msg.textContent='Correo o contraseña incorrectos, o cuenta no habilitada.';return}
+  const {data:profile,error:pe}=await sbAuth.from('profiles').select('id,full_name,email,role,is_active').eq('id',data.user.id).maybeSingle();
+  if(pe||!profile?.is_active){msg.textContent='Cuenta autenticada, pero falta habilitar el perfil. Contacte a Administración.';await sbAuth.auth.signOut();return}
+  const {data:membership,error:me}=await sbAuth.from('table_memberships').select('member_role,is_coordinator,technical_tables(name)').eq('profile_id',profile.id);
+  if(me){msg.textContent='No se pudo consultar las Mesas asignadas.';await sbAuth.auth.signOut();return}
+  const all=(membership||[]).filter(x=>x.technical_tables?.name).map(x=>({nombre:profile.full_name,correo:e,mesa:x.technical_tables.name,rol:x.is_coordinator?'Coordinador/a de Mesa':x.member_role||'Integrante de Mesa',estado:'Activo'}));
+  if(['administrador_general','administrador_plataforma'].includes(profile.role))all.push({nombre:profile.full_name,correo:e,mesa:'Administración',rol:'Administrador General',estado:'Activo'});
+  if(!all.length){msg.textContent='Su perfil todavía no tiene Mesas asignadas. Contacte a Administración.';await sbAuth.auth.signOut();return}
+  localStorage.setItem('frentePT_integrantes_roles',JSON.stringify([...getIntegrantes().filter(x=>x.correo?.toLowerCase()!==e),...all]));
+  currentUser={nombre:profile.full_name,correo:e,rol:all[0].rol,mesa:all[0].mesa,estado:'Activo',supabaseId:profile.id};
+  sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser));
+  if(all.some(x=>x.rol==='Administrador General')){go('adminarea');adminHome()}else{currentDocMesa=all[0].mesa;go('mifrente');privateTab('panel')}
+ }catch(err){console.error(err);msg.textContent='No se completó la validación. Revise su conexión.'}
+}
+function logout(){if(currentUser?.supabaseId&&sbAuth)sbAuth.auth.signOut();currentUser=null;sessionStorage.removeItem('frentePT_user');go('inicio')}
 function restoreSession(){try{currentUser=JSON.parse(sessionStorage.getItem('frentePT_user')||'null')}catch(e){currentUser=null}}
 function getIntegrantes(){try{return JSON.parse(localStorage.getItem('frentePT_integrantes_roles')||'[]')}catch(e){return[]}}
 function getAssignedMesas(){if(!currentUser)return[];return [...new Set(getIntegrantes().filter(x=>x.correo===currentUser.correo&&x.estado!=='Inactivo'&&x.mesa!=='Administración').map(x=>x.mesa))]}
