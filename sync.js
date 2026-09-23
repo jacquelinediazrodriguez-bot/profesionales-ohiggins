@@ -2,8 +2,11 @@
    El modo demostración continúa siendo LOCAL y nunca escribe en las mesas reales. */
 (function(){
  'use strict';
- const STATE={ready:false,initializing:false,uid:null,ids:{},snapshots:{},timers:{},busy:{},retry:{},publicReady:false};
+ const STATE={ready:false,initializing:false,uid:null,ids:{},snapshots:{},timers:{},busy:{},retry:{},publicReady:false,adminData:null};
  const original={setWork:window.setWork,guardarPerfil:window.guardarPerfil,
+  workKey:window.workKey,draftKey:window.draftKey,getIntegrantes:window.getIntegrantes,
+  getPubRequests:window.getPubRequests,getSolicitudes:window.getSolicitudes,
+  getPublicaciones:window.getPublicaciones,
   registrarContacto:window.registrarContacto,guardarSolicitud:window.guardarSolicitud,
   guardarIntegrante:window.guardarIntegrante,guardarMesaTecnica:window.guardarMesaTecnica,
   solicitarPublicacion:window.solicitarPublicacion,publicarSolicitud:window.publicarSolicitud,
@@ -18,6 +21,13 @@
  };
  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
  const mesaId=m=>STATE.ids[m]||null;
+ // Separar los borradores de las cuentas reales de los prototipos públicos.
+ window.workKey=function(m){return currentUser?.supabaseId?'frentePT_real_work_'+currentUser.supabaseId+'_'+m:original.workKey(m)};
+ window.draftKey=function(m){return currentUser?.supabaseId?'frentePT_real_draft_'+currentUser.supabaseId+'_'+m:original.draftKey(m)};
+ window.getIntegrantes=function(){if(currentUser?.supabaseId){if(STATE.adminData?.integrantes)return STATE.adminData.integrantes;try{return JSON.parse(sessionStorage.getItem('frentePT_real_roles')||'[]')}catch(e){return []}}return original.getIntegrantes()};
+ window.getPubRequests=function(){return currentUser?.supabaseId?(STATE.adminData?.requests||[]):original.getPubRequests()};
+ window.getSolicitudes=function(){return currentUser?.supabaseId?(STATE.adminData?.solicitudes||[]):original.getSolicitudes()};
+ window.getPublicaciones=function(){if(STATE.publicReady&&(!currentUser||currentUser?.supabaseId)){try{return JSON.parse(localStorage.getItem('frentePT_biblioteca_cloud')||'[]')}catch(e){return []}}return original.getPublicaciones()};
  const snapshotKey=m=>'frentePT_lastCloud_'+STATE.uid+'_'+m;
  const pendingKey=m=>'frentePT_syncPending_'+STATE.uid+'_'+m;
  function diff(before,now){
@@ -84,6 +94,11 @@
      const row=(data||[]).find(x=>String(x.technical_table_id)===String(id));
      const remote=copy({...defaultWork(m),...(row?.data||{}),contenido:migrateContenido(row?.data?.contenido||{})});
      const localRaw=localStorage.getItem(workKey(m));
+     const demoRaw=localStorage.getItem(original.workKey(m));
+     if(demoRaw&&!localStorage.getItem('frentePT_legacy_imported_'+STATE.uid+'_'+m)){
+       backupLocal(m,demoRaw);
+       localStorage.setItem('frentePT_legacy_imported_'+STATE.uid+'_'+m,'1');
+     }
      const local=localRaw?getWork(m):null;
      const oldCloudRaw=localStorage.getItem(snapshotKey(m));
      let oldCloud;
@@ -136,7 +151,7 @@
  };
  window.initSharedWorkspace=async function(){
    if(!sbAuth||!currentUser?.supabaseId)return false;
-   STATE.initializing=true;STATE.ready=false;STATE.uid=currentUser.supabaseId;STATE.ids={};
+   STATE.initializing=true;STATE.ready=false;STATE.uid=currentUser.supabaseId;STATE.ids={};STATE.adminData=null;
    try{
      const {data:memberships,error:merr}=await sbAuth.from('table_memberships')
        .select('technical_table_id,technical_tables(name)').eq('profile_id',STATE.uid);
@@ -216,7 +231,7 @@
        titulo:x.title,tema:x.topic,descripcion:x.description||'',fechaPublicacion:new Date(x.published_at).toLocaleDateString('es-CL'),
        ...x.snapshot}));
    // No mostrar publicaciones de prueba guardadas localmente como si fueran públicas.
-   localStorage.setItem('frentePT_biblioteca_publica',JSON.stringify(pubs));
+   localStorage.setItem('frentePT_biblioteca_cloud',JSON.stringify(pubs));
    STATE.publicReady=true;
    if(document.getElementById('biblioteca')?.classList.contains('active'))renderBiblioteca();
  };
@@ -258,13 +273,12 @@
          mesa:name,estado:p.is_active?'Activo':'Inactivo'});
      }
    }
-   localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(arr));
-   setPubRequests(requests.map(x=>({id:x.id,mesa:Object.keys(STATE.ids).find(m=>String(STATE.ids[m])===String(x.technical_table_id))||'',
+   STATE.adminData={integrantes:arr,requests:requests.map(x=>({id:x.id,mesa:Object.keys(STATE.ids).find(m=>String(STATE.ids[m])===String(x.technical_table_id))||'',
      titulo:x.title,fecha:new Date(x.requested_at).toLocaleString('es-CL'),version:x.version,contenido:x.snapshot?.contenido||{},
      referencias:x.snapshot?.referencias||[],solicitante:profiles.find(p=>p.id===x.requested_by)?.full_name||'Coordinación',
      correo:profiles.find(p=>p.id===x.requested_by)?.email||'',estado:x.status,cloud:true,snapshot:x.snapshot})));
-   setSolicitudes(documents.map(x=>({id:x.id,titulo:x.title,nombre:x.name,correo:x.email,institucion:x.institution,
-     fecha:new Date(x.created_at).toLocaleString('es-CL'),estado:x.status,cloud:true})));
+   solicitudes:documents.map(x=>({id:x.id,titulo:x.title,nombre:x.name,correo:x.email,institucion:x.institution,
+     fecha:new Date(x.created_at).toLocaleString('es-CL'),estado:x.status,cloud:true}))};
    STATE.contacts=contacts;
  }
  window.adminContactos=async function(){
@@ -404,7 +418,8 @@
    if(document.getElementById('wsTitulo'))syncWorkFromUI(true);
    clearTimeout(STATE.timers[m]);await flush(m);
    await flushThenRelease(m,locks);
-   STATE.ready=false;STATE.ids={};STATE.snapshots={};
+   STATE.ready=false;STATE.ids={};STATE.snapshots={};STATE.adminData=null;
+   sessionStorage.removeItem('frentePT_real_roles');
    return baseLogout();
  };
  // Actualizar otras secciones desde la nube sin sobrescribir lo que se está escribiendo.
