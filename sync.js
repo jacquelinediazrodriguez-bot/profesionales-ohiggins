@@ -151,6 +151,14 @@
        (tables||[]).forEach(x=>setMesaMeta(x.name,{descripcion:x.description||'',estado:x.is_active?'Activa':'Inactiva'}));
      }
      await pullWorkspaces();
+     const {data:self,error:selfErr}=await sbAuth.from('profiles')
+       .select('full_name,profession,specialty,professional_experience,interests').eq('id',STATE.uid).maybeSingle();
+     if(!selfErr&&self){
+       localStorage.setItem('frentePT_perfil_'+currentUser.correo,JSON.stringify({
+         nombre:self.full_name||'',profesion:self.profession||'',especialidad:self.specialty||'',
+         experiencia:self.professional_experience||'',intereses:self.interests||''
+       }));
+     }
      STATE.ready=true;
      // Cualquier guardado pendiente sobrevive al cierre de la pestaña.
      for(const m of Object.keys(STATE.ids)){if(localStorage.getItem(pendingKey(m))==='1')queue(m)}
@@ -259,6 +267,16 @@
      fecha:new Date(x.created_at).toLocaleString('es-CL'),estado:x.status,cloud:true})));
    STATE.contacts=contacts;
  }
+ window.adminContactos=async function(){
+   if(!isReal()||currentUser.rol!=='Administrador General'){
+     document.getElementById('admincontent').innerHTML='<div class="notice">La bandeja de mensajes compartida requiere una cuenta administrativa real.</div>';
+     return;
+   }
+   const {data,error}=await sbAuth.from('contact_messages').select('id,name,email,institution,message,status,created_at').order('created_at',{ascending:false});
+   const b=document.getElementById('admincontent');
+   if(error){console.error(error);b.textContent='No se pudo consultar la bandeja de mensajes.';return}
+   b.innerHTML='<h1 class="section-title">Mensajes recibidos</h1>'+(data.length?data.map(x=>'<div class="card" style="margin:12px 0"><b>'+esc(x.name)+'</b> · '+esc(x.email)+'<br><small>'+esc(new Date(x.created_at).toLocaleString('es-CL'))+'</small><p>'+esc(x.message)+'</p><small>'+esc(x.institution||'')+' · '+esc(x.status)+'</small></div>').join(''):'<p class="notice">Todavía no se han registrado mensajes.</p>');
+ };
  window.guardarIntegrante=async function(){
    if(!isReal())return original.guardarIntegrante();
    const name=document.getElementById('admNombre').value.trim(),email=document.getElementById('admCorreo').value.trim().toLowerCase(),
