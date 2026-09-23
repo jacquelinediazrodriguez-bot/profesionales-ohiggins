@@ -276,7 +276,7 @@
    STATE.adminData={integrantes:arr,requests:requests.map(x=>({id:x.id,mesa:Object.keys(STATE.ids).find(m=>String(STATE.ids[m])===String(x.technical_table_id))||'',
      titulo:x.title,fecha:new Date(x.requested_at).toLocaleString('es-CL'),version:x.version,contenido:x.snapshot?.contenido||{},
      referencias:x.snapshot?.referencias||[],solicitante:profiles.find(p=>p.id===x.requested_by)?.full_name||'Coordinación',
-     correo:profiles.find(p=>p.id===x.requested_by)?.email||'',estado:x.status,cloud:true,snapshot:x.snapshot})));
+     correo:profiles.find(p=>p.id===x.requested_by)?.email||'',estado:x.status,cloud:true,snapshot:x.snapshot})),
    solicitudes:documents.map(x=>({id:x.id,titulo:x.title,nombre:x.name,correo:x.email,institucion:x.institution,
      fecha:new Date(x.created_at).toLocaleString('es-CL'),estado:x.status,cloud:true}))};
    STATE.contacts=contacts;
