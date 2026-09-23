@@ -316,7 +316,7 @@
    if(error){console.error(error);return alert('No se pudo publicar el documento en la biblioteca compartida.')}
    const {error:e2}=await sbAuth.from('publication_requests').update({status:'Publicada',responded_at:new Date().toISOString()}).eq('id',id);
    if(e2){console.error(e2);return alert('El documento se publicó, pero la solicitud necesita revisión administrativa.')}
-   await refreshSharedAdmin();await loadPublicLibrary();adminPublicaciones();alert('Documento publicado en Biblioteca.');
+   await refreshSharedAdmin();await window.loadPublicLibrary();adminPublicaciones();alert('Documento publicado en Biblioteca.');
  };
  window.rechazarSolicitudPublicacion=async function(id){
    if(!isReal())return original.rechazarSolicitudPublicacion(id);
@@ -434,5 +434,5 @@
  window.addEventListener('online',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>flush(m))});
  window.addEventListener('pagehide',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>{if(localStorage.getItem(pendingKey(m))==='1')flush(m)})});
  // Hacer que las solicitudes y los documentos públicos tengan el mismo origen en todos los dispositivos.
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>loadPublicLibrary());else loadPublicLibrary();
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>window.loadPublicLibrary());else window.loadPublicLibrary();
 })();
