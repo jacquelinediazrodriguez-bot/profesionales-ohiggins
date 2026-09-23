@@ -311,7 +311,8 @@
    const description=prompt('Descripción pública:','Documento técnico autorizado por la Mesa.');if(description===null)return;
    const {error}=await sbAuth.from('public_library').insert({
      technical_table_id:mesaId(x.mesa),publication_request_id:id,title:x.titulo,topic:tema,
-     description,snapshot:{...x.snapshot,mesa:x.mesa},is_public:true});
+     description,snapshot:{mesa:x.mesa,titulo:x.titulo,contenido:x.snapshot?.contenido||x.contenido||{},
+       referencias:x.snapshot?.referencias||x.referencias||[],version:x.version},is_public:true});
    if(error){console.error(error);return alert('No se pudo publicar el documento en la biblioteca compartida.')}
    const {error:e2}=await sbAuth.from('publication_requests').update({status:'Publicada',responded_at:new Date().toISOString()}).eq('id',id);
    if(e2){console.error(e2);return alert('El documento se publicó, pero la solicitud necesita revisión administrativa.')}
