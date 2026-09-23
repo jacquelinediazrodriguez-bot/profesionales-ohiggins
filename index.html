@@ -33,6 +33,8 @@ footer{text-align:center;color:var(--muted);padding:24px}
 /* Navegación adaptable: acceso visible en teléfonos y tablets. */
 @media(max-width:900px){.top{flex-wrap:wrap}.brand{min-width:0}#publicNav{display:flex;width:100%;flex-wrap:nowrap;overflow-x:auto;gap:4px;padding-bottom:4px;scrollbar-width:thin}#publicNav button{white-space:nowrap;flex-shrink:0}.brand-logos img{max-width:48px;height:38px!important}}
 .flow-diagram{display:grid;gap:12px;max-width:780px;margin:22px auto}.flow-node{border:2px solid #bfd2e5;background:#f7fbff;border-radius:12px;padding:16px;text-align:center}.flow-node strong{display:block;color:#123b67;margin-bottom:5px}.flow-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.flow-arrow{text-align:center;color:#1e5d91;font-size:24px;font-weight:700}.flow-caption{font-size:13px;color:#405064}.flow-pub{border-color:#83b49b;background:#f2fbf6}@media(max-width:620px){.flow-row{grid-template-columns:1fr}}
+
+.gallery-list{display:grid;gap:18px}.gallery-card{display:grid;grid-template-columns:minmax(180px,40%) 1fr;gap:18px;align-items:start}.gallery-card img{width:100%;max-height:370px;object-fit:cover;border-radius:12px}.gallery-card h3{margin-top:0}.gallery-card .gallery-meta{font-size:13px;color:var(--muted);margin-bottom:12px}.gallery-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.gallery-preview{max-width:280px;max-height:210px;object-fit:contain;margin-top:8px;border-radius:10px;border:1px solid var(--line)}@media(max-width:650px){.gallery-card{grid-template-columns:1fr}}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -63,10 +65,10 @@ footer{text-align:center;color:var(--muted);padding:24px}
 <div class="mini-note"><b>Importante:</b> esta versión conserva información de trabajo en el almacenamiento local del navegador. No debe considerarse sincronizada entre computadores o teléfonos hasta que las operaciones se migren y verifiquen en la base de datos compartida.</div>
 </section>
 <section id="biblioteca" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Biblioteca</h1><div class="notice"><b>Registro público de documentos aprobados y autorizados para difusión.</b> Puede buscar por tema, leer cada documento directamente en la plataforma y solicitar una copia por correo electrónico.</div><br><div class="grid2"><div><label>Filtrar por tema</label><select id="bibFiltro" onchange="renderBiblioteca()"><option value="Todos">Todos</option><option>Salud</option><option>Educación</option><option>Economía</option><option>Trabajo</option><option>Agricultura</option><option>Desarrollo Regional</option><option>Otros</option></select></div><div><label>Buscar</label><input id="bibBuscar" placeholder="Buscar por título, Mesa o tema" oninput="renderBiblioteca()"></div></div><br><div id="bibliotecaLista"></div><div id="bibliotecaDetalle" style="margin-top:16px"></div></section>
-<section id="galeria" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Galería</h1><div class="notice">Registro visual institucional del trabajo del Frente: constitución de Mesas, encuentros, seminarios, trabajo territorial y presentaciones.</div><br><div class="grid3"><div class="card"><h3>Encuentros</h3><p>Registro de actividades de trabajo y coordinación.</p></div><div class="card"><h3>Trabajo territorial</h3><p>Instancias de escucha y vinculación con actores de la Región.</p></div><div class="card"><h3>Presentaciones</h3><p>Difusión de análisis, documentos y propuestas.</p></div></div></section>
+<section id="galeria" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Galería</h1><div class="notice">Registro fotográfico de actividades, encuentros, trabajo territorial y Mesas Técnicas. Se muestran únicamente las fotografías autorizadas para publicación.</div><br><div id="galeriaLista" class="gallery-list"><p class="muted">Cargando fotografías…</p></div></section>
 <section id="contacto" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Contacto</h1><div class="card" style="max-width:700px"><div class="form"><label>Nombre</label><input id="ctNombre"><label>Institución / organización</label><input id="ctInst"><label>Correo electrónico</label><input id="ctCorreo" type="email"><label>Mensaje</label><textarea id="ctMsg" rows="5"></textarea><button class="btn primary" onclick="registrarContacto()">Enviar consulta</button><p id="ctStatus" class="muted"></p></div></div></section>
 <section id="mifrente" class="page"><div class="sidebar-layout"><aside class="side"><b>Mi Trabajo</b><button data-ptab="panel" onclick="privateTab('panel')">🏠 Inicio</button><button data-ptab="perfil" onclick="privateTab('perfil')">👤 Mi Perfil</button><button data-ptab="espacio" onclick="privateTab('espacio')">✍️ Espacio de Trabajo</button><button data-ptab="fuentes" onclick="privateTab('fuentes')">🔎 Fuentes de Información</button><button data-ptab="representantes" onclick="privateTab('representantes')">🏛️ Directorio Nacional de Representantes DC</button><button data-ptab="tareas" onclick="privateTab('tareas')">📋 Tareas de la Mesa</button><button data-ptab="aprobados" onclick="privateTab('aprobados')">✅ Documentos Publicados</button><button onclick="logout()">↩ Salir</button></aside><div id="privatecontent"></div></div></section>
-<section id="adminarea" class="page"><div class="sidebar-layout"><aside class="side"><b>Administración</b><button onclick="adminHome()">🏠 Inicio</button><button onclick="adminUsuarios()">👥 Integrantes y Roles</button><button onclick="adminMesas()">🧩 Mesas Técnicas</button><button onclick="adminRepresentantes()">🏛️ Directorio Nacional de Representantes DC</button><button onclick="adminPublicaciones()">📚 Solicitudes de publicación</button><button onclick="adminSolicitudes()">✉️ Solicitudes de documentos</button><button onclick="adminContactos()">💬 Mensajes de contacto</button><button onclick="adminEstado()">📊 Estado de la Plataforma</button><button onclick="logout()">↩ Salir</button></aside><div id="admincontent"></div></div></section>
+<section id="adminarea" class="page"><div class="sidebar-layout"><aside class="side"><b>Administración</b><button onclick="adminHome()">🏠 Inicio</button><button onclick="adminUsuarios()">👥 Integrantes y Roles</button><button onclick="adminMesas()">🧩 Mesas Técnicas</button><button onclick="adminRepresentantes()">🏛️ Directorio Nacional de Representantes DC</button><button onclick="adminGaleria()">🖼️ Gestión de Galería</button><button onclick="adminPublicaciones()">📚 Solicitudes de publicación</button><button onclick="adminSolicitudes()">✉️ Solicitudes de documentos</button><button onclick="adminContactos()">💬 Mensajes de contacto</button><button onclick="adminEstado()">📊 Estado de la Plataforma</button><button onclick="logout()">↩ Salir</button></aside><div id="admincontent"></div></div></section>
 </main>
 <footer>Prototipo navegable V1 · Plataforma Digital Frente PT O’Higgins</footer>
 <div class="modal-back" id="recoveryModal"><div class="modal">
@@ -159,7 +161,7 @@ function seed(){
   localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(integrantes));
   if(!localStorage.getItem('frentePT_mesas'))localStorage.setItem('frentePT_mesas',JSON.stringify(mesas));
 }
-function go(id){if($('wsTitulo'))syncWorkFromUI(true);document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const p=$(id);if(p)p.classList.add('active');if(id==='biblioteca')renderBiblioteca();window.scrollTo({top:0,behavior:'smooth'})}
+function go(id){if($('wsTitulo'))syncWorkFromUI(true);document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const p=$(id);if(p)p.classList.add('active');if(id==='biblioteca')renderBiblioteca();if(id==='galeria')renderGaleria();window.scrollTo({top:0,behavior:'smooth'})}
 function abrirRecuperacion(){
   const e=$('loginEmail')?.value.trim()||'';
   if($('recoveryEmail'))$('recoveryEmail').value=e;
@@ -592,6 +594,140 @@ function marcarEnviada(id){const a=getSolicitudes(),x=a.find(s=>s.id===id);if(x)
 function adminEstado(){const c=$('admincontent');c.innerHTML=`<div class="kicker">Control general</div><h1 class="section-title">Estado de la Plataforma</h1><div class="grid"><div class="card"><h3>${getIntegrantes().filter(x=>x.rol!=='Administrador General').length}</h3><p>Integrantes registrados</p></div><div class="card"><h3>${mesas.length}</h3><p>Mesas Técnicas registradas</p></div><div class="card"><h3>${mesasActivas().length}</h3><p>Mesas activas</p></div><div class="card"><h3>${getPublicaciones().length}</h3><p>Documentos en Biblioteca</p></div></div>`}
 window.addEventListener('pagehide',()=>{if($('wsTitulo'))syncWorkFromUI(true)});
 seed();seedRepresentantesOficiales();restoreSession();
+
+/* Galería institucional: lectura pública de material aprobado; gestión exclusiva en Supabase. */
+let galleryRows=[],galleryEditing=null;
+const galleryCategories=['Encuentros','Constitución de Mesas','Seminarios','Trabajo territorial','Presentaciones','Otras actividades'];
+function gallerySafe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function galleryCanAdmin(){
+ if(!sbAuth)return false;
+ const {data:{user},error}=await sbAuth.auth.getUser();
+ if(error||!user)return false;
+ const {data,error:profileError}=await sbAuth.from('profiles').select('role,is_active').eq('id',user.id).single();
+ return !profileError&&data?.is_active&&['administrador_general','administrador_plataforma'].includes(data.role);
+}
+async function gallerySignedImage(path){
+ const {data,error}=await sbAuth.storage.from('frente-galeria').createSignedUrl(path,3600);
+ return error?'':data.signedUrl;
+}
+async function renderGaleria(){
+ const box=document.getElementById('galeriaLista');if(!box||!sbAuth)return;
+ box.innerHTML='<p class="muted">Cargando fotografías…</p>';
+ const {data,error}=await sbAuth.from('gallery_items').select('id,title,activity_date,category,technical_table,description,image_path').eq('is_published',true).order('activity_date',{ascending:false});
+ if(error){box.textContent='No se pudo consultar la galería. Intente de nuevo.';return}
+ if(!data?.length){box.innerHTML='<div class="card">Aún no hay fotografías publicadas.</div>';return}
+ const cards=await Promise.all(data.map(async r=>({r,url:await gallerySignedImage(r.image_path)})));
+ box.innerHTML=cards.map(({r,url})=>'<article class="card gallery-card"><div>'+(url?'<img alt="'+gallerySafe(r.title)+'" src="'+gallerySafe(url)+'" loading="lazy">':'<p>Imagen no disponible</p>')+'</div><div><h3>'+gallerySafe(r.title)+'</h3><div class="gallery-meta">'+gallerySafe(r.activity_date)+' · '+gallerySafe(r.category)+(r.technical_table?' · Mesa: '+gallerySafe(r.technical_table):'')+'</div><p>'+gallerySafe(r.description)+'</p></div></article>').join('');
+}
+function galleryPreviewInput(){
+ const inp=document.getElementById('galleryFile'),img=document.getElementById('galleryPreview');
+ if(!inp||!img)return;
+ const file=inp.files?.[0];img.hidden=!file;
+ if(file){const url=URL.createObjectURL(file);img.onload=()=>URL.revokeObjectURL(url);img.src=url}
+}
+async function adminGaleria(){
+ const c=document.getElementById('admincontent');if(!c)return;
+ c.innerHTML='<h1 class="section-title">Gestión de Galería</h1><p class="muted">Verificando permisos…</p>';
+ if(!(await galleryCanAdmin())){c.innerHTML='<div class="notice">Solo Administración General y Administración de Plataforma pueden gestionar fotografías. Ingrese con su cuenta real.</div>';return}
+ c.innerHTML=`<div class="kicker">Administración</div><h1 class="section-title">Gestión de Galería</h1>
+ <div class="notice">Las fotografías se guardan en la base de datos compartida. Hasta que se publiquen, solo Administración puede verlas.</div><br>
+ <div class="card"><h3 id="galleryFormTitle">Agregar fotografía</h3><div class="form">
+ <label>Título de la actividad<input id="galleryTitle" maxlength="180" required></label>
+ <div class="form-row"><label>Fecha de la actividad<input id="galleryDate" type="date" required></label>
+ <label>Categoría<select id="galleryCategory">${galleryCategories.map(x=>'<option>'+x+'</option>').join('')}</select></label></div>
+ <label>Mesa técnica responsable (opcional)<input id="galleryMesa" maxlength="120" placeholder="Ej. Salud"></label>
+ <label>Descripción<textarea id="galleryDescription" rows="3" maxlength="3000"></textarea></label>
+ <label>Fotografía (JPEG, PNG o WebP, máximo 10 MB)<input id="galleryFile" type="file" accept="image/jpeg,image/png,image/webp" onchange="galleryPreviewInput()"></label>
+ <img id="galleryPreview" class="gallery-preview" alt="Vista previa" hidden>
+ <label style="display:flex;gap:8px;align-items:center"><input id="galleryPublished" type="checkbox" style="width:auto"> Publicar fotografía para el público</label>
+ <div class="gallery-actions"><button class="btn primary" id="gallerySaveBtn" onclick="gallerySave()">Guardar fotografía</button><button class="btn soft" onclick="galleryClear()">Cancelar edición</button></div>
+ <p id="galleryStatus" role="status"></p></div></div><h2 class="section-sub">Fotografías registradas</h2><div id="galleryAdminList" class="gallery-list">Cargando…</div>`;
+ galleryEditing=null;await galleryLoadAdmin();
+}
+async function galleryLoadAdmin(){
+ const box=document.getElementById('galleryAdminList');if(!box)return;
+ const {data,error}=await sbAuth.from('gallery_items').select('*').order('activity_date',{ascending:false});
+ if(error){box.textContent='Error al consultar fotografías: '+error.message;return}
+ galleryRows=data||[];
+ if(!galleryRows.length){box.innerHTML='<div class="card">Todavía no hay fotografías registradas.</div>';return}
+ const cards=await Promise.all(galleryRows.map(async r=>({r,url:await gallerySignedImage(r.image_path)})));
+ box.innerHTML=cards.map(({r,url})=>'<article class="card gallery-card"><div>'+(url?'<img src="'+gallerySafe(url)+'" alt="'+gallerySafe(r.title)+'" loading="lazy">':'Imagen no disponible')+'</div><div><h3>'+gallerySafe(r.title)+'</h3><div class="gallery-meta">'+gallerySafe(r.activity_date)+' · '+gallerySafe(r.category)+(r.technical_table?' · '+gallerySafe(r.technical_table):'')+'</div><p>'+gallerySafe(r.description)+'</p><span class="pill '+(r.is_published?'green':'amber')+'">'+(r.is_published?'Publicada':'Oculta')+'</span><div class="gallery-actions"><button class="btn soft" data-gallery-edit="'+gallerySafe(r.id)+'">Editar / reemplazar</button><button class="btn soft" data-gallery-toggle="'+gallerySafe(r.id)+'">'+(r.is_published?'Ocultar':'Publicar')+'</button><button class="btn danger" data-gallery-delete="'+gallerySafe(r.id)+'">Eliminar</button></div></div></article>').join('');
+ box.querySelectorAll('[data-gallery-edit]').forEach(b=>b.onclick=()=>galleryEdit(b.dataset.galleryEdit));
+ box.querySelectorAll('[data-gallery-toggle]').forEach(b=>b.onclick=()=>galleryToggle(b.dataset.galleryToggle));
+ box.querySelectorAll('[data-gallery-delete]').forEach(b=>b.onclick=()=>galleryDelete(b.dataset.galleryDelete));
+}
+function galleryClear(){
+ galleryEditing=null;
+ ['galleryTitle','galleryDate','galleryMesa','galleryDescription','galleryFile'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
+ document.getElementById('galleryCategory').value=galleryCategories[0];
+ document.getElementById('galleryPublished').checked=false;
+ document.getElementById('galleryPreview').hidden=true;
+ document.getElementById('galleryFormTitle').textContent='Agregar fotografía';
+ document.getElementById('gallerySaveBtn').textContent='Guardar fotografía';
+ document.getElementById('galleryStatus').textContent='';
+}
+async function galleryEdit(id){
+ if(!(await galleryCanAdmin()))return;
+ const r=galleryRows.find(x=>x.id===id);if(!r)return;galleryEditing=id;
+ document.getElementById('galleryTitle').value=r.title;
+ document.getElementById('galleryDate').value=r.activity_date;
+ document.getElementById('galleryCategory').value=r.category;
+ document.getElementById('galleryMesa').value=r.technical_table||'';
+ document.getElementById('galleryDescription').value=r.description||'';
+ document.getElementById('galleryPublished').checked=r.is_published;
+ document.getElementById('galleryFile').value='';
+ document.getElementById('galleryPreview').hidden=true;
+ document.getElementById('galleryFormTitle').textContent='Editar fotografía';
+ document.getElementById('gallerySaveBtn').textContent='Guardar cambios';
+ document.getElementById('galleryStatus').textContent='Deje el archivo vacío para conservar la imagen actual.';
+ document.getElementById('galleryFormTitle').scrollIntoView({behavior:'smooth'});
+}
+async function gallerySave(){
+ const status=document.getElementById('galleryStatus'),btn=document.getElementById('gallerySaveBtn');
+ if(!(await galleryCanAdmin())){status.textContent='No tiene permisos de administración.';return}
+ const title=document.getElementById('galleryTitle').value.trim();
+ const date=document.getElementById('galleryDate').value;
+ const file=document.getElementById('galleryFile').files?.[0];
+ if(!title||!date||(!galleryEditing&&!file)){status.textContent='Ingrese título, fecha y una fotografía.';return}
+ if(file&&(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10485760)){status.textContent='Use una imagen JPEG, PNG o WebP de hasta 10 MB.';return}
+ btn.disabled=true;status.textContent='Guardando fotografía…';
+ let path=null;
+ try{
+  const original=galleryEditing?galleryRows.find(x=>x.id===galleryEditing):null;
+  if(galleryEditing&&!original)throw Error('No se encontró el registro para editar.');
+  if(file){
+   path=crypto.randomUUID()+(file.type==='image/png'?'.png':file.type==='image/webp'?'.webp':'.jpg');
+   const upload=await sbAuth.storage.from('frente-galeria').upload(path,file,{contentType:file.type,upsert:false});
+   if(upload.error)throw upload.error;
+  }
+  const payload={title,activity_date:date,category:document.getElementById('galleryCategory').value,technical_table:document.getElementById('galleryMesa').value.trim()||null,description:document.getElementById('galleryDescription').value.trim(),is_published:document.getElementById('galleryPublished').checked,image_path:path||original?.image_path};
+  const op=original?await sbAuth.from('gallery_items').update(payload).eq('id',original.id).select('id').single():await sbAuth.from('gallery_items').insert({...payload,created_by:(await sbAuth.auth.getUser()).data.user.id}).select('id').single();
+  if(op.error)throw op.error;
+  if(path&&original){const cleanup=await sbAuth.storage.from('frente-galeria').remove([original.image_path]);if(cleanup.error)console.warn('Old gallery image cleanup failed',cleanup.error)}
+  galleryClear();await galleryLoadAdmin();status.textContent='Fotografía guardada correctamente.';
+ }catch(e){
+  if(path){await sbAuth.storage.from('frente-galeria').remove([path])}
+  status.textContent='No se pudo guardar: '+(e.message||'Error desconocido');
+ }finally{btn.disabled=false}
+}
+async function galleryToggle(id){
+ if(!(await galleryCanAdmin()))return;
+ const r=galleryRows.find(x=>x.id===id);if(!r)return;
+ const {error}=await sbAuth.from('gallery_items').update({is_published:!r.is_published}).eq('id',id);
+ if(error){alert('No se pudo cambiar publicación: '+error.message);return}
+ await galleryLoadAdmin();
+}
+async function galleryDelete(id){
+ if(!(await galleryCanAdmin()))return;
+ const r=galleryRows.find(x=>x.id===id);
+ if(!r||!confirm('¿Eliminar definitivamente esta fotografía y sus datos?'))return;
+ const {error}=await sbAuth.from('gallery_items').delete().eq('id',id);
+ if(error){alert('No se pudo eliminar: '+error.message);return}
+ const cleanup=await sbAuth.storage.from('frente-galeria').remove([r.image_path]);
+ if(cleanup.error)console.warn('Gallery image cleanup failed',cleanup.error);
+ if(galleryEditing===id)galleryClear();
+ await galleryLoadAdmin();
+}
 </script>
 <script src="./sync.js"></script>
 </body>
