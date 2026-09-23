@@ -463,7 +463,7 @@
    const el=id=>document.getElementById(id),status=el('signupStatus');
    const name=el('signupName').value.trim(),email=el('signupEmail').value.trim().toLowerCase(),password=el('signupPassword').value,button=el('signupSubmit');
    status.setAttribute('role','status');status.style.color='#a3352a';
-   if(!name||!email.match(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/)||password.length<8){
+   if(!name||!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)||password.length<8){
      status.textContent='Complete nombre, correo válido y una contraseña de al menos 8 caracteres.';return;
    }
    if(['coordinador@demo.cl','admin@demo.cl'].includes(email)){
