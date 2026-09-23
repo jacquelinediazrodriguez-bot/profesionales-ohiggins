@@ -6,7 +6,12 @@
  const original={setWork:window.setWork,guardarPerfil:window.guardarPerfil,
   workKey:window.workKey,draftKey:window.draftKey,getIntegrantes:window.getIntegrantes,
   getPubRequests:window.getPubRequests,getSolicitudes:window.getSolicitudes,
-  getPublicaciones:window.getPublicaciones,
+  getPublicaciones:window.getPublicaciones,getAprobados:window.getAprobados,
+  getRepresentantes:window.getRepresentantes,setRepresentantes:window.setRepresentantes,
+  guardarRepresentante:window.guardarRepresentante,editarRepresentante:window.editarRepresentante,
+  eliminarRepresentante:window.eliminarRepresentante,
+  toggleMesaTecnica:window.toggleMesaTecnica,eliminarMesaTecnica:window.eliminarMesaTecnica,
+  marcarEnviada:window.marcarEnviada,
   registrarContacto:window.registrarContacto,guardarSolicitud:window.guardarSolicitud,
   guardarIntegrante:window.guardarIntegrante,guardarMesaTecnica:window.guardarMesaTecnica,
   solicitarPublicacion:window.solicitarPublicacion,publicarSolicitud:window.publicarSolicitud,
@@ -177,6 +182,7 @@
      STATE.ready=true;
      // Cualquier guardado pendiente sobrevive al cierre de la pestaña.
      for(const m of Object.keys(STATE.ids)){if(localStorage.getItem(pendingKey(m))==='1')queue(m)}
+     await loadSharedDirectory();
      await refreshSharedAdmin();
      return true;
    }catch(err){
@@ -281,6 +287,27 @@
      fecha:new Date(x.created_at).toLocaleString('es-CL'),estado:x.status,cloud:true}))};
    STATE.contacts=contacts;
  }
+ window.getAprobados=function(){
+   if(!isReal())return original.getAprobados();
+   const result=new Map();
+   const assign=getAssignedMesas();
+   for(const mesa of assign){
+     const d=getWork(mesa);
+     if(['Aprobado','Publicado'].includes(d.estado)){
+       const id=1000000+(mesaId(mesa)||0);
+       result.set(mesa+'|'+d.titulo,{id,mesa,titulo:d.titulo,fecha:d.ultima||'',
+         version:d.versiones?.at(-1)?.numero||1,contenido:copy(d.contenido||{}),referencias:copy(d.referencias||[]),
+         estado:'Aprobado'});
+     }
+   }
+   for(const p of window.getPublicaciones()){
+     if(!assign.includes(p.mesa))continue;
+     result.set(p.mesa+'|'+p.titulo,{id:2000000+p.id,mesa:p.mesa,titulo:p.titulo,
+       fecha:p.fechaPublicacion||'',version:p.version||1,contenido:copy(p.contenido||{}),
+       referencias:copy(p.referencias||[]),estado:'Aprobado'});
+   }
+   return [...result.values()];
+ };
  window.adminContactos=async function(){
    if(!isReal()||currentUser.rol!=='Administrador General'){
      document.getElementById('admincontent').innerHTML='<div class="notice">La bandeja de mensajes compartida requiere una cuenta administrativa real.</div>';
@@ -290,6 +317,61 @@
    const b=document.getElementById('admincontent');
    if(error){console.error(error);b.textContent='No se pudo consultar la bandeja de mensajes.';return}
    b.innerHTML='<h1 class="section-title">Mensajes recibidos</h1>'+(data.length?data.map(x=>'<div class="card" style="margin:12px 0"><b>'+esc(x.name)+'</b> · '+esc(x.email)+'<br><small>'+esc(new Date(x.created_at).toLocaleString('es-CL'))+'</small><p>'+esc(x.message)+'</p><small>'+esc(x.institution||'')+' · '+esc(x.status)+'</small></div>').join(''):'<p class="notice">Todavía no se han registrado mensajes.</p>');
+ };
+ async function loadSharedDirectory(){
+   if(!isReal())return;
+   const {data,error}=await sbAuth.from('representatives_directory')
+      .select('id,data,source_type').order('id',{ascending:true});
+   if(error){console.warn('No se pudo consultar el directorio compartido:',error);return}
+   const localOfficial=original.getRepresentantes().filter(x=>x.oficial===true);
+   STATE.directory=[...localOfficial,...(data||[]).map(x=>({
+     ...x.data,id:100000000+x.id,cloudId:x.id,cloud:true,fuente:x.source_type||'Administración'
+   }))];
+ }
+ window.getRepresentantes=function(){
+   return isReal()&&STATE.directory?STATE.directory:original.getRepresentantes()
+ };
+ window.setRepresentantes=function(a){
+   if(isReal()){STATE.directory=a;return}
+   original.setRepresentantes(a);
+ };
+ window.guardarRepresentante=async function(){
+   if(!isReal())return original.guardarRepresentante();
+   const g=id=>document.getElementById(id)?.value.trim()||'';
+   const x={nombre:g('repAdmNombre'),cargo:g('repAdmCargo'),tipoInstitucion:g('repAdmTipoInstitucion'),
+     institucion:g('repAdmInstitucion'),region:g('repAdmRegion'),territorio:g('repAdmTerritorio'),
+     ambito:g('repAdmAmbito'),telefono:g('repAdmTelefono'),correo:g('repAdmCorreo'),url:g('repAdmUrl'),
+     condicionDC:g('repAdmCondicionDC'),fuente:'Administración',oficial:false,
+     actualizado:new Date().toLocaleDateString('es-CL')};
+   if(!x.nombre||!x.cargo||!x.region||!x.institucion||!x.url)
+     return alert('Complete nombre, cargo, institución, región y fuente de verificación.');
+   const {data,error}=await sbAuth.from('representatives_directory').insert({
+     data:x,source_type:'Administración',created_by:STATE.uid}).select('id').single();
+   if(error){console.error(error);return alert('No se pudo guardar el registro en el directorio compartido.')}
+   STATE.directory.push({...x,id:100000000+data.id,cloudId:data.id,cloud:true});
+   adminRepresentantes();
+ };
+ window.editarRepresentante=async function(id){
+   if(!isReal())return original.editarRepresentante(id);
+   const x=STATE.directory?.find(r=>r.id===id);if(!x||repEsOficial(x))return;
+   if(!x.cloudId)return alert('Esta ficha proviene del prototipo anterior. Vuelva a crearla como registro compartido.');
+   const nombre=prompt('Nombre:',x.nombre);if(nombre===null)return;
+   const cargo=prompt('Cargo:',x.cargo);if(cargo===null)return;
+   const territorio=prompt('Territorio:',x.territorio||'');if(territorio===null)return;
+   const edited={...x,nombre:nombre.trim()||x.nombre,cargo:cargo.trim()||x.cargo,
+      territorio:territorio.trim(),actualizado:new Date().toLocaleDateString('es-CL')};
+   const {id:displayId,cloudId,cloud,...data}=edited;
+   const {error}=await sbAuth.from('representatives_directory').update({data}).eq('id',x.cloudId);
+   if(error){console.error(error);return alert('No se pudo actualizar el registro compartido.')}
+   Object.assign(x,edited);adminRepresentantes();
+ };
+ window.eliminarRepresentante=async function(id){
+   if(!isReal())return original.eliminarRepresentante(id);
+   const x=STATE.directory?.find(r=>r.id===id);if(!x||repEsOficial(x)||!x.cloudId)return;
+   if(!confirm('¿Eliminar este registro compartido?'))return;
+   const {error}=await sbAuth.from('representatives_directory').delete().eq('id',x.cloudId);
+   if(error){console.error(error);return alert('No se pudo eliminar el registro compartido.')}
+   STATE.directory=STATE.directory.filter(r=>r.id!==id);adminRepresentantes();
  };
  window.guardarIntegrante=async function(){
    if(!isReal())return original.guardarIntegrante();
@@ -317,6 +399,28 @@
    if(error){console.error(error);return alert('No se pudo guardar la Mesa en la nube.')}
    original.guardarMesaTecnica();
    if(orig)delete STATE.ids[orig];STATE.ids[m]=data.id;
+ };
+ window.toggleMesaTecnica=async function(m){
+   if(!isReal())return original.toggleMesaTecnica(m);
+   const active=getMesaMeta(m).estado==='Inactiva';
+   const {error}=await sbAuth.from('technical_tables').update({is_active:active}).eq('id',mesaId(m));
+   if(error){console.error(error);return alert('No se pudo modificar la Mesa en la nube.')}
+   original.toggleMesaTecnica(m);
+ };
+ window.eliminarMesaTecnica=async function(m){
+   if(!isReal())return original.eliminarMesaTecnica(m);
+   if(getIntegrantes().some(x=>x.mesa===m&&x.rol!=='Administrador General'))
+     return alert('Primero debe reasignar a los integrantes de esta Mesa.');
+   if(!confirm('¿Eliminar esta Mesa Técnica en todos los dispositivos?'))return;
+   const {error}=await sbAuth.from('technical_tables').delete().eq('id',mesaId(m));
+   if(error){console.error(error);return alert('No se pudo eliminar. Compruebe si existen documentos o registros asociados.')}
+   delete STATE.ids[m];mesas=mesas.filter(x=>x!==m);saveMesas();removeMesaMeta(m);adminMesas();
+ };
+ window.marcarEnviada=async function(id){
+   if(!isReal())return original.marcarEnviada(id);
+   const {error}=await sbAuth.from('document_requests').update({status:'Enviada',sent_at:new Date().toISOString()}).eq('id',id);
+   if(error){console.error(error);return alert('No se pudo actualizar el estado en la nube.')}
+   await refreshSharedAdmin();adminSolicitudes();
  };
  window.publicarSolicitud=async function(id){
    if(!isReal())return original.publicarSolicitud(id);
