@@ -344,8 +344,38 @@
    const m=currentDocMesa,id=mesaId(m);if(!id)return alert('La Mesa no está disponible en la nube.');
    let d=syncWorkFromUI(true);
    if(snapshotChanged(d))d=saveVersionCore(false);
-   const synced=await waitForWorkspaceSync(m);
-   if(!synced)return alert('El documento todavía está terminando de sincronizarse con la nube. Espere unos segundos y vuelva a presionar «Solicitar publicación al Administrador». No cierre esta página mientras finaliza.');
+
+   // Antes de solicitar publicación, guardar de forma explícita una fotografía completa
+   // del documento. Esto evita que una cola local pendiente impida que la solicitud llegue
+   // al servidor y garantiza que Administración reciba exactamente la versión revisada.
+   clearTimeout(STATE.timers[m]);
+   const started=Date.now();
+   while(STATE.busy[m]&&Date.now()-started<5000){
+     await new Promise(resolve=>setTimeout(resolve,100));
+   }
+   const fullPatch={
+     titulo:d.titulo||'',
+     estado:'En elaboración',
+     contenido:copy(d.contenido||{}),
+     referencias:copy(d.referencias||[]),
+     tareas:copy(d.tareas||[]),
+     comentarios:copy(d.comentarios||[]),
+     versiones:copy(d.versiones||[]),
+     ultima:d.ultima||new Date().toLocaleString('es-CL')
+   };
+   const {data:saved,error:saveError}=await sbAuth.rpc('save_workspace_patch',{
+     p_technical_table_id:id,p_patch:fullPatch
+   });
+   if(saveError||!saved?.data){
+     console.error(saveError);
+     return alert('No se pudo confirmar el guardado final del documento. La solicitud no fue enviada para evitar publicar una versión incompleta.');
+   }
+   const syncedDoc=copy({...defaultWork(m),...saved.data,contenido:migrateContenido(saved.data.contenido||{})});
+   STATE.snapshots[m]=syncedDoc;
+   original.setWork(m,syncedDoc);
+   localStorage.setItem(snapshotKey(m),JSON.stringify(syncedDoc));
+   localStorage.removeItem(pendingKey(m));
+
    const {error}=await sbAuth.rpc('submit_publication_request',{p_technical_table_id:id});
    if(error){
      console.error(error);
