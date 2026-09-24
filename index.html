@@ -36,16 +36,41 @@ footer{text-align:center;color:var(--muted);padding:24px}
 .library-actions .btn{padding:7px 9px;font-size:12px}
 .library-mobile-label{display:none}
 @media(max-width:760px){
-  .library-table-wrap{overflow:visible;border:0;background:transparent}
-  .library-table{min-width:0;border-collapse:separate;border-spacing:0 12px}
-  .library-table thead{display:none}
-  .library-table,.library-table tbody,.library-table tr,.library-table td{display:block;width:100%}
-  .library-table tr{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 12px;box-shadow:0 4px 14px rgba(30,60,90,.04)}
-  .library-table td{border-bottom:1px solid var(--line);padding:10px 4px}
-  .library-table td:last-child{border-bottom:0}
-  .library-table td::before{content:attr(data-label);display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--blue2);margin-bottom:4px}
-  .library-table .library-desc,.library-table .library-cite,.library-actions{min-width:0}
+  .library-table-wrap{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:#fff;
+  }
+  .library-table{
+    min-width:980px;
+    border-collapse:collapse;
+  }
+  .library-table thead{display:table-header-group}
+  .library-table tbody{display:table-row-group}
+  .library-table tr{display:table-row}
+  .library-table th,.library-table td{
+    display:table-cell;
+    width:auto;
+    padding:12px 13px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  .library-table td::before{content:none;display:none}
+  .library-table th{
+    position:sticky;
+    top:0;
+    background:#eef3f8;
+    z-index:2;
+    white-space:nowrap;
+  }
+  .library-table .library-desc{min-width:220px}
+  .library-table .library-cite{min-width:280px}
+  .library-actions{min-width:190px}
 }
+.library-scroll-note{display:none;margin:0 0 8px;color:var(--muted);font-size:12px}
+@media(max-width:760px){.library-scroll-note{display:block}}
 
 .edit-status{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:#f7fafc;border-bottom:1px solid var(--line);font-size:13px}.edit-status .who{color:var(--muted)}.edit-status .available{color:var(--green);font-weight:700}.edit-status .busy{color:var(--amber);font-weight:700}.doc-page[contenteditable="false"]{background:#fbfcfe;color:#33465a}.how-box{margin:12px 0}.how-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.how-step{padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}.how-step b{color:var(--blue)}.state-flow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}.state-flow span{padding:6px 10px;border-radius:999px;background:#edf3f8;color:var(--blue);font-weight:750;font-size:12px}.state-flow i{color:var(--muted)}@media(max-width:900px){.how-grid{grid-template-columns:1fr}}
 
@@ -607,7 +632,7 @@ function renderBiblioteca(){
       <td data-label="Acciones"><div class="library-actions"><button class="btn primary" onclick="leerBiblioteca(${p.id})">Ver documento</button>${currentUser?'<button class="btn success" onclick="citarPublicacionEnMesa('+p.id+')">Citar en mi trabajo</button> ':''}<button class="btn soft" onclick="abrirSolicitud(${p.id})">Solicitar copia</button></div></td>
     </tr>`;
   }).join('');
-  b.innerHTML=rows?`<div class="library-table-wrap"><table class="library-table"><thead><tr><th>Mesa</th><th>Título</th><th>Descripción</th><th>Fecha</th><th>Cita</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="card"><p>No hay documentos públicos para este filtro.</p></div>';
+  b.innerHTML=rows?`<div class="library-scroll-note">Deslice horizontalmente para ver todas las columnas.</div><div class="library-table-wrap"><table class="library-table"><thead><tr><th>Mesa</th><th>Título</th><th>Descripción</th><th>Fecha</th><th>Cita</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="card"><p>No hay documentos públicos para este filtro.</p></div>';
 }
 function leerBiblioteca(id){
   const p=getPublicaciones().find(x=>x.id===id),b=$('bibliotecaDetalle');if(!p||!b)return;
