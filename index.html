@@ -742,7 +742,7 @@ async function gallerySave(){
   const op=original?await sbAuth.from('gallery_items').update(payload).eq('id',original.id).select('id').single():await sbAuth.from('gallery_items').insert({...payload,created_by:(await sbAuth.auth.getUser()).data.user.id}).select('id').single();
   if(op.error)throw op.error;
   if(path&&original){const cleanup=await sbAuth.storage.from('frente-galeria').remove([original.image_path]);if(cleanup.error)console.warn('Old gallery image cleanup failed',cleanup.error)}
-  galleryClear();await galleryLoadAdmin();status.textContent='Fotografía guardada correctamente.';
+  const publicada=payload.is_published;galleryClear();await galleryLoadAdmin();status.textContent=publicada?'Fotografía guardada y PUBLICADA. El público puede verla en la sección Galería.':'Fotografía guardada como OCULTA. Solo Administración puede verla hasta que pulse Publicar.';
  }catch(e){
   if(path){await sbAuth.storage.from('frente-galeria').remove([path])}
   status.textContent='No se pudo guardar: '+(e.message||'Error desconocido');
@@ -753,7 +753,7 @@ async function galleryToggle(id){
  const r=galleryRows.find(x=>x.id===id);if(!r)return;
  const {error}=await sbAuth.from('gallery_items').update({is_published:!r.is_published}).eq('id',id);
  if(error){alert('No se pudo cambiar publicación: '+error.message);return}
- await galleryLoadAdmin();
+ await galleryLoadAdmin();alert(r.is_published?'La fotografía quedó OCULTA y ya no se muestra al público.':'La fotografía quedó PUBLICADA y ya puede verse en la sección pública Galería.');
 }
 async function galleryDelete(id){
  if(!(await galleryCanAdmin()))return;
@@ -764,7 +764,7 @@ async function galleryDelete(id){
  const cleanup=await sbAuth.storage.from('frente-galeria').remove([r.image_path]);
  if(cleanup.error)console.warn('Gallery image cleanup failed',cleanup.error);
  if(galleryEditing===id)galleryClear();
- await galleryLoadAdmin();
+ await galleryLoadAdmin();alert('Fotografía eliminada definitivamente de la Galería.');
 }
 </script>
 <script src="./sync.js"></script>
