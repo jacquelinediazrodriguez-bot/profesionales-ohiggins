@@ -716,7 +716,7 @@
    const list=rows||STATE.individualRequests||[];
    const x=list.find(a=>a.id===id);if(!x)return;
    const s=x.snapshot||{},w=window.open('','_blank');if(!w)return alert('El navegador bloqueó la vista.');
-   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(x.title)+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;line-height:1.7}.meta{background:#f4f7fb;padding:14px;border-radius:10px}h1{color:#123b67}</style></head><body><h1>'+esc(x.title)+'</h1><div class="meta"><b>Aporte individual</b> · '+esc(s.document_type||'')+' · '+esc(s.topic||'')+' · Versión '+esc(x.version)+'</div>'+(s.summary?'<p><b>Resumen:</b> '+esc(s.summary)+'</p>':'')+'<hr><div>'+esc(s.body||'').replace(/\n/g,'<br>')+'</div></body></html>');
+   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(x.title)+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;line-height:1.7}.meta{background:#f4f7fb;padding:14px;border-radius:10px}h1,h2,h3{color:#123b67}</style></head><body><h1>'+esc(x.title)+'</h1><div class="meta"><b>Aporte individual</b> · '+esc(s.document_type||'')+' · '+esc(s.topic||'')+' · Versión '+esc(x.version)+'</div>'+(s.summary?'<p><b>Resumen:</b> '+esc(s.summary)+'</p>':'')+'<hr><div>'+safeRichHTML(s.body||'')+'</div></body></html>');
    w.document.close();
  };
  window.publicarAporteIndividual=async function(id){
