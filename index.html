@@ -29,6 +29,9 @@ footer{text-align:center;color:var(--muted);padding:24px}
 .library-table th{background:#eef3f8;color:var(--blue);font-size:12px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;z-index:1}
 .library-table tr:last-child td{border-bottom:0}
 .library-table tbody tr:hover{background:#fbfdff}
+.library-table .library-group td{background:#f4f7fb;color:var(--blue);font-weight:850;font-size:14px;padding:11px 14px;border-top:2px solid #cfdbe7;border-bottom:1px solid #cfdbe7}
+.library-table .library-group:hover td{background:#f4f7fb}
+.library-group-count{font-weight:650;color:var(--muted);font-size:12px;margin-left:8px}
 .library-table .library-title{font-weight:800;color:var(--blue)}
 .library-table .library-desc{min-width:220px;line-height:1.45;color:#405064}
 .library-table .library-cite{min-width:280px;line-height:1.45;font-size:13px;color:#526579}
@@ -610,6 +613,20 @@ async function copiarCitaBiblioteca(id){
     prompt('Copie la cita:',cita);
   }
 }
+function bibliotecaMesaLabel(p){
+  return (p.origen||'Documento de Mesa')==='Aporte individual'
+    ?'Aportes individuales'
+    :(p.mesa||p.tema||'Sin Mesa');
+}
+function bibliotecaFechaTs(p){
+  if(p.publishedAt){
+    const t=Date.parse(p.publishedAt);if(Number.isFinite(t))return t;
+  }
+  const s=String(p.fechaPublicacion||'');
+  const m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if(m)return new Date(Number(m[3]),Number(m[2])-1,Number(m[1])).getTime();
+  return Number(p.id)||0;
+}
 function renderBiblioteca(){
   const b=$('bibliotecaLista');if(!b)return;
   const filtro=$('bibFiltro')?.value||'Todos',tipo=$('bibTipo')?.value||'Todos',q=($('bibBuscar')?.value||'').toLowerCase();
@@ -617,22 +634,43 @@ function renderBiblioteca(){
   if(filtro!=='Todos')a=a.filter(x=>x.tema===filtro||x.mesa===filtro);
   if(tipo!=='Todos')a=a.filter(x=>(x.origen||'Documento de Mesa')===tipo);
   if(q)a=a.filter(x=>(x.titulo+' '+x.tema+' '+(x.mesa||'')+' '+(x.autor||'')+' '+(x.descripcion||x.resumen||'')+' '+bibliotecaCitation(x)).toLowerCase().includes(q));
-  const rows=a.slice().reverse().map(p=>{
-    const origen=p.origen||'Documento de Mesa';
-    const mesa=origen==='Aporte individual'?'Aporte individual':(p.mesa||p.tema||'—');
-    const descripcion=p.descripcion||p.resumen||'Documento publicado en Biblioteca.';
-    const cita=bibliotecaCitation(p);
-    const fecha=p.fechaPublicacion||'—';
-    return `<tr>
-      <td data-label="Mesa"><span class="pill ${origen==='Aporte individual'?'amber':'green'}">${esc(mesa)}</span></td>
-      <td data-label="Título"><div class="library-title">${esc(p.titulo)}</div><small class="muted">${esc(origen)}${p.autor?' · '+esc(p.autor):''}</small></td>
-      <td data-label="Descripción" class="library-desc">${esc(descripcion)}</td>
-      <td data-label="Fecha">${esc(fecha)}</td>
-      <td data-label="Cita sugerida" class="library-cite">${esc(cita)}<br><button class="btn soft" style="margin-top:7px" onclick="copiarCitaBiblioteca(${p.id})">Copiar cita</button></td>
-      <td data-label="Acciones"><div class="library-actions"><button class="btn primary" onclick="leerBiblioteca(${p.id})">Ver documento</button>${currentUser?'<button class="btn success" onclick="citarPublicacionEnMesa('+p.id+')">Citar en mi trabajo</button> ':''}<button class="btn soft" onclick="abrirSolicitud(${p.id})">Solicitar copia</button></div></td>
-    </tr>`;
+
+  a=a.slice().sort((x,y)=>{
+    const mx=bibliotecaMesaLabel(x),my=bibliotecaMesaLabel(y);
+    const byMesa=mx.localeCompare(my,'es',{sensitivity:'base'});
+    if(byMesa!==0)return byMesa;
+    return bibliotecaFechaTs(y)-bibliotecaFechaTs(x);
+  });
+
+  const grupos=[];
+  for(const p of a){
+    const mesa=bibliotecaMesaLabel(p);
+    let g=grupos.find(x=>x.mesa===mesa);
+    if(!g){g={mesa,items:[]};grupos.push(g)}
+    g.items.push(p);
+  }
+
+  const rows=grupos.map(g=>{
+    const groupRow=`<tr class="library-group"><td colspan="6">Mesa: ${esc(g.mesa)} <span class="library-group-count">${g.items.length} ${g.items.length===1?'publicación':'publicaciones'}</span></td></tr>`;
+    const itemRows=g.items.map(p=>{
+      const origen=p.origen||'Documento de Mesa';
+      const mesa=bibliotecaMesaLabel(p);
+      const descripcion=p.descripcion||p.resumen||'Documento publicado en Biblioteca.';
+      const cita=bibliotecaCitation(p);
+      const fecha=p.fechaPublicacion||'—';
+      return `<tr>
+        <td data-label="Mesa"><span class="pill ${origen==='Aporte individual'?'amber':'green'}">${esc(mesa)}</span></td>
+        <td data-label="Título"><div class="library-title">${esc(p.titulo)}</div><small class="muted">${esc(origen)}${p.autor?' · '+esc(p.autor):''}</small></td>
+        <td data-label="Descripción" class="library-desc">${esc(descripcion)}</td>
+        <td data-label="Fecha">${esc(fecha)}</td>
+        <td data-label="Cita sugerida" class="library-cite">${esc(cita)}<br><button class="btn soft" style="margin-top:7px" onclick="copiarCitaBiblioteca(${p.id})">Copiar cita</button></td>
+        <td data-label="Acciones"><div class="library-actions"><button class="btn primary" onclick="leerBiblioteca(${p.id})">Ver documento</button>${currentUser?'<button class="btn success" onclick="citarPublicacionEnMesa('+p.id+')">Citar en mi trabajo</button> ':''}<button class="btn soft" onclick="abrirSolicitud(${p.id})">Solicitar copia</button></div></td>
+      </tr>`;
+    }).join('');
+    return groupRow+itemRows;
   }).join('');
-  b.innerHTML=rows?`<div class="library-scroll-note">Deslice horizontalmente para ver todas las columnas.</div><div class="library-table-wrap"><table class="library-table"><thead><tr><th>Mesa</th><th>Título</th><th>Descripción</th><th>Fecha</th><th>Cita</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="card"><p>No hay documentos públicos para este filtro.</p></div>';
+
+  b.innerHTML=rows?`<div class="mini-note" style="margin-bottom:10px"><b>Orden:</b> publicaciones agrupadas por Mesa; dentro de cada Mesa se muestran primero las más recientes.</div><div class="library-scroll-note">Deslice horizontalmente para ver todas las columnas.</div><div class="library-table-wrap"><table class="library-table"><thead><tr><th>Mesa</th><th>Título</th><th>Descripción</th><th>Fecha</th><th>Cita</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="card"><p>No hay documentos públicos para este filtro.</p></div>';
 }
 function leerBiblioteca(id){
   const p=getPublicaciones().find(x=>x.id===id),b=$('bibliotecaDetalle');if(!p||!b)return;
