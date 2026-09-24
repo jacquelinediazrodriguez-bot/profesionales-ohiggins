@@ -32,7 +32,16 @@
  window.getIntegrantes=function(){if(currentUser?.supabaseId){if(STATE.adminData?.integrantes)return STATE.adminData.integrantes;try{return JSON.parse(sessionStorage.getItem('frentePT_real_roles')||'[]')}catch(e){return []}}return original.getIntegrantes()};
  window.getPubRequests=function(){return currentUser?.supabaseId?(STATE.adminData?.requests||[]):original.getPubRequests()};
  window.getSolicitudes=function(){return currentUser?.supabaseId?(STATE.adminData?.solicitudes||[]):original.getSolicitudes()};
- window.getPublicaciones=function(){if(STATE.publicReady&&(!currentUser||currentUser?.supabaseId)){try{return JSON.parse(localStorage.getItem('frentePT_biblioteca_cloud')||'[]')}catch(e){return []}}return original.getPublicaciones()};
+ window.getPublicaciones=function(){
+   if(STATE.publicReady){
+     if(Array.isArray(STATE.publications))return STATE.publications;
+     try{
+       const cloud=JSON.parse(localStorage.getItem('frentePT_biblioteca_cloud')||'[]');
+       if(Array.isArray(cloud))return cloud;
+     }catch(e){}
+   }
+   return original.getPublicaciones();
+ };
  const snapshotKey=m=>'frentePT_lastCloud_'+STATE.uid+'_'+m;
  const pendingKey=m=>'frentePT_syncPending_'+STATE.uid+'_'+m;
  function diff(before,now){
@@ -303,8 +312,9 @@
      version:x.snapshot?.version||1,
      ...x.snapshot
    }));
-   localStorage.setItem('frentePT_biblioteca_cloud',JSON.stringify(pubs));
+   STATE.publications=pubs;
    STATE.publicReady=true;
+   try{localStorage.setItem('frentePT_biblioteca_cloud',JSON.stringify(pubs));}catch(e){console.warn('No se pudo guardar la copia local de Biblioteca',e)}
    if(document.getElementById('biblioteca')?.classList.contains('active'))renderBiblioteca();
  };
  window.citarPublicacionEnMesa=function(id){
