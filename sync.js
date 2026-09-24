@@ -344,22 +344,12 @@
    if(!/Coordinador/.test(getRoleForMesa(currentDocMesa)))return alert('Solo la coordinación puede solicitar publicación.');
    const m=currentDocMesa,id=mesaId(m);if(!id)return alert('La Mesa no está disponible en la nube.');
    const btn=document.getElementById('btnSolicitarPublicacion');
-   const setButton=(text,mode='working')=>{
-     if(!btn)return;
-     btn.textContent=text;
-     btn.disabled=mode!=='error';
-     if(mode==='done'){btn.classList.remove('success');btn.classList.add('soft');}
-     else if(mode==='error'){btn.classList.remove('success');btn.classList.add('soft');btn.disabled=false;}
-   };
+   if(btn){btn.disabled=true;btn.textContent='Enviando…';}
    STATE.submittingPublication=true;
-   setButton('Enviando solicitud…');
    try{
      clearTimeout(STATE.timers[m]);
      let d=syncWorkFromUI(true);
      if(snapshotChanged(d))d=saveVersionCore(false);
-
-     // Guardado final explícito: durante este paso se suspende la cola automática
-     // para evitar el ciclo de guardados que impedía llegar a la solicitud formal.
      const fullPatch={
        titulo:d.titulo||'',
        estado:'En elaboración',
@@ -370,22 +360,17 @@
        versiones:copy(d.versiones||[]),
        ultima:d.ultima||new Date().toLocaleString('es-CL')
      };
-     setButton('Guardando versión final…');
      const {data:saved,error:saveError}=await sbAuth.rpc('save_workspace_patch',{
        p_technical_table_id:id,p_patch:fullPatch
      });
      if(saveError||!saved?.data)throw saveError||new Error('El servidor no confirmó el guardado final.');
-
      const syncedDoc=copy({...defaultWork(m),...saved.data,contenido:migrateContenido(saved.data.contenido||{})});
      STATE.snapshots[m]=syncedDoc;
      original.setWork(m,syncedDoc);
      localStorage.setItem(snapshotKey(m),JSON.stringify(syncedDoc));
      localStorage.removeItem(pendingKey(m));
-
-     setButton('Registrando solicitud…');
      const {error}=await sbAuth.rpc('submit_publication_request',{p_technical_table_id:id});
      if(error)throw error;
-
      const {data:row,error:re}=await sbAuth.from('workspace_documents').select('data,state').eq('technical_table_id',id).single();
      if(re)throw re;
      if(row?.data){
@@ -394,18 +379,19 @@
        original.setWork(m,remote);
        localStorage.setItem(snapshotKey(m),JSON.stringify(remote));
      }
-     setButton('✓ Solicitud enviada','done');
      await refreshSharedAdmin();
-     setTimeout(()=>renderEspacio(document.getElementById('privatecontent')),650);
+     if(btn){btn.textContent='✓ Documento enviado';btn.classList.remove('success');btn.classList.add('soft');}
+     alert('Documento enviado.');
+     setTimeout(()=>renderEspacio(document.getElementById('privatecontent')),400);
    }catch(error){
      console.error(error);
      const msg=String(error?.message||'');
      if(/already pending/i.test(msg)){
-       setButton('✓ Solicitud ya enviada','done');
-       alert('Ya existe una solicitud de publicación pendiente para este documento.');
+       if(btn){btn.textContent='✓ Documento enviado';btn.classList.remove('success');btn.classList.add('soft');btn.disabled=true;}
+       alert('Documento enviado.');
      }else{
-       setButton('Reintentar solicitud','error');
-       alert('No se pudo completar la solicitud de publicación. El documento sigue en elaboración y puede volver a intentarlo.');
+       if(btn){btn.textContent='Solicitar publicación al Administrador';btn.disabled=false;}
+       alert('No se pudo enviar el documento. Inténtelo nuevamente.');
      }
    }finally{
      STATE.submittingPublication=false;
