@@ -248,9 +248,14 @@
      institution=document.getElementById('reqInst').value.trim(),
      reason=document.getElementById('reqMotivo').value.trim();
    if(!p||!name||!email.includes('@'))return alert('Complete nombre y correo válidos.');
-   if(!sbAuth||!p.cloud)return alert('Este documento todavía no está publicado en la biblioteca compartida.');
+   if(!sbAuth)return alert('El registro de solicitudes no está disponible en este momento.');
+   // La solicitud debe quedar en la bandeja compartida aunque el usuario esté
+   // probando la Biblioteca desde una cuenta demo o el documento sea una copia
+   // local del prototipo. Cuando el documento proviene de la Biblioteca cloud,
+   // conservamos su relación; en los demás casos guardamos library_id como null.
+   const libraryId=p.cloud?p.id:null;
    const {error}=await sbAuth.from('document_requests').insert({
-     library_id:p.id,title:p.titulo,name,email,institution,reason});
+     library_id:libraryId,title:p.titulo,name,email,institution,reason});
    if(error){console.error(error);return alert('No se pudo registrar la solicitud. Inténtelo nuevamente.')}
    let emailSent=false;
    try{
