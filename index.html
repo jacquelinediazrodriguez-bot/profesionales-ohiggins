@@ -150,6 +150,19 @@ function migrateContenido(c={}){
   return out;
 }
 const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function safeRichHTML(html){
+  const box=document.createElement('div');box.innerHTML=String(html||'');
+  box.querySelectorAll('script,style,iframe,object,embed,form,input,button,textarea,select,link,meta').forEach(n=>n.remove());
+  box.querySelectorAll('*').forEach(el=>{
+    [...el.attributes].forEach(a=>{
+      const n=a.name.toLowerCase(),v=String(a.value||'');
+      if(n.startsWith('on')||n==='style'||n==='id'||n==='class'||n==='srcdoc')el.removeAttribute(a.name);
+      if((n==='href'||n==='src')&&!/^(https?:|mailto:|#)/i.test(v))el.removeAttribute(a.name);
+    });
+  });
+  return box.innerHTML;
+}
+
 function seed(){
   let integrantes=[];
   try{integrantes=JSON.parse(localStorage.getItem('frentePT_integrantes_roles')||'[]')}catch(e){integrantes=[]}
@@ -524,7 +537,7 @@ async function exportarDocumentoActual(formato){const x=datosExportacionActual()
 async function exportarAprobado(id,formato){const a=getAprobados().find(x=>x.id===id);if(!a)return alert('No se encontró el documento aprobado.');const x={...structuredClone(a),estado:'Aprobado',borrador:false};if(formato==='pdf')return exportarPDF(x);return exportarDOCX(x)}
 function documentFinalHTML(x){
   if(x.origen==='Aporte individual'){
-    const body=esc(x.cuerpo||'').replace(/\n/g,'<br>');
+    const body=safeRichHTML(x.cuerpo||'');
     return `<div class="card"><div class="kicker">Aporte individual</div><h2>${esc(x.titulo)}</h2><p class="muted">Autor: ${esc(x.autor||'')} · ${esc(x.tipoDocumento||'Aporte individual')} · ${esc(x.fechaPublicacion||x.fecha||'')} · Versión ${x.version||1}</p>${x.resumen?'<p><b>Resumen:</b> '+esc(x.resumen)+'</p>':''}<hr><div style="line-height:1.7">${body||'<p>Sin contenido.</p>'}</div><div class="mini-note" style="margin-top:18px">Este documento corresponde a un aporte individual de su autor y no representa necesariamente una posición institucional o de una Mesa Técnica.</div></div>`;
   }
   return `<div class="card"><div class="kicker">Documento de Mesa Técnica</div><h2>${esc(x.titulo)}</h2><p class="muted">Mesa ${esc(x.mesa)} · ${esc(x.fechaPublicacion||x.fecha||'')} · Versión ${x.version}</p>${STUDY_SECTION_NAMES.map(s=>`<h3>${s}</h3><div>${cleanSectionHTML(s,x.contenido?.[s])||'<p>Sin contenido.</p>'}</div>`).join('')}<h3>Referencias</h3>${(x.referencias||[]).length?'<ol>'+[...x.referencias].sort((a,b)=>a.autor.localeCompare(b.autor)).map(r=>`<li>${esc(r.apa)}</li>`).join('')+'</ol>':'<p class="muted">Sin referencias registradas.</p>'}</div>`;
