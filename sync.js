@@ -46,7 +46,7 @@
    return patch;
  }
  function queue(m){
-   if(!isReal()||!mesaId(m))return;
+   if(!isReal()||!mesaId(m)||STATE.submittingPublication)return;
    try{localStorage.setItem(pendingKey(m),'1')}catch(e){}
    clearTimeout(STATE.timers[m]);label('Pendiente de sincronización…');
    STATE.timers[m]=setTimeout(()=>flush(m),950);
@@ -340,56 +340,76 @@
  };
  window.solicitarPublicacion=async function(){
    if(!isReal())return original.solicitarPublicacion();
+   if(STATE.submittingPublication)return;
    if(!/Coordinador/.test(getRoleForMesa(currentDocMesa)))return alert('Solo la coordinación puede solicitar publicación.');
    const m=currentDocMesa,id=mesaId(m);if(!id)return alert('La Mesa no está disponible en la nube.');
-   let d=syncWorkFromUI(true);
-   if(snapshotChanged(d))d=saveVersionCore(false);
-
-   // Antes de solicitar publicación, guardar de forma explícita una fotografía completa
-   // del documento. Esto evita que una cola local pendiente impida que la solicitud llegue
-   // al servidor y garantiza que Administración reciba exactamente la versión revisada.
-   clearTimeout(STATE.timers[m]);
-   const started=Date.now();
-   while(STATE.busy[m]&&Date.now()-started<5000){
-     await new Promise(resolve=>setTimeout(resolve,100));
-   }
-   const fullPatch={
-     titulo:d.titulo||'',
-     estado:'En elaboración',
-     contenido:copy(d.contenido||{}),
-     referencias:copy(d.referencias||[]),
-     tareas:copy(d.tareas||[]),
-     comentarios:copy(d.comentarios||[]),
-     versiones:copy(d.versiones||[]),
-     ultima:d.ultima||new Date().toLocaleString('es-CL')
+   const btn=document.getElementById('btnSolicitarPublicacion');
+   const setButton=(text,mode='working')=>{
+     if(!btn)return;
+     btn.textContent=text;
+     btn.disabled=mode!=='error';
+     if(mode==='done'){btn.classList.remove('success');btn.classList.add('soft');}
+     else if(mode==='error'){btn.classList.remove('success');btn.classList.add('soft');btn.disabled=false;}
    };
-   const {data:saved,error:saveError}=await sbAuth.rpc('save_workspace_patch',{
-     p_technical_table_id:id,p_patch:fullPatch
-   });
-   if(saveError||!saved?.data){
-     console.error(saveError);
-     return alert('No se pudo confirmar el guardado final del documento. La solicitud no fue enviada para evitar publicar una versión incompleta.');
-   }
-   const syncedDoc=copy({...defaultWork(m),...saved.data,contenido:migrateContenido(saved.data.contenido||{})});
-   STATE.snapshots[m]=syncedDoc;
-   original.setWork(m,syncedDoc);
-   localStorage.setItem(snapshotKey(m),JSON.stringify(syncedDoc));
-   localStorage.removeItem(pendingKey(m));
+   STATE.submittingPublication=true;
+   setButton('Enviando solicitud…');
+   try{
+     clearTimeout(STATE.timers[m]);
+     let d=syncWorkFromUI(true);
+     if(snapshotChanged(d))d=saveVersionCore(false);
 
-   const {error}=await sbAuth.rpc('submit_publication_request',{p_technical_table_id:id});
-   if(error){
+     // Guardado final explícito: durante este paso se suspende la cola automática
+     // para evitar el ciclo de guardados que impedía llegar a la solicitud formal.
+     const fullPatch={
+       titulo:d.titulo||'',
+       estado:'En elaboración',
+       contenido:copy(d.contenido||{}),
+       referencias:copy(d.referencias||[]),
+       tareas:copy(d.tareas||[]),
+       comentarios:copy(d.comentarios||[]),
+       versiones:copy(d.versiones||[]),
+       ultima:d.ultima||new Date().toLocaleString('es-CL')
+     };
+     setButton('Guardando versión final…');
+     const {data:saved,error:saveError}=await sbAuth.rpc('save_workspace_patch',{
+       p_technical_table_id:id,p_patch:fullPatch
+     });
+     if(saveError||!saved?.data)throw saveError||new Error('El servidor no confirmó el guardado final.');
+
+     const syncedDoc=copy({...defaultWork(m),...saved.data,contenido:migrateContenido(saved.data.contenido||{})});
+     STATE.snapshots[m]=syncedDoc;
+     original.setWork(m,syncedDoc);
+     localStorage.setItem(snapshotKey(m),JSON.stringify(syncedDoc));
+     localStorage.removeItem(pendingKey(m));
+
+     setButton('Registrando solicitud…');
+     const {error}=await sbAuth.rpc('submit_publication_request',{p_technical_table_id:id});
+     if(error)throw error;
+
+     const {data:row,error:re}=await sbAuth.from('workspace_documents').select('data,state').eq('technical_table_id',id).single();
+     if(re)throw re;
+     if(row?.data){
+       const remote=copy({...defaultWork(m),...row.data,estado:row.state||row.data.estado||'Solicitud de publicación',contenido:migrateContenido(row.data.contenido||{})});
+       STATE.snapshots[m]=remote;
+       original.setWork(m,remote);
+       localStorage.setItem(snapshotKey(m),JSON.stringify(remote));
+     }
+     setButton('✓ Solicitud enviada','done');
+     await refreshSharedAdmin();
+     setTimeout(()=>renderEspacio(document.getElementById('privatecontent')),650);
+   }catch(error){
      console.error(error);
-     const msg=String(error.message||'');
-     return alert(/already pending/i.test(msg)?'Ya existe una solicitud de publicación pendiente para este documento.':'No se pudo registrar la solicitud de publicación.');
+     const msg=String(error?.message||'');
+     if(/already pending/i.test(msg)){
+       setButton('✓ Solicitud ya enviada','done');
+       alert('Ya existe una solicitud de publicación pendiente para este documento.');
+     }else{
+       setButton('Reintentar solicitud','error');
+       alert('No se pudo completar la solicitud de publicación. El documento sigue en elaboración y puede volver a intentarlo.');
+     }
+   }finally{
+     STATE.submittingPublication=false;
    }
-   const {data:row,error:re}=await sbAuth.from('workspace_documents').select('data').eq('technical_table_id',id).single();
-   if(!re&&row?.data){
-     const remote=copy({...defaultWork(m),...row.data,contenido:migrateContenido(row.data.contenido||{})});
-     STATE.snapshots[m]=remote;original.setWork(m,remote);localStorage.setItem(snapshotKey(m),JSON.stringify(remote));
-   }
-   await refreshSharedAdmin();
-   alert('Solicitud enviada. El documento quedó bloqueado mientras Administración revisa la versión enviada.');
-   renderEspacio(document.getElementById('privatecontent'));
  };
  async function refreshSharedAdmin(){
    if(!isReal()||currentUser.rol!=='Administrador General')return;
