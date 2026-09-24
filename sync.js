@@ -82,6 +82,18 @@
      }
    }
  }
+ async function waitForWorkspaceSync(m,timeoutMs=20000){
+   const started=Date.now();
+   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+   while(Date.now()-started<timeoutMs){
+     while(STATE.busy[m]&&Date.now()-started<timeoutMs)await sleep(120);
+     await flush(m);
+     while(STATE.busy[m]&&Date.now()-started<timeoutMs)await sleep(120);
+     if(localStorage.getItem(pendingKey(m))!=='1')return true;
+     await sleep(300);
+   }
+   return localStorage.getItem(pendingKey(m))!=='1';
+ }
  // Sigue guardando de inmediato en el navegador; el servidor se actualiza en segundo plano.
  window.setWork=function(m,d){
    if(isReal()){
@@ -332,8 +344,8 @@
    const m=currentDocMesa,id=mesaId(m);if(!id)return alert('La Mesa no está disponible en la nube.');
    let d=syncWorkFromUI(true);
    if(snapshotChanged(d))d=saveVersionCore(false);
-   await flush(m);
-   if(localStorage.getItem(pendingKey(m))==='1')return alert('El documento quedó guardado localmente, pero todavía no se sincroniza. Vuelva a intentar cuando haya conexión.');
+   const synced=await waitForWorkspaceSync(m);
+   if(!synced)return alert('El documento todavía está terminando de sincronizarse con la nube. Espere unos segundos y vuelva a presionar «Solicitar publicación al Administrador». No cierre esta página mientras finaliza.');
    const {error}=await sbAuth.rpc('submit_publication_request',{p_technical_table_id:id});
    if(error){
      console.error(error);
