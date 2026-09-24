@@ -305,6 +305,7 @@
      mesa:x.snapshot?.mesa||'',
      titulo:x.title,tema:x.topic,descripcion:x.description||'',
      fechaPublicacion:new Date(x.published_at).toLocaleDateString('es-CL'),
+     publishedAt:x.published_at,
      anoPublicacion:new Date(x.published_at).getFullYear(),
      tipoDocumento:x.snapshot?.document_type||'',
      resumen:x.snapshot?.summary||'',
