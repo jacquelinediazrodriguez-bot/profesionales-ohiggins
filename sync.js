@@ -214,16 +214,33 @@
    original.guardarPerfil();message.textContent='Perfil guardado en la nube ✓';
  };
  window.registrarContacto=async function(){
-   const name=document.getElementById('ctNombre').value.trim(),email=document.getElementById('ctCorreo').value.trim(),
-      institution=document.getElementById('ctInst').value.trim(),message=document.getElementById('ctMsg').value.trim(),
-      label=document.getElementById('ctStatus');
-   if(!name||!email.includes('@')||!message)return label.textContent='Complete nombre, correo y mensaje.';
-   if(!sbAuth)return label.textContent='El servicio de mensajes no está disponible. Inténtelo más tarde.';
-   label.textContent='Enviando…';
-   const {error}=await sbAuth.from('contact_messages').insert({name,email,institution,message});
-   if(error){console.error(error);label.textContent='El mensaje no se pudo registrar. Intente de nuevo.';return}
-   label.textContent='Consulta recibida y registrada correctamente.';
-   ['ctNombre','ctCorreo','ctInst','ctMsg'].forEach(id=>document.getElementById(id).value='');
+   const name=document.getElementById('ctNombre').value.trim(),
+     email=document.getElementById('ctCorreo').value.trim(),
+     institution=document.getElementById('ctInst').value.trim(),
+     subject=document.getElementById('ctAsunto').value.trim(),
+     message=document.getElementById('ctMsg').value.trim(),
+     website=document.getElementById('ctWebsite')?.value||'',
+     label=document.getElementById('ctStatus'),
+     button=document.getElementById('ctSubmit');
+   if(!name||!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)||!subject||!message){
+     label.textContent='Complete nombre, correo válido, asunto y mensaje.';return;
+   }
+   if(!sbAuth){label.textContent='El servicio de mensajes no está disponible. Inténtelo más tarde.';return}
+   button.disabled=true;label.textContent='Enviando mensaje…';
+   try{
+     const {data,error}=await sbAuth.functions.invoke('submit-contact',{body:{
+       nombre:name,correo:email,institucion:institution,asunto:subject,mensaje:message,website
+     }});
+     if(error)throw error;
+     if(!data?.ok)throw Error(data?.error||'No fue posible registrar la consulta.');
+     label.textContent=data.email_sent
+       ?'Gracias. Su mensaje fue recibido correctamente y Administración fue notificada por correo electrónico.'
+       :'Gracias. Su mensaje quedó registrado correctamente. Administración podrá verlo en la plataforma.';
+     ['ctNombre','ctCorreo','ctInst','ctAsunto','ctMsg','ctWebsite'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+   }catch(error){
+     console.error(error);
+     label.textContent='No fue posible enviar el mensaje. Inténtelo nuevamente.';
+   }finally{button.disabled=false}
  };
  window.guardarSolicitud=async function(){
    const p=getPublicaciones().find(x=>x.id===requestingPubId),name=document.getElementById('reqNombre').value.trim(),
@@ -366,15 +383,49 @@
    }
    return [...result.values()];
  };
+ window.actualizarEstadoContacto=async function(id,status){
+   if(!isReal()||currentUser.rol!=='Administrador General')return;
+   const patch={status,updated_at:new Date().toISOString(),handled_by:STATE.uid};
+   if(status==='Respondido')patch.responded_at=new Date().toISOString();
+   if(status==='Cerrado')patch.closed_at=new Date().toISOString();
+   const {error}=await sbAuth.from('contact_messages').update(patch).eq('id',id);
+   if(error){console.error(error);return alert('No se pudo actualizar el mensaje.')}
+   await window.adminContactos();
+ };
+ window.guardarNotaContacto=async function(id){
+   if(!isReal()||currentUser.rol!=='Administrador General')return;
+   const x=(STATE.contactRows||[]).find(a=>a.id===id);if(!x)return;
+   const nota=prompt('Nota interna de Administración:',x.admin_note||'');if(nota===null)return;
+   const {error}=await sbAuth.from('contact_messages').update({
+     admin_note:nota.trim()||null,handled_by:STATE.uid,updated_at:new Date().toISOString()
+   }).eq('id',id);
+   if(error){console.error(error);return alert('No se pudo guardar la nota.')}
+   await window.adminContactos();
+ };
  window.adminContactos=async function(){
+   const b=document.getElementById('admincontent');if(!b)return;
    if(!isReal()||currentUser.rol!=='Administrador General'){
-     document.getElementById('admincontent').innerHTML='<div class="notice">La bandeja de mensajes compartida requiere una cuenta administrativa real.</div>';
-     return;
+     b.innerHTML='<div class="notice">La bandeja de mensajes compartida requiere una cuenta administrativa real.</div>';return;
    }
-   const {data,error}=await sbAuth.from('contact_messages').select('id,name,email,institution,message,status,created_at').order('created_at',{ascending:false});
-   const b=document.getElementById('admincontent');
+   const {data,error}=await sbAuth.from('contact_messages')
+     .select('id,name,email,institution,subject,message,status,admin_note,handled_by,created_at,updated_at,responded_at,closed_at,email_notified_at')
+     .order('created_at',{ascending:false});
    if(error){console.error(error);b.textContent='No se pudo consultar la bandeja de mensajes.';return}
-   b.innerHTML='<h1 class="section-title">Mensajes recibidos</h1>'+(data.length?data.map(x=>'<div class="card" style="margin:12px 0"><b>'+esc(x.name)+'</b> · '+esc(x.email)+'<br><small>'+esc(new Date(x.created_at).toLocaleString('es-CL'))+'</small><p>'+esc(x.message)+'</p><small>'+esc(x.institution||'')+' · '+esc(x.status)+'</small></div>').join(''):'<p class="notice">Todavía no se han registrado mensajes.</p>');
+   STATE.contactRows=data||[];
+   const estados=['Todos','Nuevo','En revisión','Respondido','Cerrado'];
+   const actual=STATE.contactFilter||'Todos';
+   const visibles=actual==='Todos'?STATE.contactRows:STATE.contactRows.filter(x=>x.status===actual);
+   const counts=Object.fromEntries(estados.slice(1).map(s=>[s,STATE.contactRows.filter(x=>x.status===s).length]));
+   b.innerHTML='<div class="kicker">Atención de consultas</div><h1 class="section-title">Mensajes de contacto</h1>'+
+     '<div class="notice">Los mensajes enviados desde la sección pública quedan registrados aquí. Administración recibe además una notificación por correo cuando llega un mensaje nuevo.</div>'+
+     '<div class="toolbar-row" style="margin:14px 0">'+estados.map(s=>'<button class="btn '+(actual===s?'primary':'soft')+'" onclick="STATE.contactFilter=\''+s+'\';adminContactos()">'+s+(s==='Todos'?'':' ('+(counts[s]||0)+')')+'</button>').join('')+'</div>'+
+     (visibles.length?visibles.map(x=>{
+       const mailto='mailto:'+encodeURIComponent(x.email)+'?subject='+encodeURIComponent('Re: '+(x.subject||'Consulta – Plataforma Frente PT O’Higgins'));
+       return '<div class="card" style="margin:12px 0"><div class="row"><div><span class="pill '+(x.status==='Nuevo'?'amber':x.status==='Cerrado'?'green':'')+'">'+esc(x.status)+'</span> <b>'+esc(x.subject||'Sin asunto')+'</b><br><small>'+esc(new Date(x.created_at).toLocaleString('es-CL'))+(x.email_notified_at?' · Aviso por correo enviado':' · Sin confirmación de aviso por correo')+'</small></div><div><select onchange="actualizarEstadoContacto('+x.id+',this.value)">'+['Nuevo','En revisión','Respondido','Cerrado'].map(s=>'<option '+(x.status===s?'selected':'')+'>'+s+'</option>').join('')+'</select></div></div>'+
+       '<p><b>'+esc(x.name)+'</b> · <a href="'+mailto+'">'+esc(x.email)+'</a>'+(x.institution?' · '+esc(x.institution):'')+'</p><p>'+esc(x.message).replace(/\n/g,'<br>')+'</p>'+
+       (x.admin_note?'<div class="mini-note"><b>Nota interna:</b> '+esc(x.admin_note)+'</div>':'')+
+       '<div class="toolbar-row" style="margin-top:12px"><a class="btn primary" href="'+mailto+'">Responder por correo</a> <button class="btn soft" onclick="guardarNotaContacto('+x.id+')">Nota interna</button> '+(x.status!=='En revisión'&&x.status!=='Cerrado'?'<button class="btn soft" onclick="actualizarEstadoContacto('+x.id+',\'En revisión\')">Marcar en revisión</button>':'')+(x.status!=='Cerrado'?'<button class="btn soft" onclick="actualizarEstadoContacto('+x.id+',\'Cerrado\')">Cerrar</button>':'')+'</div></div>';
+     }).join(''):'<div class="card"><p>No hay mensajes en este estado.</p></div>');
  };
  async function loadSharedDirectory(){
    if(!isReal())return;
