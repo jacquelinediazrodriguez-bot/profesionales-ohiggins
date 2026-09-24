@@ -669,7 +669,7 @@
  async function cargarMisAportes(){
    if(!isReal())return [];
    const {data,error}=await sbAuth.from('individual_contributions')
-     .select('id,title,document_type,topic,summary,body,status,version,versions,admin_observation,created_at,updated_at')
+     .select('id,title,document_type,topic,summary,body,status,version,versions,review_observation,admin_observation,created_at,updated_at')
      .eq('author_id',STATE.uid).order('updated_at',{ascending:false});
    if(error){console.error(error);return []}
    STATE.contributions=data||[];return STATE.contributions;
