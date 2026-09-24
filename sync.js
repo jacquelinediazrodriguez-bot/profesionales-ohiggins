@@ -12,7 +12,7 @@
   eliminarRepresentante:window.eliminarRepresentante,
   toggleMesaTecnica:window.toggleMesaTecnica,eliminarMesaTecnica:window.eliminarMesaTecnica,
   marcarEnviada:window.marcarEnviada,
-  registrarContacto:window.registrarContacto,guardarSolicitud:window.guardarSolicitud,
+  registrarContacto:window.registrarContacto,guardarSolicitud:window.guardarSolicitud,adminSolicitudes:window.adminSolicitudes,
   guardarIntegrante:window.guardarIntegrante,guardarMesaTecnica:window.guardarMesaTecnica,
   solicitarPublicacion:window.solicitarPublicacion,publicarSolicitud:window.publicarSolicitud,
   rechazarSolicitudPublicacion:window.rechazarSolicitudPublicacion};
@@ -244,15 +244,25 @@
  };
  window.guardarSolicitud=async function(){
    const p=getPublicaciones().find(x=>x.id===requestingPubId),name=document.getElementById('reqNombre').value.trim(),
-     email=document.getElementById('reqCorreo').value.trim();
+     email=document.getElementById('reqCorreo').value.trim(),
+     institution=document.getElementById('reqInst').value.trim(),
+     reason=document.getElementById('reqMotivo').value.trim();
    if(!p||!name||!email.includes('@'))return alert('Complete nombre y correo válidos.');
    if(!sbAuth||!p.cloud)return alert('Este documento todavía no está publicado en la biblioteca compartida.');
    const {error}=await sbAuth.from('document_requests').insert({
-     library_id:p.id,title:p.titulo,name,email,institution:document.getElementById('reqInst').value.trim(),
-     reason:document.getElementById('reqMotivo').value.trim()});
+     library_id:p.id,title:p.titulo,name,email,institution,reason});
    if(error){console.error(error);return alert('No se pudo registrar la solicitud. Inténtelo nuevamente.')}
+   let emailSent=false;
+   try{
+     const {data:mailData,error:mailError}=await sbAuth.functions.invoke('send-platform-email',{body:{
+       type:'document_request',nombre:name,correo:email,institucion:institution,documento:p.titulo,motivo:reason,website:''
+     }});
+     emailSent=!mailError&&!!mailData?.ok;
+     if(mailError)console.warn('La solicitud quedó registrada, pero falló el aviso por correo.',mailError);
+   }catch(e){console.warn('La solicitud quedó registrada, pero no fue posible enviar el aviso por correo.',e)}
    ['reqNombre','reqCorreo','reqInst','reqMotivo'].forEach(id=>document.getElementById(id).value='');
-   cerrarSolicitud();alert('Su solicitud quedó registrada.');
+   cerrarSolicitud();
+   alert(emailSent?'Su solicitud fue registrada. Administración recibió un aviso por correo.':'Su solicitud fue registrada. Administración podrá verla en Solicitudes de documentos.');
  };
  window.loadPublicLibrary=async function(){
    if(!sbAuth)return;
@@ -531,6 +541,11 @@
    const {error}=await sbAuth.from('document_requests').update({status:'Enviada',sent_at:new Date().toISOString()}).eq('id',id);
    if(error){console.error(error);return alert('No se pudo actualizar el estado en la nube.')}
    await refreshSharedAdmin();adminSolicitudes();
+ };
+ window.adminSolicitudes=async function(){
+   if(!isReal()||currentUser.rol!=='Administrador General')return original.adminSolicitudes();
+   await refreshSharedAdmin();
+   return original.adminSolicitudes();
  };
  window.publicarSolicitud=async function(id){
    if(!isReal())return original.publicarSolicitud(id);
