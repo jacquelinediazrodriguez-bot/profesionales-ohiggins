@@ -689,7 +689,7 @@ function renderBiblioteca(){
       const fecha=p.fechaPublicacion||'—';
       return `<tr>
         <td data-label="Mesa"><span class="pill ${origen==='Aporte individual'?'amber':'green'}">${esc(mesa)}</span></td>
-        <td data-label="Título"><div class="library-title">${esc(p.titulo)}</div><small class="muted">${esc(origen)}${p.autor?' · '+esc(p.autor):''}</small></td>
+        <td data-label="Título"><div class="library-title">${esc(p.titulo)}</div><small class="muted">${esc(origen)}${p.autor?' · '+esc(p.autor):''}${p.autorProfesion?' · '+esc(p.autorProfesion):''}</small></td>
         <td data-label="Descripción" class="library-desc">${esc(descripcion)}</td>
         <td data-label="Fecha">${esc(fecha)}</td>
         <td data-label="Cita sugerida" class="library-cite">${esc(cita)}<br><button class="btn soft" style="margin-top:7px" onclick="copiarCitaBiblioteca(${p.id})">Copiar cita</button></td>
