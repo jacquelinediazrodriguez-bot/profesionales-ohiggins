@@ -83,7 +83,16 @@
    }
  }
  // Sigue guardando de inmediato en el navegador; el servidor se actualiza en segundo plano.
- window.setWork=function(m,d){original.setWork(m,d);queue(m)};
+ window.setWork=function(m,d){
+   if(isReal()){
+     const cloudState=STATE.snapshots[m]?.estado||'En elaboración';
+     if(['Solicitud de publicación','Publicado','Retirado de publicación'].includes(cloudState)){
+       label('Documento bloqueado para edición mientras está '+cloudState+'.',true);
+       return;
+     }
+   }
+   original.setWork(m,d);queue(m)
+ };
  function backupLocal(m,raw){
    if(!raw)return;
    const key='frentePT_backup_'+m+'_'+Date.now();
@@ -245,18 +254,23 @@
    if(!isReal())return original.solicitarPublicacion();
    if(!/Coordinador/.test(getRoleForMesa(currentDocMesa)))return alert('Solo la coordinación puede solicitar publicación.');
    const m=currentDocMesa,id=mesaId(m);if(!id)return alert('La Mesa no está disponible en la nube.');
-   // Guardar la versión y la solicitud en el servidor antes de informar éxito.
-   let d=syncWorkFromUI(true);d=saveVersionCore(false);d=getWork(m);
+   let d=syncWorkFromUI(true);
+   if(snapshotChanged(d))d=saveVersionCore(false);
    await flush(m);
    if(localStorage.getItem(pendingKey(m))==='1')return alert('El documento quedó guardado localmente, pero todavía no se sincroniza. Vuelva a intentar cuando haya conexión.');
-   const {data:row,error:we}=await sbAuth.from('workspace_documents').select('id').eq('technical_table_id',id).single();
-   if(we)return alert('No se pudo confirmar el documento compartido.');
-   const {error}=await sbAuth.from('publication_requests').insert({
-     technical_table_id:id,workspace_id:row.id,requested_by:STATE.uid,title:d.titulo,
-     version:d.versiones.at(-1)?.numero||1,snapshot:d,status:'Pendiente'});
-   if(error){console.error(error);return alert('No se pudo registrar la solicitud en la nube. El documento sí quedó guardado.')}
-   d.estado='Solicitud de publicación';setWork(m,d);await flush(m);
-   alert('Solicitud enviada y registrada en la nube.');
+   const {error}=await sbAuth.rpc('submit_publication_request',{p_technical_table_id:id});
+   if(error){
+     console.error(error);
+     const msg=String(error.message||'');
+     return alert(/already pending/i.test(msg)?'Ya existe una solicitud de publicación pendiente para este documento.':'No se pudo registrar la solicitud de publicación.');
+   }
+   const {data:row,error:re}=await sbAuth.from('workspace_documents').select('data').eq('technical_table_id',id).single();
+   if(!re&&row?.data){
+     const remote=copy({...defaultWork(m),...row.data,contenido:migrateContenido(row.data.contenido||{})});
+     STATE.snapshots[m]=remote;original.setWork(m,remote);localStorage.setItem(snapshotKey(m),JSON.stringify(remote));
+   }
+   await refreshSharedAdmin();
+   alert('Solicitud enviada. El documento quedó bloqueado mientras Administración revisa la versión enviada.');
    renderEspacio(document.getElementById('privatecontent'));
  };
  async function refreshSharedAdmin(){
@@ -428,36 +442,69 @@
    const x=getPubRequests().find(a=>a.id===id);if(!x)return;
    const tema=prompt('Tema para clasificar en Biblioteca:',x.mesa);if(tema===null)return;
    const description=prompt('Descripción pública:','Documento técnico autorizado por la Mesa.');if(description===null)return;
-   const {error}=await sbAuth.from('public_library').insert({
-     technical_table_id:mesaId(x.mesa),publication_request_id:id,title:x.titulo,topic:tema,
-     description,snapshot:{mesa:x.mesa,titulo:x.titulo,contenido:x.snapshot?.contenido||x.contenido||{},
-       referencias:x.snapshot?.referencias||x.referencias||[],version:x.version},is_public:true});
-   if(error){console.error(error);return alert('No se pudo publicar el documento en la biblioteca compartida.')}
-   const {error:e2}=await sbAuth.from('publication_requests').update({status:'Publicada',responded_at:new Date().toISOString()}).eq('id',id);
-   if(e2){console.error(e2);return alert('El documento se publicó, pero la solicitud necesita revisión administrativa.')}
-   const {error:se}=await sbAuth.rpc('save_workspace_patch',{
-     p_technical_table_id:mesaId(x.mesa),p_patch:{estado:'Publicado'}
+   const {error}=await sbAuth.rpc('publish_publication_request',{
+     p_request_id:id,p_topic:tema,p_description:description
    });
-   if(se)console.warn('La Biblioteca quedó publicada, pero debe revisarse el estado interno:',se);
-   await refreshSharedAdmin();await window.loadPublicLibrary();adminPublicaciones();alert('Documento publicado en Biblioteca.');
+   if(error){console.error(error);return alert('No se pudo publicar. No se realizó ningún cambio parcial.')}
+   await refreshSharedAdmin();await window.loadPublicLibrary();await window.adminPublicaciones();
+   alert('Documento publicado en Biblioteca.');
  };
  window.rechazarSolicitudPublicacion=async function(id){
    if(!isReal())return original.rechazarSolicitudPublicacion(id);
-   const obs=prompt('Indique la observación para devolver el documento:');if(obs===null)return;
-   const {error}=await sbAuth.from('publication_requests').update({status:'Devuelta',observation:obs,responded_at:new Date().toISOString()}).eq('id',id);
+   const obs=prompt('Indique la observación obligatoria para devolver el documento a la Mesa:');if(obs===null)return;
+   if(!obs.trim())return alert('Debe registrar una observación para devolver el documento.');
+   const {error}=await sbAuth.rpc('return_publication_request',{p_request_id:id,p_observation:obs.trim()});
    if(error){console.error(error);return alert('No se pudo devolver la solicitud.')}
-   const req=getPubRequests().find(x=>x.id===id);
-   if(req&&mesaId(req.mesa)){
-     const {data:row}=await sbAuth.from('workspace_documents').select('data').eq('technical_table_id',mesaId(req.mesa)).maybeSingle();
-     const comments=[...(row?.data?.comentarios||[])];
-     if(obs.trim())comments.push({id:Date.now(),autor:'Administración',
-       fecha:new Date().toLocaleString('es-CL'),texto:obs.trim(),estado:'Pendiente'});
-     const {error:se}=await sbAuth.rpc('save_workspace_patch',{
-       p_technical_table_id:mesaId(req.mesa),p_patch:{estado:'En elaboración',comentarios:comments}
-     });
-     if(se)console.warn('No se sincronizó la observación con el documento:',se);
+   await refreshSharedAdmin();await window.adminPublicaciones();
+   alert('Solicitud devuelta. El documento volvió a En elaboración y quedó habilitado para correcciones.');
+ };
+ window.retirarPublicacion=async function(id){
+   if(!isReal()||currentUser.rol!=='Administrador General')return;
+   const motivo=prompt('Indique el motivo del retiro de publicación:');if(motivo===null)return;
+   if(!motivo.trim())return alert('Debe registrar el motivo del retiro.');
+   const {error}=await sbAuth.rpc('withdraw_publication',{p_library_id:id,p_reason:motivo.trim()});
+   if(error){console.error(error);return alert('No se pudo retirar el documento de la Biblioteca.')}
+   await window.loadPublicLibrary();await refreshSharedAdmin();await window.adminPublicaciones();
+   alert('Documento retirado de publicación. Se conserva todo su historial.');
+ };
+ window.reabrirDocumentoRetirado=async function(){
+   if(!isReal())return;
+   const m=currentDocMesa,id=mesaId(m);if(!id)return;
+   const {error}=await sbAuth.rpc('reopen_withdrawn_document',{p_technical_table_id:id});
+   if(error){console.error(error);return alert('No se pudo iniciar una nueva versión del documento.')}
+   const {data:row,error:re}=await sbAuth.from('workspace_documents').select('data').eq('technical_table_id',id).single();
+   if(!re&&row?.data){
+     const remote=copy({...defaultWork(m),...row.data,contenido:migrateContenido(row.data.contenido||{})});
+     STATE.snapshots[m]=remote;original.setWork(m,remote);localStorage.setItem(snapshotKey(m),JSON.stringify(remote));
    }
-   await refreshSharedAdmin();adminPublicaciones();
+   renderEspacio(document.getElementById('privatecontent'));
+   alert('Documento habilitado nuevamente en En elaboración. Puede comenzar una nueva versión.');
+ };
+ window.verSolicitudPublicacion=function(id){
+   const x=getPubRequests().find(a=>a.id===id);if(!x)return;
+   const s=x.snapshot||{},sections=s.contenido||{};
+   const body=STUDY_SECTION_NAMES.map(n=>'<h3>'+esc(studyLabel(n))+'</h3><div>'+(sections[n]||'<p class="muted">Sin contenido.</p>')+'</div>').join('');
+   const w=window.open('','_blank');
+   if(!w)return alert('El navegador bloqueó la vista. Habilite ventanas emergentes para revisar el documento.');
+   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(x.titulo)+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;line-height:1.6}h1,h2,h3{color:#123b67}.meta{background:#f4f7fb;padding:14px;border-radius:10px}</style></head><body><h1>'+esc(x.titulo)+'</h1><div class="meta"><b>Mesa:</b> '+esc(x.mesa)+' · <b>Versión:</b> '+esc(x.version)+' · <b>Solicitado por:</b> '+esc(x.solicitante||'Coordinación')+'</div>'+body+'</body></html>');
+   w.document.close();
+ };
+ window.adminPublicaciones=async function(){
+   const c=document.getElementById('admincontent');if(!c)return;
+   if(!isReal()||currentUser.rol!=='Administrador General'){c.innerHTML='<div class="notice">Esta sección requiere Administración General.</div>';return}
+   await refreshSharedAdmin();
+   const reqs=getPubRequests();
+   const {data:libs,error}=await sbAuth.from('public_library')
+     .select('id,title,topic,published_at,is_public,withdrawn_at,withdrawal_reason,publication_request_id,technical_table_id')
+     .order('published_at',{ascending:false});
+   if(error){console.error(error);c.textContent='No se pudo consultar la Biblioteca.';return}
+   const pending=reqs.filter(x=>x.estado==='Pendiente');
+   c.innerHTML='<div class="kicker">Difusión pública</div><h1 class="section-title">Solicitudes de publicación</h1>'+
+     '<div class="notice">La versión enviada queda bloqueada para edición. Administración revisa exactamente esa versión y puede publicarla o devolverla con observaciones.</div>'+
+     '<h2 class="section-sub">Solicitudes pendientes</h2>'+
+     (pending.length?pending.map(x=>'<div class="row"><div><b>'+esc(x.titulo)+'</b><br><small>Mesa '+esc(x.mesa)+' · Versión '+esc(x.version)+' · '+esc(x.solicitante||'Coordinación')+' · '+esc(x.fecha)+'</small></div><div><button class="btn soft" onclick="verSolicitudPublicacion('+x.id+')">Ver documento enviado</button> <button class="btn primary" onclick="publicarSolicitud('+x.id+')">Publicar</button> <button class="btn soft" onclick="rechazarSolicitudPublicacion('+x.id+')">Devolver con observación</button></div></div>').join(''):'<div class="card"><p>No hay solicitudes pendientes.</p></div>')+
+     '<h2 class="section-sub">Historial de Biblioteca</h2>'+
+     ((libs||[]).length?(libs||[]).map(p=>'<div class="row"><div><b>'+esc(p.title)+'</b><br><small>'+esc(p.topic)+' · '+new Date(p.published_at).toLocaleDateString('es-CL')+(p.withdrawn_at?' · Retirado '+new Date(p.withdrawn_at).toLocaleDateString('es-CL'):'')+(p.withdrawal_reason?' · '+esc(p.withdrawal_reason):'')+'</small></div><div><span class="pill '+(p.is_public?'green':'amber')+'">'+(p.is_public?'PUBLICADO':'RETIRADO DE PUBLICACIÓN')+'</span> '+(p.is_public?'<button class="btn danger" onclick="retirarPublicacion('+p.id+')">Retirar de publicación</button>':'')+'</div></div>').join(''):'<div class="card"><p>Aún no hay documentos en el historial de Biblioteca.</p></div>');
  };
  window.signupProfesional=async function(){
    const el=id=>document.getElementById(id),status=el('signupStatus');
