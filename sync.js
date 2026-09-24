@@ -49,7 +49,7 @@
    const ac=a.contenido||{},bc=b.contenido||{},sectionPatch={};
    Object.keys(bc).forEach(k=>{if(!same(ac[k],bc[k]))sectionPatch[k]=bc[k]});
    if(Object.keys(sectionPatch).length)patch.contenido=sectionPatch;
-   ['titulo','estado','referencias','tareas','comentarios','versiones','ultima'].forEach(k=>{
+   ['titulo','estado','referencias','tareas','comentarios','revisiones','versiones','ultima'].forEach(k=>{
      if(!same(a[k],b[k])&&b[k]!==undefined)patch[k]=b[k]
    });
    return patch;
@@ -368,6 +368,7 @@
        referencias:copy(d.referencias||[]),
        tareas:copy(d.tareas||[]),
        comentarios:copy(d.comentarios||[]),
+       revisiones:copy(d.revisiones||[]),
        versiones:copy(d.versiones||[]),
        ultima:d.ultima||new Date().toLocaleString('es-CL')
      };
@@ -445,7 +446,7 @@
      if(['Aprobado','Publicado'].includes(d.estado)){
        const id=1000000+(mesaId(mesa)||0);
        result.set(mesa+'|'+d.titulo,{id,mesa,titulo:d.titulo,fecha:d.ultima||'',
-         version:d.versiones?.at(-1)?.numero||1,contenido:copy(d.contenido||{}),referencias:copy(d.referencias||[]),
+         version:d.versiones?.at(-1)?.numero||1,contenido:copy(d.contenido||{}),referencias:copy(d.referencias||[]),revisiones:copy(d.revisiones||[]),
          estado:'Aprobado'});
      }
    }
@@ -453,7 +454,7 @@
      if(!assign.includes(p.mesa))continue;
      result.set(p.mesa+'|'+p.titulo,{id:2000000+p.id,mesa:p.mesa,titulo:p.titulo,
        fecha:p.fechaPublicacion||'',version:p.version||1,contenido:copy(p.contenido||{}),
-       referencias:copy(p.referencias||[]),estado:'Aprobado'});
+       referencias:copy(p.referencias||[]),revisiones:copy(p.revisiones||[]),estado:'Aprobado'});
    }
    return [...result.values()];
  };
@@ -657,10 +658,10 @@
  window.verSolicitudPublicacion=function(id){
    const x=getPubRequests().find(a=>a.id===id);if(!x)return;
    const s=x.snapshot||{},sections=s.contenido||{};
-   const body=STUDY_SECTION_NAMES.map(n=>'<h3>'+esc(studyLabel(n))+'</h3><div>'+(sections[n]||'<p class="muted">Sin contenido.</p>')+'</div>').join('');
+   const body=STUDY_SECTION_NAMES.map(n=>'<h3>'+esc(studyLabel(n))+'</h3><div>'+(sections[n]||'<p class="muted">Sin contenido.</p>')+'</div>').join('');const revs=Array.isArray(s.revisiones)?s.revisiones:[];const reviewBlock='<h2>Revisión técnica</h2>'+(revs.length?'<ul>'+revs.map(r=>'<li><b>'+esc(r.nombre||'')+'</b> — '+esc(r.profesion||'Profesión no registrada')+' · '+esc(r.cargo||'Integrante de Mesa')+'</li>').join('')+'</ul>':'<p class="muted">Sin vistos buenos registrados.</p>');
    const w=window.open('','_blank');
    if(!w)return alert('El navegador bloqueó la vista. Habilite ventanas emergentes para revisar el documento.');
-   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(x.titulo)+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;line-height:1.6}h1,h2,h3{color:#123b67}.meta{background:#f4f7fb;padding:14px;border-radius:10px}</style></head><body><h1>'+esc(x.titulo)+'</h1><div class="meta"><b>Mesa:</b> '+esc(x.mesa)+' · <b>Versión:</b> '+esc(x.version)+' · <b>Solicitado por:</b> '+esc(x.solicitante||'Coordinación')+'</div>'+body+'</body></html>');
+   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(x.titulo)+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;line-height:1.6}h1,h2,h3{color:#123b67}.meta{background:#f4f7fb;padding:14px;border-radius:10px}</style></head><body><h1>'+esc(x.titulo)+'</h1><div class="meta"><b>Mesa:</b> '+esc(x.mesa)+' · <b>Versión:</b> '+esc(x.version)+' · <b>Solicitado por:</b> '+esc(x.solicitante||'Coordinación')+'</div>'+body+reviewBlock+'</body></html>');
    w.document.close();
  };
 
