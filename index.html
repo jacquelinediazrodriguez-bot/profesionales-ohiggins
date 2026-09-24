@@ -23,6 +23,29 @@ input,textarea,select{width:100%;padding:11px 12px;border:1px solid #cfd9e3;bord
 footer{text-align:center;color:var(--muted);padding:24px}
 @media(max-width:900px){nav{display:none}.grid{grid-template-columns:repeat(2,1fr)}.grid3,.grid2,.form-row,.source-categories,.source-grid{grid-template-columns:1fr}.sidebar-layout{grid-template-columns:1fr}.side{position:static;display:flex;overflow:auto;gap:4px}.side b{display:none}.side button{min-width:max-content}.hero{padding:34px 24px}.meta-strip,.summary-card{grid-template-columns:1fr 1fr}.task-head{display:none}.task-row{grid-template-columns:1fr}.task-row .btn{width:100%}.doc-page{padding:24px 18px}}
 @media(max-width:520px){.grid{grid-template-columns:1fr}.top{padding:12px}.brand small{display:none}main{padding:18px 12px 45px}.hero{border-radius:18px}.meta-strip,.summary-card{grid-template-columns:1fr}}
+.library-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px;background:#fff}
+.library-table{width:100%;border-collapse:collapse;min-width:980px}
+.library-table th,.library-table td{padding:13px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.library-table th{background:#eef3f8;color:var(--blue);font-size:12px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;z-index:1}
+.library-table tr:last-child td{border-bottom:0}
+.library-table tbody tr:hover{background:#fbfdff}
+.library-table .library-title{font-weight:800;color:var(--blue)}
+.library-table .library-desc{min-width:220px;line-height:1.45;color:#405064}
+.library-table .library-cite{min-width:280px;line-height:1.45;font-size:13px;color:#526579}
+.library-actions{display:flex;gap:6px;flex-wrap:wrap;min-width:190px}
+.library-actions .btn{padding:7px 9px;font-size:12px}
+.library-mobile-label{display:none}
+@media(max-width:760px){
+  .library-table-wrap{overflow:visible;border:0;background:transparent}
+  .library-table{min-width:0;border-collapse:separate;border-spacing:0 12px}
+  .library-table thead{display:none}
+  .library-table,.library-table tbody,.library-table tr,.library-table td{display:block;width:100%}
+  .library-table tr{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 12px;box-shadow:0 4px 14px rgba(30,60,90,.04)}
+  .library-table td{border-bottom:1px solid var(--line);padding:10px 4px}
+  .library-table td:last-child{border-bottom:0}
+  .library-table td::before{content:attr(data-label);display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--blue2);margin-bottom:4px}
+  .library-table .library-desc,.library-table .library-cite,.library-actions{min-width:0}
+}
 
 .edit-status{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:#f7fafc;border-bottom:1px solid var(--line);font-size:13px}.edit-status .who{color:var(--muted)}.edit-status .available{color:var(--green);font-weight:700}.edit-status .busy{color:var(--amber);font-weight:700}.doc-page[contenteditable="false"]{background:#fbfcfe;color:#33465a}.how-box{margin:12px 0}.how-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.how-step{padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}.how-step b{color:var(--blue)}.state-flow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}.state-flow span{padding:6px 10px;border-radius:999px;background:#edf3f8;color:var(--blue);font-weight:750;font-size:12px}.state-flow i{color:var(--muted)}@media(max-width:900px){.how-grid{grid-template-columns:1fr}}
 
@@ -66,7 +89,7 @@ footer{text-align:center;color:var(--muted);padding:24px}
 <div class="flow-diagram" role="img" aria-label="Página pública con Inicio, Quiénes Somos, Profesionales, Mesas Técnicas, Biblioteca, Galería y Contacto; acceso desde Mesas Técnicas a Mi Trabajo o Administración; documentos publicados pasan a Biblioteca."><div class="flow-node"><strong>Página pública</strong><span>Inicio · Quiénes Somos · Profesionales · Mesas Técnicas · Biblioteca · Galería · Contacto</span></div><div class="flow-arrow" aria-hidden="true">↓</div><div class="flow-node"><strong>Mesas Técnicas · Validación de acceso</strong><span>Ingreso de profesionales autorizados</span></div><div class="flow-arrow" aria-hidden="true">↓</div><div class="flow-row"><div class="flow-node"><strong>Mi Perfil</strong><span class="flow-caption">Antecedentes y Mesas asignadas</span></div><div class="flow-node"><strong>Mi Trabajo</strong><span class="flow-caption">Edición por secciones · Fuentes · Tareas · Versiones · Revisión</span></div><div class="flow-node"><strong>Administración</strong><span class="flow-caption">Integrantes y roles · Mesas · Directorio · Solicitudes</span></div></div><div class="flow-arrow" aria-hidden="true">↓</div><div class="flow-node"><strong>Coordinación → Solicitud de publicación → Administración</strong><span>Revisar, publicar o devolver con observaciones</span></div><div class="flow-arrow" aria-hidden="true">↓</div><div class="flow-node flow-pub"><strong>Biblioteca pública</strong><span>Documentos autorizados · Consulta · Solicitudes de copia</span></div></div>
 <div class="mini-note"><b>Importante:</b> esta versión conserva información de trabajo en el almacenamiento local del navegador. No debe considerarse sincronizada entre computadores o teléfonos hasta que las operaciones se migren y verifiquen en la base de datos compartida.</div>
 </section>
-<section id="biblioteca" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Biblioteca</h1><div class="notice"><b>Registro público de documentos aprobados y autorizados para difusión.</b> Puede buscar por tema, leer cada documento directamente en la plataforma y solicitar una copia por correo electrónico.</div><br><div class="grid2"><div><label>Filtrar por tema</label><select id="bibFiltro" onchange="renderBiblioteca()"><option value="Todos">Todos</option><option>Salud</option><option>Educación</option><option>Economía</option><option>Trabajo</option><option>Agricultura</option><option>Desarrollo Regional</option><option>Otros</option></select></div><div><label>Buscar</label><input id="bibBuscar" placeholder="Buscar por título, Mesa o tema" oninput="renderBiblioteca()"></div></div><br><div id="bibliotecaLista"></div><div id="bibliotecaDetalle" style="margin-top:16px"></div></section>
+<section id="biblioteca" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Biblioteca</h1><div class="notice"><b>Registro público de documentos aprobados y autorizados para difusión.</b> Las publicaciones se presentan en un registro ordenado por Mesa, título, descripción y cita sugerida. Puede abrir cada documento, copiar su cita o solicitar una copia.</div><br><div class="grid3"><div><label>Filtrar por Mesa / tema</label><select id="bibFiltro" onchange="renderBiblioteca()"><option value="Todos">Todos</option><option>Salud</option><option>Educación</option><option>Economía</option><option>Trabajo</option><option>Agricultura</option><option>Desarrollo Regional</option><option>Otros</option></select></div><div><label>Tipo de publicación</label><select id="bibTipo" onchange="renderBiblioteca()"><option value="Todos">Todos</option><option value="Documento de Mesa">Documento de Mesa</option><option value="Aporte individual">Aporte individual</option></select></div><div><label>Buscar</label><input id="bibBuscar" placeholder="Buscar por Mesa, título, descripción o autor" oninput="renderBiblioteca()"></div></div><br><div id="bibliotecaLista"></div><div id="bibliotecaDetalle" style="margin-top:16px"></div></section>
 <section id="galeria" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Galería</h1><div class="notice">Registro fotográfico de actividades, encuentros, trabajo territorial y Mesas Técnicas. Se muestran únicamente las fotografías autorizadas para publicación.</div><div id="galeriaAdminShortcut" style="margin-top:12px"></div><br><div id="galeriaLista" class="gallery-list"><p class="muted">Cargando fotografías…</p></div></section>
 <section id="contacto" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Contacto</h1><div class="notice" style="max-width:760px">Envíenos su consulta, propuesta o comentario. El mensaje quedará registrado en la plataforma y Administración recibirá un aviso por correo electrónico.</div><br><div class="card" style="max-width:760px"><div class="form"><label>Nombre y apellido</label><input id="ctNombre" autocomplete="name"><label>Institución / organización <span class="muted">(opcional)</span></label><input id="ctInst" autocomplete="organization"><label>Correo electrónico</label><input id="ctCorreo" type="email" autocomplete="email"><label>Asunto</label><input id="ctAsunto" maxlength="240" placeholder="Ej.: Consulta sobre Mesa de Salud"><label>Mensaje</label><textarea id="ctMsg" rows="6" maxlength="5000" placeholder="Escriba aquí su mensaje..."></textarea><div style="position:absolute;left:-9999px" aria-hidden="true"><label>No completar</label><input id="ctWebsite" tabindex="-1" autocomplete="off"></div><button class="btn primary" id="ctSubmit" onclick="registrarContacto()">Enviar mensaje</button><p id="ctStatus" class="muted" role="status"></p></div></div></section>
 <section id="mifrente" class="page"><div class="sidebar-layout"><aside class="side"><b>Mi Trabajo</b><button data-ptab="panel" onclick="privateTab('panel')">🏠 Inicio</button><button data-ptab="perfil" onclick="privateTab('perfil')">👤 Mi Perfil</button><button data-ptab="espacio" onclick="privateTab('espacio')">✍️ Espacio de Trabajo</button><button data-ptab="aportes" onclick="privateTab('aportes')">📝 Mis aportes</button><button data-ptab="fuentes" onclick="privateTab('fuentes')">🔎 Fuentes de Información</button><button data-ptab="representantes" onclick="privateTab('representantes')">🏛️ Directorio Nacional de Representantes DC</button><button data-ptab="tareas" onclick="privateTab('tareas')">📋 Tareas de la Mesa</button><button data-ptab="aprobados" onclick="privateTab('aprobados')">✅ Documentos Publicados</button><button onclick="logout()">↩ Salir</button></aside><div id="privatecontent"></div></div></section>
@@ -545,17 +568,46 @@ function documentFinalHTML(x){
   return `<div class="card"><div class="kicker">Documento de Mesa Técnica</div><h2>${esc(x.titulo)}</h2><p class="muted">Mesa ${esc(x.mesa)} · ${esc(x.fechaPublicacion||x.fecha||'')} · Versión ${x.version}</p>${STUDY_SECTION_NAMES.map(s=>`<h3>${s}</h3><div>${cleanSectionHTML(s,x.contenido?.[s])||'<p>Sin contenido.</p>'}</div>`).join('')}<h3>Referencias</h3>${(x.referencias||[]).length?'<ol>'+[...x.referencias].sort((a,b)=>a.autor.localeCompare(b.autor)).map(r=>`<li>${esc(r.apa)}</li>`).join('')+'</ol>':'<p class="muted">Sin referencias registradas.</p>'}</div>`;
 }
 function getPublicaciones(){try{return JSON.parse(localStorage.getItem('frentePT_biblioteca_publica')||'[]')}catch(e){return[]}}function setPublicaciones(a){localStorage.setItem('frentePT_biblioteca_publica',JSON.stringify(a))}
+function bibliotecaCitation(p){
+  const year=String(p.anoPublicacion||((p.fechaPublicacion||'').match(/\b(20\d{2})\b/)||[])[1]||new Date().getFullYear());
+  const autor=(p.origen||'Documento de Mesa')==='Aporte individual'
+    ?(p.autor||'Autor individual')
+    :('Mesa Técnica de '+(p.mesa||p.tema||'O’Higgins'));
+  return autor+'. ('+year+'). '+(p.titulo||'Documento')+'. Biblioteca de Profesionales y Técnicos de O’Higgins.';
+}
+async function copiarCitaBiblioteca(id){
+  const p=getPublicaciones().find(x=>String(x.id)===String(id));if(!p)return;
+  const cita=bibliotecaCitation(p);
+  try{
+    await navigator.clipboard.writeText(cita);
+    alert('Cita copiada.');
+  }catch(e){
+    prompt('Copie la cita:',cita);
+  }
+}
 function renderBiblioteca(){
   const b=$('bibliotecaLista');if(!b)return;
-  const filtro=$('bibFiltro')?.value||'Todos',q=($('bibBuscar')?.value||'').toLowerCase();
+  const filtro=$('bibFiltro')?.value||'Todos',tipo=$('bibTipo')?.value||'Todos',q=($('bibBuscar')?.value||'').toLowerCase();
   let a=getPublicaciones();
-  if(filtro!=='Todos')a=a.filter(x=>x.tema===filtro);
-  if(q)a=a.filter(x=>(x.titulo+' '+x.tema+' '+(x.mesa||'')+' '+(x.autor||'')+' '+(x.descripcion||'')).toLowerCase().includes(q));
-  b.innerHTML=a.length?'<div class="grid3">'+a.slice().reverse().map(p=>{
+  if(filtro!=='Todos')a=a.filter(x=>x.tema===filtro||x.mesa===filtro);
+  if(tipo!=='Todos')a=a.filter(x=>(x.origen||'Documento de Mesa')===tipo);
+  if(q)a=a.filter(x=>(x.titulo+' '+x.tema+' '+(x.mesa||'')+' '+(x.autor||'')+' '+(x.descripcion||x.resumen||'')+' '+bibliotecaCitation(x)).toLowerCase().includes(q));
+  const rows=a.slice().reverse().map(p=>{
     const origen=p.origen||'Documento de Mesa';
-    const credit=origen==='Aporte individual'?'Autor: '+esc(p.autor||'Profesional'):'Mesa '+esc(p.mesa||'');
-    return `<div class="card"><span class="pill">${esc(p.tema)}</span> <span class="pill ${origen==='Aporte individual'?'amber':'green'}">${esc(origen)}</span><h3>${esc(p.titulo)}</h3><p>${esc(p.descripcion||p.resumen||'Documento publicado en Biblioteca.')}</p><small class="muted">${credit} · ${esc(p.fechaPublicacion||'')}</small><br><br><button class="btn primary" onclick="leerBiblioteca(${p.id})">Ver documento</button> ${currentUser?'<button class="btn success" onclick="citarPublicacionEnMesa('+p.id+')">Citar en mi trabajo</button> ':''}<button class="btn soft" onclick="abrirSolicitud(${p.id})">📩 Solicitar copia de este documento</button></div>`;
-  }).join('')+'</div>':'<div class="card"><p>No hay documentos públicos para este filtro.</p></div>';
+    const mesa=origen==='Aporte individual'?'Aporte individual':(p.mesa||p.tema||'—');
+    const descripcion=p.descripcion||p.resumen||'Documento publicado en Biblioteca.';
+    const cita=bibliotecaCitation(p);
+    const fecha=p.fechaPublicacion||'—';
+    return `<tr>
+      <td data-label="Mesa"><span class="pill ${origen==='Aporte individual'?'amber':'green'}">${esc(mesa)}</span></td>
+      <td data-label="Título"><div class="library-title">${esc(p.titulo)}</div><small class="muted">${esc(origen)}${p.autor?' · '+esc(p.autor):''}</small></td>
+      <td data-label="Descripción" class="library-desc">${esc(descripcion)}</td>
+      <td data-label="Fecha">${esc(fecha)}</td>
+      <td data-label="Cita sugerida" class="library-cite">${esc(cita)}<br><button class="btn soft" style="margin-top:7px" onclick="copiarCitaBiblioteca(${p.id})">Copiar cita</button></td>
+      <td data-label="Acciones"><div class="library-actions"><button class="btn primary" onclick="leerBiblioteca(${p.id})">Ver documento</button>${currentUser?'<button class="btn success" onclick="citarPublicacionEnMesa('+p.id+')">Citar en mi trabajo</button> ':''}<button class="btn soft" onclick="abrirSolicitud(${p.id})">Solicitar copia</button></div></td>
+    </tr>`;
+  }).join('');
+  b.innerHTML=rows?`<div class="library-table-wrap"><table class="library-table"><thead><tr><th>Mesa</th><th>Título</th><th>Descripción</th><th>Fecha</th><th>Cita</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="card"><p>No hay documentos públicos para este filtro.</p></div>';
 }
 function leerBiblioteca(id){
   const p=getPublicaciones().find(x=>x.id===id),b=$('bibliotecaDetalle');if(!p||!b)return;
