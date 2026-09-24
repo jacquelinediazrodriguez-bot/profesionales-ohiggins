@@ -682,7 +682,7 @@
      '<div class="notice"><b>Espacio libre de elaboración.</b> Aquí puede escribir con formato propio, guardar versiones, recuperar una versión anterior, generar Word/PDF y solicitar publicación sin utilizar la estructura metodológica de las Mesas.</div><br>'+
      '<button class="btn primary" onclick="nuevoAporteIndividual()">＋ Crear nuevo aporte</button><div id="aporteEditor" style="margin-top:16px"></div>'+
      '<h2 class="section-sub">Mis documentos</h2>'+
-     (rows.length?rows.map(x=>'<div class="row"><div><b>'+esc(x.title||'Sin título')+'</b><br><small>'+esc(x.document_type)+' · '+esc(x.topic)+' · Versión '+x.version+' · '+esc(x.status)+' · '+new Date(x.updated_at).toLocaleString('es-CL')+'</small>'+(x.admin_observation?'<p class="muted"><b>Observación de Administración:</b> '+esc(x.admin_observation)+'</p>':'')+'</div><div><button class="btn soft" onclick="editarAporteIndividual('+x.id+')">Abrir</button> '+(x.status==='Retirado de publicación'?'<button class="btn success" onclick="reabrirAporteIndividual('+x.id+')">Iniciar nueva versión</button>':'')+'</div></div>').join(''):'<div class="card"><p>Aún no ha creado aportes individuales.</p></div>');
+     (rows.length?rows.map(x=>'<div class="row"><div><b>'+esc(x.title||'Sin título')+'</b><br><small>'+esc(x.document_type)+' · '+esc(x.topic)+' · Versión '+x.version+' · '+esc(x.status)+' · '+new Date(x.updated_at).toLocaleString('es-CL')+'</small>'+(x.review_observation?'<p class="muted"><b>Observación de Coordinación:</b> '+esc(x.review_observation)+'</p>':'')+(x.admin_observation?'<p class="muted"><b>Observación de Administración:</b> '+esc(x.admin_observation)+'</p>':'')+'</div><div><button class="btn soft" onclick="editarAporteIndividual('+x.id+')">Abrir</button> '+(x.status==='Retirado de publicación'?'<button class="btn success" onclick="reabrirAporteIndividual('+x.id+')">Iniciar nueva versión</button>':'')+'</div></div>').join(''):'<div class="card"><p>Aún no ha creado aportes individuales.</p></div>');
  };
  window.nuevoAporteIndividual=async function(){
    if(!isReal())return;
@@ -723,11 +723,42 @@
    if(!vs.length)return '<div class="muted">Aún no hay versiones guardadas.</div>';
    return vs.map(v=>'<div class="history-item"><div><b>Versión '+esc(v.numero)+'</b><br><small>'+new Date(v.fecha).toLocaleString('es-CL')+' · '+esc(v.document_type||x.document_type)+' · '+esc(v.topic||x.topic)+'</small></div>'+(x.status==='En elaboración'?'<button class="btn soft" onclick="recuperarVersionAporte('+x.id+','+Number(v.numero)+')">Recuperar</button>':'')+'</div>').join('');
  }
+ async function cargarMesasRevisionAportes(){
+   if(Array.isArray(STATE.reviewTables))return STATE.reviewTables;
+   const {data,error}=await sbAuth.from('technical_tables').select('id,name,is_active').eq('is_active',true).order('name');
+   if(error){console.error(error);STATE.reviewTables=[];return []}
+   STATE.reviewTables=data||[];return STATE.reviewTables;
+ }
+ async function resumenRevisionAporte(contributionId){
+   const {data:reqs,error}=await sbAuth.from('individual_review_requests')
+     .select('id,technical_table_id,status,version,requested_at,closed_at,coordinator_observation,technical_tables(name)')
+     .eq('contribution_id',contributionId).order('requested_at',{ascending:false}).limit(1);
+   if(error||!reqs?.length)return null;
+   const r=reqs[0];
+   const {data:feedback}=await sbAuth.from('individual_review_feedback')
+     .select('id,profile_id,feedback_type,message,created_at,profiles(full_name,profession)')
+     .eq('review_request_id',r.id).order('created_at',{ascending:true});
+   return {...r,feedback:feedback||[]};
+ }
+ function resumenRevisionAporteHTML(r){
+   if(!r)return '';
+   const vistos=(r.feedback||[]).filter(x=>x.feedback_type==='Visto bueno');
+   const mensajes=(r.feedback||[]).filter(x=>x.feedback_type==='Mensaje');
+   return '<div class="notice" style="margin-top:14px"><b>Revisión de la Mesa '+esc(r.technical_tables?.name||'')+'</b><br>'+
+     '<span class="pill '+(r.status==='Validada'?'green':'amber')+'">'+esc(r.status)+'</span> · Versión '+esc(String(r.version))+
+     ' · '+vistos.length+' visto'+(vistos.length===1?' bueno':'s buenos')+' · '+mensajes.length+' mensaje'+(mensajes.length===1?'':'s')+
+     (r.coordinator_observation?'<p><b>Observación de Coordinación:</b> '+esc(r.coordinator_observation)+'</p>':'')+
+     (vistos.length?'<div style="margin-top:8px"><b>Vistos buenos:</b><ul>'+vistos.map(v=>'<li>'+esc(v.profiles?.full_name||'Integrante')+(v.profiles?.profession?' · '+esc(v.profiles.profession):'')+'</li>').join('')+'</ul></div>':'')+
+     (mensajes.length?'<div><b>Mensajes:</b><ul>'+mensajes.map(v=>'<li><b>'+esc(v.profiles?.full_name||'Integrante')+':</b> '+esc(v.message||'')+'</li>').join('')+'</ul></div>':'')+
+     '</div>';
+ }
  window.editarAporteIndividual=async function(id){
    let x=aporteActual(id);
    if(!x){await cargarMisAportes();x=aporteActual(id);if(!x)return}
    const box=document.getElementById('aporteEditor');if(!box)return;
-   const locked=['Solicitud de publicación','Publicado','Retirado de publicación'].includes(x.status);
+   const tables=await cargarMesasRevisionAportes();
+   const review=await resumenRevisionAporte(id);
+   const locked=['En revisión de Mesa','Solicitud de publicación','Publicado','Retirado de publicación'].includes(x.status);
    const editing=!locked&&STATE.editingContribution===id;
    const author=currentUser?.nombre||'Profesional';
    const toolbar=editing?'<div class="doc-toolbar" style="margin:10px 0"><button onclick="aporteFmt(\'bold\')"><b>B</b></button><button onclick="aporteFmt(\'italic\')"><i>I</i></button><button onclick="aporteFmt(\'underline\')"><u>U</u></button><button onclick="aporteFmt(\'formatBlock\',\'h2\')">Título</button><button onclick="aporteFmt(\'formatBlock\',\'p\')">Párrafo</button><button onclick="aporteFmt(\'insertUnorderedList\')">• Lista</button><button onclick="aporteFmt(\'insertOrderedList\')">1. Lista</button><button onclick="aporteFmt(\'justifyLeft\')">≡ Izq.</button><button onclick="aporteFmt(\'justifyCenter\')">≡ Centro</button><button onclick="aporteFmt(\'justifyRight\')">≡ Der.</button><button onclick="aporteFmt(\'undo\')">↶</button><button onclick="aporteFmt(\'redo\')">↷</button></div>':'';
@@ -741,10 +772,13 @@
      '<label>Resumen breve</label><textarea id="aporteResumen" rows="3" '+(editing?'':'disabled')+'>'+esc(x.summary||'')+'</textarea>'+
      '<label>Contenido</label>'+toolbar+
      '<div id="aporteBodyEditor" '+(editing?'contenteditable="true"':'')+' style="min-height:320px;border:1px solid #ccd4df;border-radius:10px;padding:16px;background:'+(editing?'#fff':'#f8fafc')+';line-height:1.7;overflow:auto">'+safeRichHTML(x.body||'')+'</div>'+
+     (x.review_observation?'<div class="notice" style="margin-top:12px"><b>Observación de Coordinación:</b> '+esc(x.review_observation)+'</div>':'')+
      (x.admin_observation?'<div class="notice" style="margin-top:12px"><b>Observación de Administración:</b> '+esc(x.admin_observation)+'</div>':'')+
+     resumenRevisionAporteHTML(review)+
+     (!locked&&!editing?'<div class="form-row" style="margin-top:14px"><div><label>Mesa Técnica que revisará este aporte</label><select id="aporteMesaRevision">'+tables.map(t=>'<option value="'+t.id+'" '+(t.name===x.topic?'selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select></div></div>':'')+
      '<div class="toolbar-row" style="margin-top:14px">'+
        (editing?'<button class="btn primary" onclick="finalizarEdicionAporte('+x.id+')">Finalizar edición</button> <button class="btn soft" onclick="guardarAporteIndividual('+x.id+',false)">Guardar borrador</button> <button class="btn success" onclick="guardarAporteIndividual('+x.id+',true)">Guardar versión</button>':'')+
-       (!locked&&!editing?'<button class="btn primary" onclick="iniciarEdicionAporte('+x.id+')">Editar</button> <button class="btn success" onclick="solicitarPublicacionAporte('+x.id+')">Solicitar publicación</button>':'')+
+       (!locked&&!editing?'<button class="btn primary" onclick="iniciarEdicionAporte('+x.id+')">Editar</button> <button class="btn success" onclick="solicitarRevisionAporte('+x.id+')">Solicitar revisión</button>':'')+
        '<button class="btn soft" onclick="vistaPreviaAporte('+x.id+')">Vista del documento</button> <button class="btn soft" onclick="exportarAporteWord('+x.id+')">Exportar Word</button> <button class="btn soft" onclick="exportarAportePDF('+x.id+')">Exportar PDF</button>'+
      '</div>'+
      '<h3 style="margin-top:18px">Historial de versiones</h3>'+aporteHistorialHTML(x)+
@@ -821,22 +855,20 @@
    const d=new Document({sections:[{properties:{},children}]});const blob=await Packer.toBlob(d);
    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=limpiarNombreArchivo(x.title)+'_APORTE_INDIVIDUAL.docx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
  };
- window.solicitarPublicacionAporte=async function(id){
+ window.solicitarRevisionAporte=async function(id){
    const x=aporteActual(id);if(!x)return;
-   if(x.status!=='En elaboración')return alert('Este aporte no está disponible para una nueva solicitud.');
-   if(STATE.editingContribution===id)return alert('Finalice la edición antes de solicitar publicación.');
+   if(x.status!=='En elaboración')return alert('Este aporte no está disponible para una nueva revisión.');
+   if(STATE.editingContribution===id)return alert('Finalice la edición antes de solicitar revisión.');
    if(!String(x.title||'').trim()||!String(x.body||'').replace(/<[^>]*>/g,'').trim())return alert('El aporte debe tener título y contenido antes de enviarlo.');
-   if(!(x.versions||[]).length){
-     STATE.editingContribution=id;await editarAporteIndividual(id);
-     const ok=await guardarAporteIndividual(id,true,true);
-     STATE.editingContribution=null;
-     if(ok===false)return;
-   }
-   const {error}=await sbAuth.rpc('submit_individual_contribution',{p_contribution_id:id});
-   if(error){console.error(error);return alert(/already pending/i.test(String(error.message||''))?'Ya existe una solicitud pendiente.':'No se pudo enviar la solicitud.')}
+   const mesaId=Number(document.getElementById('aporteMesaRevision')?.value||0);
+   if(!mesaId)return alert('Seleccione la Mesa Técnica que revisará el aporte.');
+   const {error}=await sbAuth.rpc('submit_individual_review',{p_contribution_id:id,p_technical_table_id:mesaId});
+   if(error){console.error(error);return alert(/already pending/i.test(String(error.message||''))?'Ya existe una revisión pendiente.':'No se pudo enviar la solicitud de revisión.')}
+   STATE.editingContribution=null;
    await renderAportes(document.getElementById('privatecontent'));
-   alert('Solicitud enviada a Administración. La versión enviada quedó bloqueada mientras se revisa.');
+   alert('Solicitud enviada a la Mesa Técnica. Los integrantes podrán dar visto bueno o dejar mensajes. La Coordinación deberá validar la revisión antes de enviarla a Administración.');
  };
+ window.solicitarPublicacionAporte=window.solicitarRevisionAporte;
  window.reabrirAporteIndividual=async function(id){
    const {error}=await sbAuth.rpc('reopen_individual_contribution',{p_contribution_id:id});
    if(error){console.error(error);return alert('No se pudo iniciar una nueva versión.')}
@@ -864,6 +896,80 @@
    if(error){console.error(error);return alert('No se pudo devolver el aporte.')}
    await window.adminPublicaciones();alert('Aporte devuelto a su autor para correcciones.');
  };
+ async function cargarRevisionesAportesMesa(){
+   const {data,error}=await sbAuth.from('individual_review_requests')
+     .select('id,contribution_id,technical_table_id,requested_by,version,snapshot,status,coordinator_observation,requested_at,closed_at,validated_by,technical_tables(name)')
+     .order('requested_at',{ascending:false});
+   if(error){console.error(error);return []}
+   const rows=data||[];
+   if(!rows.length)return [];
+   const ids=rows.map(x=>x.id);
+   const {data:fb,error:fbErr}=await sbAuth.from('individual_review_feedback')
+     .select('id,review_request_id,profile_id,feedback_type,message,created_at,profiles(full_name,profession)')
+     .in('review_request_id',ids).order('created_at',{ascending:true});
+   if(fbErr)console.warn(fbErr);
+   return rows.map(r=>({...r,feedback:(fb||[]).filter(x=>x.review_request_id===r.id)}));
+ }
+ window.renderRevisionAportes=async function(container){
+   const c=container||document.getElementById('privatecontent');if(!c)return;
+   if(!isReal()){c.innerHTML='<div class="notice">Ingrese con una cuenta real para revisar aportes.</div>';return}
+   c.innerHTML='<div class="kicker">Revisión colaborativa</div><h1 class="section-title">Revisión de aportes</h1><p class="muted">Cargando solicitudes…</p>';
+   const rows=await cargarRevisionesAportesMesa();
+   STATE.reviewContributionRows=rows;
+   const assigned=getAssignedMesas();
+   const visibles=rows.filter(r=>assigned.includes(r.technical_tables?.name)||r.requested_by===STATE.uid);
+   c.innerHTML='<div class="kicker">Revisión colaborativa</div><h1 class="section-title">Revisión de aportes</h1>'+
+     '<div class="notice">Los aportes individuales llegan primero a una Mesa Técnica. Sus integrantes pueden <b>dar visto bueno</b> o <b>dejar un mensaje</b>. Solo la Coordinación de esa Mesa puede cerrar la revisión y enviar el aporte a Administración.</div><br>'+
+     (visibles.length?visibles.map(r=>{
+       const mesa=r.technical_tables?.name||'';
+       const vistos=(r.feedback||[]).filter(x=>x.feedback_type==='Visto bueno');
+       const mensajes=(r.feedback||[]).filter(x=>x.feedback_type==='Mensaje');
+       const mine=vistos.some(x=>x.profile_id===STATE.uid);
+       const coord=/Coordinador/.test(getRoleForMesa(mesa));
+       const open=r.status==='En revisión';
+       return '<div class="card" style="margin-bottom:14px"><div class="row"><div><span class="pill amber">'+esc(mesa)+'</span> <b>'+esc(r.snapshot?.title||'Aporte individual')+'</b><br><small>Autor: '+esc(r.snapshot?.author_name||'Profesional')+(r.snapshot?.author_profession?' · '+esc(r.snapshot.author_profession):'')+' · '+esc(r.snapshot?.document_type||'')+' · Versión '+r.version+' · '+new Date(r.requested_at).toLocaleString('es-CL')+'</small><br><small><b>'+vistos.length+'</b> vistos buenos · <b>'+mensajes.length+'</b> mensajes · Estado: '+esc(r.status)+'</small></div></div>'+
+       '<div class="toolbar-row" style="margin-top:12px"><button class="btn soft" onclick="verRevisionAporte('+r.id+')">Ver aporte</button>'+
+       (open&&assigned.includes(mesa)?' <button class="btn success" '+(mine?'disabled':'')+' onclick="darVistoBuenoAporte('+r.id+')">'+(mine?'✓ Visto bueno registrado':'✓ Dar visto bueno')+'</button> <button class="btn soft" onclick="mensajeRevisionAporte('+r.id+')">💬 Dejar mensaje</button>':'')+
+       (open&&coord?' <button class="btn primary" onclick="coordinadorEnviarAporte('+r.id+')">Validar y solicitar publicación</button> <button class="btn soft" onclick="coordinadorDevolverAporte('+r.id+')">Devolver al autor</button>':'')+
+       '</div>'+
+       ((r.feedback||[]).length?'<div style="margin-top:12px"><b>Actividad de revisión</b><ul>'+r.feedback.map(f=>'<li>'+esc(f.profiles?.full_name||'Integrante')+' · '+esc(f.feedback_type)+(f.message?': '+esc(f.message):'')+' · '+new Date(f.created_at).toLocaleString('es-CL')+'</li>').join('')+'</ul></div>':'')+
+       (r.coordinator_observation?'<div class="mini-note"><b>Observación de Coordinación:</b> '+esc(r.coordinator_observation)+'</div>':'')+
+       '</div>';
+     }).join(''):'<div class="card"><p>No hay aportes en revisión para sus Mesas.</p></div>');
+ };
+ window.verRevisionAporte=function(id){
+   const r=(STATE.reviewContributionRows||[]).find(x=>x.id===id);if(!r)return;
+   const s=r.snapshot||{},w=window.open('','_blank');if(!w)return alert('El navegador bloqueó la vista.');
+   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(s.title||'Aporte')+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;line-height:1.7}.meta{background:#f4f7fb;padding:14px;border-radius:10px}h1,h2,h3{color:#123b67}</style></head><body><h1>'+esc(s.title||'Aporte individual')+'</h1><div class="meta"><b>Autor:</b> '+esc(s.author_name||'')+(s.author_profession?' · '+esc(s.author_profession):'')+' · <b>Mesa revisora:</b> '+esc(r.technical_tables?.name||'')+' · <b>Versión:</b> '+r.version+'</div>'+(s.summary?'<h2>Resumen</h2><p>'+esc(s.summary)+'</p>':'')+'<hr><div>'+safeRichHTML(s.body||'')+'</div></body></html>');
+   w.document.close();
+ };
+ window.darVistoBuenoAporte=async function(id){
+   const {error}=await sbAuth.rpc('give_individual_review_approval',{p_review_request_id:id});
+   if(error){console.error(error);return alert('No se pudo registrar el visto bueno.')}
+   await renderRevisionAportes(document.getElementById('privatecontent'));
+ };
+ window.mensajeRevisionAporte=async function(id){
+   const msg=prompt('Escriba su mensaje u observación para el autor y la Mesa:');if(msg===null)return;
+   if(!msg.trim())return alert('Escriba un mensaje.');
+   const {error}=await sbAuth.rpc('add_individual_review_message',{p_review_request_id:id,p_message:msg.trim()});
+   if(error){console.error(error);return alert('No se pudo guardar el mensaje.')}
+   await renderRevisionAportes(document.getElementById('privatecontent'));
+ };
+ window.coordinadorEnviarAporte=async function(id){
+   if(!confirm('¿Cerrar la revisión de la Mesa y enviar esta versión a Administración para publicación?'))return;
+   const {error}=await sbAuth.rpc('coordinator_submit_individual_publication',{p_review_request_id:id});
+   if(error){console.error(error);return alert('No se pudo enviar a Administración. Verifique que usted sea Coordinador/a de esta Mesa.')}
+   await renderRevisionAportes(document.getElementById('privatecontent'));
+   alert('Revisión validada. La solicitud de publicación fue enviada a Administración.');
+ };
+ window.coordinadorDevolverAporte=async function(id){
+   const obs=prompt('Indique la observación para devolver el aporte al autor:');if(obs===null)return;
+   if(!obs.trim())return alert('Debe registrar una observación.');
+   const {error}=await sbAuth.rpc('return_individual_review',{p_review_request_id:id,p_observation:obs.trim()});
+   if(error){console.error(error);return alert('No se pudo devolver el aporte.')}
+   await renderRevisionAportes(document.getElementById('privatecontent'));
+   alert('El aporte fue devuelto al autor para correcciones.');
+ };
  window.adminPublicaciones=async function(){
    const c=document.getElementById('admincontent');if(!c)return;
    if(!isReal()||currentUser.rol!=='Administrador General'){c.innerHTML='<div class="notice">Esta sección requiere Administración General.</div>';return}
@@ -879,11 +985,11 @@
    const reqs=getPubRequests().filter(x=>x.estado==='Pendiente');
    const individualPending=(ir.data||[]).filter(x=>x.status==='Pendiente');
    c.innerHTML='<div class="kicker">Difusión pública</div><h1 class="section-title">Solicitudes de publicación</h1>'+
-     '<div class="notice">La plataforma distingue entre <b>Documentos de Mesa Técnica</b> y <b>Aportes individuales</b>. Administración revisa la versión exacta enviada antes de publicarla o devolverla.</div>'+
+     '<div class="notice">La plataforma distingue entre <b>Documentos de Mesa Técnica</b> y <b>Aportes individuales</b>. Los aportes individuales solo llegan aquí después de la revisión y validación de su Mesa Técnica. Administración revisa la versión exacta validada antes de publicarla o devolverla.</div>'+
      '<h2 class="section-sub">Documentos de Mesa pendientes</h2>'+
      (reqs.length?reqs.map(x=>'<div class="row"><div><span class="pill green">Documento de Mesa</span> <b>'+esc(x.titulo)+'</b><br><small>Mesa '+esc(x.mesa)+' · Versión '+esc(x.version)+' · '+esc(x.solicitante||'Coordinación')+' · '+esc(x.fecha)+'</small></div><div><button class="btn soft" onclick="verSolicitudPublicacion('+x.id+')">Ver documento</button> <button class="btn primary" onclick="publicarSolicitud('+x.id+')">Publicar</button> <button class="btn soft" onclick="rechazarSolicitudPublicacion('+x.id+')">Devolver</button></div></div>').join(''):'<div class="card"><p>No hay documentos de Mesa pendientes.</p></div>')+
      '<h2 class="section-sub">Aportes individuales pendientes</h2>'+
-     (individualPending.length?individualPending.map(x=>{const a=people.find(p=>p.id===x.requested_by);return '<div class="row"><div><span class="pill amber">Aporte individual</span> <b>'+esc(x.title)+'</b><br><small>Autor: '+esc(a?.full_name||'Profesional')+(a?.profession?' · '+esc(a.profession):'')+' · '+esc(x.snapshot?.document_type||'')+' · '+esc(x.snapshot?.topic||'')+' · Versión '+x.version+' · '+new Date(x.requested_at).toLocaleString('es-CL')+'</small></div><div><button class="btn soft" onclick="verSolicitudAporteIndividual('+x.id+')">Ver aporte</button> <button class="btn primary" onclick="publicarAporteIndividual('+x.id+')">Publicar</button> <button class="btn soft" onclick="devolverAporteIndividual('+x.id+')">Devolver</button></div></div>'}).join(''):'<div class="card"><p>No hay aportes individuales pendientes.</p></div>')+
+     (individualPending.length?individualPending.map(x=>{const a=people.find(p=>p.id===x.requested_by);return '<div class="row"><div><span class="pill amber">Aporte individual</span> <b>'+esc(x.title)+'</b><br><small>Autor: '+esc(a?.full_name||'Profesional')+(a?.profession?' · '+esc(a.profession):'')+' · '+esc(x.snapshot?.document_type||'')+' · '+esc(x.snapshot?.topic||'')+' · Versión '+x.version+' · '+((x.snapshot?.reviewers||[]).length)+' vistos buenos · '+new Date(x.requested_at).toLocaleString('es-CL')+'</small></div><div><button class="btn soft" onclick="verSolicitudAporteIndividual('+x.id+')">Ver aporte</button> <button class="btn primary" onclick="publicarAporteIndividual('+x.id+')">Publicar</button> <button class="btn soft" onclick="devolverAporteIndividual('+x.id+')">Devolver</button></div></div>'}).join(''):'<div class="card"><p>No hay aportes individuales pendientes.</p></div>')+
      '<h2 class="section-sub">Historial de Biblioteca</h2>'+
      ((libs.data||[]).length?(libs.data||[]).map(p=>'<div class="row"><div><span class="pill '+(p.origin_type==='Aporte individual'?'amber':'green')+'">'+esc(p.origin_type||'Documento de Mesa')+'</span> <b>'+esc(p.title)+'</b><br><small>'+esc(p.topic)+' · '+(p.author_name?'Autor: '+esc(p.author_name)+' · ':'')+new Date(p.published_at).toLocaleDateString('es-CL')+(p.withdrawn_at?' · Retirado '+new Date(p.withdrawn_at).toLocaleDateString('es-CL'):'')+(p.withdrawal_reason?' · '+esc(p.withdrawal_reason):'')+'</small></div><div><span class="pill '+(p.is_public?'green':'amber')+'">'+(p.is_public?'PUBLICADO':'RETIRADO DE PUBLICACIÓN')+'</span> '+(p.is_public?'<button class="btn danger" onclick="retirarPublicacion('+p.id+')">Retirar de publicación</button>':'')+'</div></div>').join(''):'<div class="card"><p>Aún no hay documentos en el historial de Biblioteca.</p></div>');
  };
