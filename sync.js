@@ -300,6 +300,7 @@
      id:x.id,cloud:true,
      origen:x.origin_type||'Documento de Mesa',
      autor:x.author_name||'',
+     autorProfesion:x.snapshot?.author_profession||'',
      authorId:x.author_id||null,
      sourceContributionId:x.source_contribution_id||null,
      mesa:x.snapshot?.mesa||'',
@@ -869,7 +870,7 @@
    await refreshSharedAdmin();
    const [ir,profiles,libs]=await Promise.all([
      sbAuth.from('individual_publication_requests').select('*').order('requested_at',{ascending:false}),
-     sbAuth.from('profiles').select('id,full_name,email'),
+     sbAuth.from('profiles').select('id,full_name,email,profession'),
      sbAuth.from('public_library').select('id,title,topic,published_at,is_public,withdrawn_at,withdrawal_reason,publication_request_id,technical_table_id,origin_type,author_name,source_contribution_id').order('published_at',{ascending:false})
    ]);
    if(ir.error||profiles.error||libs.error){console.error(ir.error||profiles.error||libs.error);c.textContent='No se pudo consultar el flujo de publicaciones.';return}
@@ -882,7 +883,7 @@
      '<h2 class="section-sub">Documentos de Mesa pendientes</h2>'+
      (reqs.length?reqs.map(x=>'<div class="row"><div><span class="pill green">Documento de Mesa</span> <b>'+esc(x.titulo)+'</b><br><small>Mesa '+esc(x.mesa)+' · Versión '+esc(x.version)+' · '+esc(x.solicitante||'Coordinación')+' · '+esc(x.fecha)+'</small></div><div><button class="btn soft" onclick="verSolicitudPublicacion('+x.id+')">Ver documento</button> <button class="btn primary" onclick="publicarSolicitud('+x.id+')">Publicar</button> <button class="btn soft" onclick="rechazarSolicitudPublicacion('+x.id+')">Devolver</button></div></div>').join(''):'<div class="card"><p>No hay documentos de Mesa pendientes.</p></div>')+
      '<h2 class="section-sub">Aportes individuales pendientes</h2>'+
-     (individualPending.length?individualPending.map(x=>{const a=people.find(p=>p.id===x.requested_by);return '<div class="row"><div><span class="pill amber">Aporte individual</span> <b>'+esc(x.title)+'</b><br><small>Autor: '+esc(a?.full_name||'Profesional')+' · '+esc(x.snapshot?.document_type||'')+' · '+esc(x.snapshot?.topic||'')+' · Versión '+x.version+' · '+new Date(x.requested_at).toLocaleString('es-CL')+'</small></div><div><button class="btn soft" onclick="verSolicitudAporteIndividual('+x.id+')">Ver aporte</button> <button class="btn primary" onclick="publicarAporteIndividual('+x.id+')">Publicar</button> <button class="btn soft" onclick="devolverAporteIndividual('+x.id+')">Devolver</button></div></div>'}).join(''):'<div class="card"><p>No hay aportes individuales pendientes.</p></div>')+
+     (individualPending.length?individualPending.map(x=>{const a=people.find(p=>p.id===x.requested_by);return '<div class="row"><div><span class="pill amber">Aporte individual</span> <b>'+esc(x.title)+'</b><br><small>Autor: '+esc(a?.full_name||'Profesional')+(a?.profession?' · '+esc(a.profession):'')+' · '+esc(x.snapshot?.document_type||'')+' · '+esc(x.snapshot?.topic||'')+' · Versión '+x.version+' · '+new Date(x.requested_at).toLocaleString('es-CL')+'</small></div><div><button class="btn soft" onclick="verSolicitudAporteIndividual('+x.id+')">Ver aporte</button> <button class="btn primary" onclick="publicarAporteIndividual('+x.id+')">Publicar</button> <button class="btn soft" onclick="devolverAporteIndividual('+x.id+')">Devolver</button></div></div>'}).join(''):'<div class="card"><p>No hay aportes individuales pendientes.</p></div>')+
      '<h2 class="section-sub">Historial de Biblioteca</h2>'+
      ((libs.data||[]).length?(libs.data||[]).map(p=>'<div class="row"><div><span class="pill '+(p.origin_type==='Aporte individual'?'amber':'green')+'">'+esc(p.origin_type||'Documento de Mesa')+'</span> <b>'+esc(p.title)+'</b><br><small>'+esc(p.topic)+' · '+(p.author_name?'Autor: '+esc(p.author_name)+' · ':'')+new Date(p.published_at).toLocaleDateString('es-CL')+(p.withdrawn_at?' · Retirado '+new Date(p.withdrawn_at).toLocaleDateString('es-CL'):'')+(p.withdrawal_reason?' · '+esc(p.withdrawal_reason):'')+'</small></div><div><span class="pill '+(p.is_public?'green':'amber')+'">'+(p.is_public?'PUBLICADO':'RETIRADO DE PUBLICACIÓN')+'</span> '+(p.is_public?'<button class="btn danger" onclick="retirarPublicacion('+p.id+')">Retirar de publicación</button>':'')+'</div></div>').join(''):'<div class="card"><p>Aún no hay documentos en el historial de Biblioteca.</p></div>');
  };
