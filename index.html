@@ -1139,13 +1139,12 @@ async function adminContactos(){
   if(!requireAdmin())return;
   const c=$('admincontent');
   c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Mensajes de contacto</h1>'+
-    '<div class="notice">Los mensajes enviados desde la sección pública quedan registrados aquí. Las respuestas se envían institucionalmente desde <b>contacto@profesionalesohiggins.cl</b>.</div><br>'+
-    '<div id="contactAdminTabs" class="workspace-tabs"></div><div id="contactAdminList"><div class="muted">Cargando mensajes…</div></div>';
+    '<div class="notice">Responda directamente aquí. El correo se envía desde <b>contacto@profesionalesohiggins.cl</b> y la respuesta queda registrada en el mensaje.</div><br>'+
+    '<div id="contactAdminList"><div class="muted">Cargando mensajes…</div></div>';
   try{
     const {data,error}=await sbAuth.from('contact_messages').select('id,name,email,institution,subject,message,status,admin_note,email_notified_at,created_at,updated_at,responded_at,closed_at').order('created_at',{ascending:false});
     if(error)throw error;
     contactAdminItems=data||[];
-    renderContactAdminTabs();
     renderContactAdminList();
   }catch(err){
     console.error(err);
@@ -1161,52 +1160,42 @@ function renderContactAdminTabs(){
 function filtrarContactos(v){contactAdminFilter=v;renderContactAdminTabs();renderContactAdminList()}
 function renderContactAdminList(){
   const host=$('contactAdminList');if(!host)return;
-  const items=contactAdminFilter==='Todos'?contactAdminItems:contactAdminItems.filter(x=>String(x.status||'Nuevo')===contactAdminFilter);
-  if(!items.length){host.innerHTML='<div class="card muted">No hay mensajes en este estado.</div>';return}
+  const items=contactAdminItems;
+  if(!items.length){host.innerHTML='<div class="card muted">No hay mensajes recibidos.</div>';return}
   host.innerHTML=items.map(x=>{
-    const notified=x.email_notified_at?'Aviso por correo confirmado':'Sin confirmación de aviso por correo';
-    const note=x.admin_note?'<div class="mini-note" style="margin-top:10px"><b>Última respuesta / nota:</b><br>'+esc(x.admin_note)+'</div>':'';
-    const responded=x.responded_at?'<small class="muted">Respondido: '+esc(contactDate(x.responded_at))+'</small>':'';
+    const sent=x.responded_at
+      ?'<div class="mini-note" style="margin-top:12px"><b>Respuesta enviada</b> · '+esc(contactDate(x.responded_at))+
+       (x.admin_note?'<br><span style="white-space:pre-wrap">'+esc(x.admin_note)+'</span>':'')+'</div>'
+      :'';
     return '<div class="card" style="margin-bottom:14px" id="contact-card-'+x.id+'">'+
-      '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
-      '<div><div>'+contactPill(x.status)+'</div><h3 style="margin:8px 0 4px">'+esc(x.subject||'Sin asunto')+'</h3>'+
-      '<small class="muted">'+esc(contactDate(x.created_at))+' · '+esc(notified)+'</small></div>'+
-      '<div>'+contactPill(x.status)+'</div></div>'+
-      '<p style="margin:10px 0 4px"><b>'+esc(x.name||'')+'</b> · <a href="#" onclick="event.preventDefault();return false;">'+esc(x.email||'')+'</a>'+(x.institution?' · '+esc(x.institution):'')+'</p>'+
+      '<h3 style="margin:0 0 4px">'+esc(x.subject||'Sin asunto')+'</h3>'+
+      '<small class="muted">'+esc(contactDate(x.created_at))+'</small>'+
+      '<p style="margin:10px 0 4px"><b>'+esc(x.name||'')+'</b> · '+esc(x.email||'')+(x.institution?' · '+esc(x.institution):'')+'</p>'+
       '<p style="white-space:pre-wrap">'+esc(x.message||'')+'</p>'+
-      note+'<div id="contact-reply-'+x.id+'"></div>'+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
-      '<button class="btn primary" onclick="abrirRespuestaContacto('+x.id+')">Responder por correo</button>'+
-      (String(x.status)!=='En revisión'?'<button class="btn soft" onclick="cambiarEstadoContacto('+x.id+',\'En revisión\')">Marcar en revisión</button>':'')+
-      (String(x.status)!=='Cerrado'?'<button class="btn soft" onclick="cambiarEstadoContacto('+x.id+',\'Cerrado\')">Cerrar</button>':'')+
-      '</div>'+responded+'</div>';
+      sent+
+      '<div style="margin-top:14px">'+
+      '<label>Respuesta</label>'+
+      '<textarea id="contact-reply-text-'+x.id+'" rows="5" placeholder="Escriba aquí la respuesta…"></textarea>'+
+      '<div style="margin-top:10px"><button class="btn success" id="contact-send-'+x.id+'" onclick="enviarRespuestaContacto('+x.id+')">Enviar correo</button></div>'+
+      '<div id="contact-reply-status-'+x.id+'" class="statusbar"></div>'+
+      '</div></div>';
   }).join('');
-}
-function abrirRespuestaContacto(id){
-  const x=contactAdminItems.find(m=>Number(m.id)===Number(id));if(!x)return;
-  const host=$('contact-reply-'+id);if(!host)return;
-  host.innerHTML='<div class="card" style="margin-top:12px;background:#f8fafc">'+
-    '<label>Responder desde contacto@profesionalesohiggins.cl</label>'+
-    '<textarea id="contact-reply-text-'+id+'" rows="6" placeholder="Escriba aquí la respuesta que recibirá '+esc(x.name||'la persona')+'."></textarea>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn success" id="contact-send-'+id+'" onclick="enviarRespuestaContacto('+id+')">Enviar respuesta</button>'+
-    '<button class="btn soft" onclick="$(\'contact-reply-'+id+'\').innerHTML=\'\'">Cancelar</button></div>'+
-    '<div id="contact-reply-status-'+id+'" class="statusbar"></div></div>';
-  setTimeout(()=>$('contact-reply-text-'+id)?.focus(),50);
 }
 async function enviarRespuestaContacto(id){
   const ta=$('contact-reply-text-'+id),status=$('contact-reply-status-'+id),btn=$('contact-send-'+id);
   const respuesta=ta?.value.trim()||'';
   if(!respuesta){if(status)status.textContent='Escriba una respuesta antes de enviar.';return}
-  btn.disabled=true;if(status)status.textContent='Enviando desde contacto@profesionalesohiggins.cl…';
+  btn.disabled=true;if(status)status.textContent='Enviando…';
   try{
     const {data,error}=await sbAuth.functions.invoke('reply-contact',{body:{id,respuesta}});
     if(error)throw error;
     if(!data?.ok)throw Error(data?.error||'No fue posible enviar la respuesta.');
-    if(status)status.textContent='Respuesta enviada correctamente desde contacto@profesionalesohiggins.cl.';
-    setTimeout(()=>adminContactos(),700);
+    if(status)status.textContent='Respuesta enviada.';
+    ta.value='';
+    setTimeout(()=>adminContactos(),500);
   }catch(err){
     console.error(err);
-    if(status)status.textContent='No fue posible enviar la respuesta. No se cambió el estado del mensaje.';
+    if(status)status.textContent='No fue posible enviar la respuesta. Intente nuevamente.';
     btn.disabled=false;
   }
 }
