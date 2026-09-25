@@ -743,7 +743,26 @@ function leerBiblioteca(id){
 }
 function abrirSolicitud(id){requestingPubId=id;const p=getPublicaciones().find(x=>x.id===id);$('reqTitle').textContent='Solicitar copia: '+(p?.titulo||'Documento');$('requestModal').classList.add('open')}function cerrarSolicitud(){$('requestModal').classList.remove('open');requestingPubId=null}
 function getSolicitudes(){try{return JSON.parse(localStorage.getItem('frentePT_solicitudes_documentos')||'[]')}catch(e){return[]}}function setSolicitudes(a){localStorage.setItem('frentePT_solicitudes_documentos',JSON.stringify(a))}function guardarSolicitud(){const p=getPublicaciones().find(x=>x.id===requestingPubId),n=$('reqNombre').value.trim(),e=$('reqCorreo').value.trim();if(!p||!n||!e.includes('@'))return alert('Ingrese nombre y correo válido.');const a=getSolicitudes();a.push({id:Date.now(),publicacionId:p.id,titulo:p.titulo,tema:p.tema,nombre:n,correo:e,institucion:$('reqInst').value.trim(),motivo:$('reqMotivo').value.trim(),fecha:new Date().toLocaleString('es-CL'),estado:'Pendiente'});setSolicitudes(a);['reqNombre','reqCorreo','reqInst','reqMotivo'].forEach(i=>$(i).value='');cerrarSolicitud();alert('Solicitud registrada. En producción, el envío se realizará desde el correo institucional.')}
-function registrarContacto(){const n=$('ctNombre').value.trim(),e=$('ctCorreo').value.trim();if(!n||!e.includes('@'))return $('ctStatus').textContent='Complete nombre y correo válido.';$('ctStatus').textContent='Este formulario todavía no envía ni almacena consultas. Por favor, no incluya información personal hasta que habilitemos el envío institucional.';}
+async function registrarContacto(){
+ const n=$('ctNombre').value.trim(),e=$('ctCorreo').value.trim(),i=$('ctInst').value.trim(),a=$('ctAsunto').value.trim(),m=$('ctMsg').value.trim(),w=$('ctWebsite')?.value||'';
+ const status=$('ctStatus'),btn=$('ctSubmit');
+ if(!n||!e.includes('@')||!a||!m){status.textContent='Complete nombre, correo válido, asunto y mensaje.';return}
+ btn.disabled=true;status.textContent='Enviando mensaje…';
+ try{
+   const {data,error}=await sbAuth.functions.invoke('submit-contact',{body:{nombre:n,correo:e,institucion:i,asunto:a,mensaje:m,website:w}});
+   if(error)throw error;
+   if(!data?.ok)throw Error(data?.error||'No fue posible enviar el mensaje.');
+   if(data.email_sent){
+     status.textContent='Mensaje enviado correctamente. Administración recibió el aviso por correo electrónico.';
+   }else{
+     status.textContent='Mensaje registrado correctamente. El aviso por correo quedó pendiente; Administración podrá verlo en la plataforma.';
+   }
+   ['ctNombre','ctInst','ctCorreo','ctAsunto','ctMsg','ctWebsite'].forEach(id=>{const el=$(id);if(el)el.value=''});
+ }catch(err){
+   console.error(err);
+   status.textContent='No fue posible enviar el mensaje. Inténtelo nuevamente.';
+ }finally{btn.disabled=false}
+}
 function adminHome(){
  if(!requireAdmin())return;
  const c=$('admincontent'),general=isAdminGeneral(),title=general?'Administración General':'Administración de Plataforma';
