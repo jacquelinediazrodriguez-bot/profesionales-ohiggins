@@ -194,7 +194,7 @@
      (memberships||[]).forEach(x=>{if(x.technical_tables?.name)STATE.ids[x.technical_tables.name]=x.technical_table_id});
      const {data:tables,error:terr}=await sbAuth.from('technical_tables').select('id,name,description,is_active');
      if(terr)throw terr;
-     if(['Administrador General'].includes(currentUser.rol)){
+     if(['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){
        (tables||[]).forEach(x=>STATE.ids[x.name]=x.id);
        mesas=(tables||[]).map(x=>x.name);
        saveMesas();
@@ -411,7 +411,7 @@
    }
  };
  async function refreshSharedAdmin(){
-   if(!isReal()||currentUser.rol!=='Administrador General')return;
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return;
    const results=await Promise.all([
      sbAuth.from('profiles').select('id,full_name,email,role,is_active'),
      sbAuth.from('table_memberships').select('profile_id,technical_table_id,member_role,is_coordinator'),
@@ -423,7 +423,7 @@
    const [profiles,members,requests,documents,contacts]=results.map(x=>x.data||[]);
    const arr=[];
    for(const p of profiles){
-     if(['administrador_general','administrador_plataforma'].includes(p.role))arr.push({nombre:p.full_name,correo:p.email,rol:'Administrador General',mesa:'Administración',estado:p.is_active?'Activo':'Inactivo'});
+     if(['administrador_general','administrador_plataforma'].includes(p.role))arr.push({nombre:p.full_name,correo:p.email,rol:p.role==='administrador_general'?'Administrador General':'Administrador de Plataforma',mesa:'Administración',estado:p.is_active?'Activo':'Inactivo'});
      for(const x of members.filter(a=>a.profile_id===p.id)){
        const name=Object.keys(STATE.ids).find(m=>String(STATE.ids[m])===String(x.technical_table_id));
        if(name)arr.push({nombre:p.full_name,correo:p.email,rol:x.is_coordinator?'Coordinador/a de Mesa':x.member_role,
@@ -460,7 +460,7 @@
    return [...result.values()];
  };
  window.actualizarEstadoContacto=async function(id,status){
-   if(!isReal()||currentUser.rol!=='Administrador General')return;
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return;
    const patch={status,updated_at:new Date().toISOString(),handled_by:STATE.uid};
    if(status==='Respondido')patch.responded_at=new Date().toISOString();
    if(status==='Cerrado')patch.closed_at=new Date().toISOString();
@@ -469,7 +469,7 @@
    await window.adminContactos();
  };
  window.guardarNotaContacto=async function(id){
-   if(!isReal()||currentUser.rol!=='Administrador General')return;
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return;
    const x=(STATE.contactRows||[]).find(a=>a.id===id);if(!x)return;
    const nota=prompt('Nota interna de Administración:',x.admin_note||'');if(nota===null)return;
    const {error}=await sbAuth.from('contact_messages').update({
@@ -480,7 +480,7 @@
  };
  window.adminContactos=async function(){
    const b=document.getElementById('admincontent');if(!b)return;
-   if(!isReal()||currentUser.rol!=='Administrador General'){
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){
      b.innerHTML='<div class="notice">La bandeja de mensajes compartida requiere una cuenta administrativa real.</div>';return;
    }
    const {data,error}=await sbAuth.from('contact_messages')
@@ -609,7 +609,7 @@
    await refreshSharedAdmin();adminSolicitudes();
  };
  window.adminSolicitudes=async function(){
-   if(!isReal()||currentUser.rol!=='Administrador General')return original.adminSolicitudes();
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return original.adminSolicitudes();
    await refreshSharedAdmin();
    return original.adminSolicitudes();
  };
@@ -635,7 +635,7 @@
    alert('Solicitud devuelta. El documento volvió a En elaboración y quedó habilitado para correcciones.');
  };
  window.retirarPublicacion=async function(id){
-   if(!isReal()||currentUser.rol!=='Administrador General')return;
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return;
    const motivo=prompt('Indique el motivo del retiro de publicación:');if(motivo===null)return;
    if(!motivo.trim())return alert('Debe registrar el motivo del retiro.');
    const {error}=await sbAuth.rpc('withdraw_publication',{p_library_id:id,p_reason:motivo.trim()});
@@ -972,7 +972,7 @@
  };
  window.adminPublicaciones=async function(){
    const c=document.getElementById('admincontent');if(!c)return;
-   if(!isReal()||currentUser.rol!=='Administrador General'){c.innerHTML='<div class="notice">Esta sección requiere Administración General.</div>';return}
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){c.innerHTML='<div class="notice">Esta sección requiere Administración General.</div>';return}
    await refreshSharedAdmin();
    const [ir,profiles,libs]=await Promise.all([
      sbAuth.from('individual_publication_requests').select('*').order('requested_at',{ascending:false}),
