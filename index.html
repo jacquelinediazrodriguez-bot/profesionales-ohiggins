@@ -344,7 +344,35 @@ async function login(){
  }catch(err){console.error(err);msg.textContent='No se completó la validación. Revise su conexión.'}
 }
 function logout(){if($('wsTitulo'))syncWorkFromUI(true);if(currentUser?.supabaseId&&sbAuth)sbAuth.auth.signOut();currentUser=null;sessionStorage.removeItem('frentePT_user');go('inicio')}
-function restoreSession(){try{currentUser=JSON.parse(sessionStorage.getItem('frentePT_user')||'null')}catch(e){currentUser=null}}
+function restoreSession(){try{currentUser=JSON.parse(sessionStorage.getItem('frentePT_user')||'null');if(currentUser&&!currentUser.systemRole){if(currentUser.rol==='Administrador General')currentUser.systemRole='administrador_general';if(currentUser.rol==='Administrador de Plataforma')currentUser.systemRole='administrador_plataforma'}}catch(e){currentUser=null}}
+function isAdminGeneral(){return currentUser?.systemRole==='administrador_general'}
+function isAdminPlataforma(){return currentUser?.systemRole==='administrador_plataforma'}
+function isAnyAdmin(){return isAdminGeneral()||isAdminPlataforma()}
+function requireAdmin(generalOnly=false){
+ if(!currentUser||!isAnyAdmin()){go('mesas');return false}
+ if(generalOnly&&!isAdminGeneral()){alert('Esta función está reservada al Administrador General.');adminHome();return false}
+ return true
+}
+function renderAdminShell(){
+ const shell=$('adminShell');if(!shell)return;
+ if(!isAnyAdmin()){shell.innerHTML='<div class="notice">Debe ingresar con una cuenta administrativa autorizada.</div>';return}
+ const general=isAdminGeneral();
+ const title=general?'Administración General':'Administración de Plataforma';
+ const sensitive=general?'<button onclick="adminSeguridadLimites()">🛡️ Seguridad y límites</button>':'';
+ shell.innerHTML='<div class="sidebar-layout"><aside class="side"><b>'+title+'</b>'+
+ '<button onclick="adminHome()">🏠 Inicio</button>'+
+ '<button onclick="adminUsuarios()">👥 Integrantes y asignaciones</button>'+
+ '<button onclick="adminMesas()">🧩 Mesas Técnicas</button>'+
+ '<button onclick="adminPublicaciones()">📚 Revisión y publicaciones</button>'+
+ '<button onclick="adminSolicitudes()">✉️ Solicitudes de documentos</button>'+
+ '<button onclick="adminContactos()">💬 Mensajes de contacto</button>'+
+ '<button onclick="adminRepresentantes()">🏛️ Directorio</button>'+
+ '<button onclick="abrirGestionGaleria()">🖼️ Gestión de Galería</button>'+
+ '<button onclick="adminBloqueos()">🔒 Bloqueos de edición</button>'+
+ '<button onclick="adminEstado()">📊 Estado de la Plataforma</button>'+
+ sensitive+
+ '<button onclick="logout()">↩ Salir</button></aside><div id="admincontent"></div></div>';
+}
 function getIntegrantes(){try{return JSON.parse(localStorage.getItem('frentePT_integrantes_roles')||'[]')}catch(e){return[]}}
 function getAssignedMesas(){if(!currentUser)return[];return [...new Set(getIntegrantes().filter(x=>x.correo===currentUser.correo&&x.estado!=='Inactivo'&&x.mesa!=='Administración').map(x=>x.mesa))]}
 function getRoleForMesa(m){if(!currentUser)return'';return getIntegrantes().find(x=>x.correo===currentUser.correo&&x.mesa===m)?.rol||currentUser.rol||''}
