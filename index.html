@@ -145,7 +145,7 @@ footer{text-align:center;color:var(--muted);padding:24px}
 <section id="galeria" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Galería</h1><div class="notice">Registro fotográfico de actividades, encuentros, trabajo territorial y Mesas Técnicas. Se muestran únicamente las fotografías autorizadas para publicación.</div><div id="galeriaAdminShortcut" style="margin-top:12px"></div><br><div id="galeriaLista" class="gallery-list"><p class="muted">Cargando fotografías…</p></div></section>
 <section id="contacto" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Contacto</h1><div class="notice" style="max-width:760px">Envíenos su consulta, propuesta o comentario. El mensaje quedará registrado en la plataforma y Administración recibirá un aviso por correo electrónico.</div><br><div class="card" style="max-width:760px"><div class="form"><label>Nombre y apellido</label><input id="ctNombre" autocomplete="name"><label>Institución / organización <span class="muted">(opcional)</span></label><input id="ctInst" autocomplete="organization"><label>Correo electrónico</label><input id="ctCorreo" type="email" autocomplete="email"><label>Asunto</label><input id="ctAsunto" maxlength="240" placeholder="Ej.: Consulta sobre Mesa de Salud"><label>Mensaje</label><textarea id="ctMsg" rows="6" maxlength="5000" placeholder="Escriba aquí su mensaje..."></textarea><div style="position:absolute;left:-9999px" aria-hidden="true"><label>No completar</label><input id="ctWebsite" tabindex="-1" autocomplete="off"></div><button class="btn primary" id="ctSubmit" onclick="registrarContacto()">Enviar mensaje</button><p id="ctStatus" class="muted" role="status"></p></div></div></section>
 <section id="mifrente" class="page"><div class="sidebar-layout"><aside class="side"><b>Mi Trabajo</b><button data-ptab="panel" onclick="privateTab('panel')">🏠 Inicio</button><button data-ptab="perfil" onclick="privateTab('perfil')">👤 Mi Perfil</button><button data-ptab="espacio" onclick="privateTab('espacio')">✍️ Espacio de Trabajo</button><button data-ptab="aportes" onclick="privateTab('aportes')">📝 Mis aportes</button><button data-ptab="revisionaportes" onclick="privateTab('revisionaportes')">👀 Revisión de aportes</button><button data-ptab="fuentes" onclick="privateTab('fuentes')">🔎 Fuentes de Información</button><button data-ptab="representantes" onclick="privateTab('representantes')">🏛️ Directorio Nacional de Representantes DC</button><button data-ptab="tareas" onclick="privateTab('tareas')">📋 Tareas de la Mesa</button><button data-ptab="aprobados" onclick="privateTab('aprobados')">✅ Documentos Publicados</button><button onclick="logout()">↩ Salir</button></aside><div id="privatecontent"></div></div></section>
-<section id="adminarea" class="page"><div class="sidebar-layout"><aside class="side"><b>Administración</b><button onclick="adminHome()">🏠 Inicio</button><button onclick="adminUsuarios()">👥 Integrantes y Roles</button><button onclick="adminMesas()">🧩 Mesas Técnicas</button><button onclick="adminRepresentantes()">🏛️ Directorio Nacional de Representantes DC</button><button onclick="abrirGestionGaleria()">🖼️ Gestión de Galería</button><button onclick="adminPublicaciones()">📚 Solicitudes de publicación</button><button onclick="adminSolicitudes()">✉️ Solicitudes de documentos</button><button onclick="adminContactos()">💬 Mensajes de contacto</button><button onclick="adminEstado()">📊 Estado de la Plataforma</button><button onclick="logout()">↩ Salir</button></aside><div id="admincontent"></div></div></section>
+<section id="adminarea" class="page"><div id="adminShell"></div></section>
 </main>
 <footer>Prototipo navegable V1 · Plataforma Digital Frente PT O’Higgins</footer>
 <div class="modal-back" id="recoveryModal"><div class="modal">
@@ -314,14 +314,14 @@ async function login(){
  msg.textContent='';
  if(!e||!p){msg.textContent='Ingrese correo y contraseña.';return}
  // Acceso de prueba independiente de los datos guardados en el dispositivo.
- const d=e==='coordinador@demo.cl'?{nombre:'Coordinador Demo',correo:e,mesa:'Trabajo',rol:'Coordinador/a de Mesa',estado:'Activo',clave:'demo123'}:e==='admin@demo.cl'?{nombre:'Administrador Demo',correo:e,mesa:'Administración',rol:'Administrador General',estado:'Activo',clave:'admin123'}:null;
+ const d=e==='coordinador@demo.cl'?{nombre:'Coordinador Demo',correo:e,mesa:'Trabajo',rol:'Coordinador/a de Mesa',estado:'Activo',clave:'demo123'}:e==='admin@demo.cl'?{nombre:'Administrador Demo',correo:e,mesa:'Administración',rol:'Administrador General',systemRole:'administrador_general',estado:'Activo',clave:'admin123'}:null;
  if(d){
   if(p!==d.clave){msg.textContent='Contraseña de demostración incorrecta.';return}
   const {clave,...u}=d;
   let a=getIntegrantes().filter(x=>!(x.correo?.toLowerCase()===e&&x.mesa===u.mesa));
   a.push({...u,password:clave});localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(a));
   currentUser=u;sessionStorage.setItem('frentePT_user',JSON.stringify(u));
-  if(u.rol==='Administrador General'){go('adminarea');adminHome()}else{currentDocMesa=u.mesa;go('mifrente');privateTab('panel')}
+  if(u.rol==='Administrador General'){go('adminarea');renderAdminShell();adminHome()}else{currentDocMesa=u.mesa;go('mifrente');privateTab('panel')}
   return;
  }
  if(!sbAuth){msg.textContent='Servicio de acceso no disponible. Intente más tarde.';return}
@@ -333,14 +333,14 @@ async function login(){
   const {data:membership,error:me}=await sbAuth.from('table_memberships').select('member_role,is_coordinator,technical_tables(name)').eq('profile_id',profile.id);
   if(me){msg.textContent='No se pudo consultar las Mesas asignadas.';await sbAuth.auth.signOut();return}
   const all=(membership||[]).filter(x=>x.technical_tables?.name).map(x=>({nombre:profile.full_name,correo:e,mesa:x.technical_tables.name,rol:x.is_coordinator?'Coordinador/a de Mesa':x.member_role||'Integrante de Mesa',estado:'Activo'}));
-  if(['administrador_general','administrador_plataforma'].includes(profile.role))all.push({nombre:profile.full_name,correo:e,mesa:'Administración',rol:'Administrador General',estado:'Activo'});
+  if(['administrador_general','administrador_plataforma'].includes(profile.role))all.push({nombre:profile.full_name,correo:e,mesa:'Administración',rol:profile.role==='administrador_general'?'Administrador General':'Administrador de Plataforma',systemRole:profile.role,estado:'Activo'});
   if(!all.length){msg.textContent='Su perfil todavía no tiene Mesas asignadas. Contacte a Administración.';await sbAuth.auth.signOut();return}
   sessionStorage.setItem('frentePT_real_roles',JSON.stringify(all));
-  const isAdmin=all.some(x=>x.rol==='Administrador General');currentUser={nombre:profile.full_name,correo:e,rol:isAdmin?'Administrador General':all[0].rol,mesa:isAdmin?'Administración':all[0].mesa,estado:'Activo',supabaseId:profile.id};
+  const isAdmin=['administrador_general','administrador_plataforma'].includes(profile.role);currentUser={nombre:profile.full_name,correo:e,rol:isAdmin?(profile.role==='administrador_general'?'Administrador General':'Administrador de Plataforma'):all[0].rol,systemRole:profile.role,mesa:isAdmin?'Administración':all[0].mesa,estado:'Activo',supabaseId:profile.id};
   sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser));
   const cloudOk=await initSharedWorkspace();
   if(!cloudOk){currentUser=null;sessionStorage.removeItem('frentePT_user');msg.textContent='No se pudo conectar con los datos compartidos. Sus documentos anteriores no han sido modificados. Intente nuevamente.';return}
-  if(isAdmin){go('adminarea');adminHome()}else{currentDocMesa=all[0].mesa;go('mifrente');privateTab('panel')}
+  if(isAdmin){go('adminarea');renderAdminShell();adminHome()}else{currentDocMesa=all[0].mesa;go('mifrente');privateTab('panel')}
  }catch(err){console.error(err);msg.textContent='No se completó la validación. Revise su conexión.'}
 }
 function logout(){if($('wsTitulo'))syncWorkFromUI(true);if(currentUser?.supabaseId&&sbAuth)sbAuth.auth.signOut();currentUser=null;sessionStorage.removeItem('frentePT_user');go('inicio')}
