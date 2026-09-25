@@ -86,6 +86,13 @@ footer{text-align:center;color:var(--muted);padding:24px}
 .flow-diagram{display:grid;gap:12px;max-width:780px;margin:22px auto}.flow-node{border:2px solid #bfd2e5;background:#f7fbff;border-radius:12px;padding:16px;text-align:center}.flow-node strong{display:block;color:#123b67;margin-bottom:5px}.flow-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.flow-arrow{text-align:center;color:#1e5d91;font-size:24px;font-weight:700}.flow-caption{font-size:13px;color:#405064}.flow-pub{border-color:#83b49b;background:#f2fbf6}@media(max-width:620px){.flow-row{grid-template-columns:1fr}}
 
 .gallery-list{display:grid;gap:18px}.gallery-card{display:grid;grid-template-columns:minmax(180px,40%) 1fr;gap:18px;align-items:start}.gallery-card img{width:100%;max-height:370px;object-fit:cover;border-radius:12px}.gallery-card h3{margin-top:0}.gallery-card .gallery-meta{font-size:13px;color:var(--muted);margin-bottom:12px}.gallery-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.gallery-preview{max-width:280px;max-height:210px;object-fit:contain;margin-top:8px;border-radius:10px;border:1px solid var(--line)}@media(max-width:650px){.gallery-card{grid-template-columns:1fr}}
+.presidency-section{margin-top:26px}.presidency-card{display:grid;grid-template-columns:220px 1fr;gap:24px;align-items:start;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 4px 14px rgba(30,60,90,.05)}
+.presidency-photo{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:14px;background:#eef3f8;border:1px solid var(--line)}
+.presidency-placeholder{width:100%;aspect-ratio:4/5;display:grid;place-items:center;border-radius:14px;background:#eef3f8;border:1px solid var(--line);color:var(--muted);text-align:center;padding:16px}
+.presidency-name{font-size:23px;color:var(--blue);font-weight:800;margin:0 0 3px}.presidency-role{color:var(--muted);font-size:14px;margin-bottom:16px}
+.presidency-words{line-height:1.65;color:#405064;white-space:pre-wrap}.presidency-current{margin-top:18px;padding:16px;border-left:4px solid var(--blue2);background:#f3f7fb;border-radius:10px}
+.presidency-current h3{margin:0 0 5px;color:var(--blue)}.presidency-date{font-size:12px;color:var(--muted);margin-bottom:9px}.presidency-current p{margin:0;line-height:1.65;white-space:pre-wrap}
+@media(max-width:700px){.presidency-card{grid-template-columns:1fr}.presidency-photo,.presidency-placeholder{max-width:260px;margin:auto}}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -98,7 +105,7 @@ footer{text-align:center;color:var(--muted);padding:24px}
 <nav id="publicNav"><button onclick="go('inicio')">Inicio</button><button onclick="go('quienes')">Quiénes Somos</button><button onclick="go('mesas')">Mesas Técnicas</button><button onclick="go('biblioteca')">Biblioteca</button><button onclick="go('galeria')">Galería</button><button onclick="go('contacto')">Contacto</button></nav>
 </div></header>
 <main>
-<section id="inicio" class="page active"><div class="hero"><div class="kicker">Versión 1 · Estructura revisada</div><h1>Plataforma Digital Frente PT O’Higgins</h1><div class="tag">Conocimiento · Participación · Colaboración · Propuestas</div><p>Un espacio para organizar el trabajo profesional, desarrollar conocimiento técnico y transformar ese trabajo en propuestas concretas para la Región de O’Higgins.</p><button class="btn primary" onclick="go('mesas')">Conocer Mesas Técnicas</button> <button class="btn soft" onclick="go('biblioteca')">Ver Biblioteca</button></div><div class="grid"><div class="card" onclick="go('quienes')" style="cursor:pointer"><div class="kicker">Institucional</div><h3>Quiénes Somos</h3><p>Propósito, organización y forma de trabajo del Frente.</p></div><div class="card" onclick="go('mesas')" style="cursor:pointer"><div class="kicker">Trabajo técnico</div><h3>Mesas Técnicas</h3><p>Espacios de análisis y elaboración de propuestas. Desde aquí ingresan los profesionales autorizados.</p></div><div class="card" onclick="go('biblioteca')" style="cursor:pointer"><div class="kicker">Conocimiento público</div><h3>Biblioteca</h3><p>Documentos aprobados y autorizados para consulta pública.</p></div><div class="card" onclick="go('contacto')" style="cursor:pointer"><div class="kicker">Vinculación</div><h3>Contacto</h3><p>Consultas y solicitudes de información.</p></div></div></section>
+<section id="inicio" class="page active"><div class="hero"><div class="kicker">Versión 1 · Estructura revisada</div><h1>Plataforma Digital Frente PT O’Higgins</h1><div class="tag">Conocimiento · Participación · Colaboración · Propuestas</div><p>Un espacio para organizar el trabajo profesional, desarrollar conocimiento técnico y transformar ese trabajo en propuestas concretas para la Región de O’Higgins.</p><button class="btn primary" onclick="go('mesas')">Conocer Mesas Técnicas</button> <button class="btn soft" onclick="go('biblioteca')">Ver Biblioteca</button></div><div class="grid"><div class="card" onclick="go('quienes')" style="cursor:pointer"><div class="kicker">Institucional</div><h3>Quiénes Somos</h3><p>Propósito, organización y forma de trabajo del Frente.</p></div><div class="card" onclick="go('mesas')" style="cursor:pointer"><div class="kicker">Trabajo técnico</div><h3>Mesas Técnicas</h3><p>Espacios de análisis y elaboración de propuestas. Desde aquí ingresan los profesionales autorizados.</p></div><div class="card" onclick="go('biblioteca')" style="cursor:pointer"><div class="kicker">Conocimiento público</div><h3>Biblioteca</h3><p>Documentos aprobados y autorizados para consulta pública.</p></div><div class="card" onclick="go('contacto')" style="cursor:pointer"><div class="kicker">Vinculación</div><h3>Contacto</h3><p>Consultas y solicitudes de información.</p></div></div><div id="presidencyPublic" class="presidency-section"></div></section>
 <section id="quienes" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Quiénes Somos</h1><div class="grid2"><div class="card"><h3>Quiénes Somos</h3><p>Somos una organización interna de la Democracia Cristiana que reúne a profesionales y técnicos de distintas disciplinas, comprometidos con aportar sus conocimientos, experiencia y vocación de servicio al análisis de los desafíos de la Región de O’Higgins y del país.</p><p>Constituimos un espacio de participación, reflexión y trabajo colaborativo, abierto al estudio y análisis de materias de interés social, político, económico, cultural, territorial y ciudadano.</p></div><div class="card"><h3>Nuestro propósito</h3><p>Convocar y articular las capacidades, conocimientos y experiencia de profesionales y técnicos para analizar los principales desafíos de la Región de O’Higgins y transformarlos en propuestas concretas que contribuyan al desarrollo regional y al trabajo político y programático de la Democracia Cristiana.</p><p>Nuestro trabajo se sustenta en la participación, el conocimiento técnico, la escucha territorial y los principios humanistas cristianos.</p></div><div class="card"><h3>Cómo cumplimos nuestro propósito</h3><p>Trabajamos principalmente mediante Mesas Técnicas y equipos temáticos, integrados por profesionales y técnicos de distintas disciplinas.</p><p>Actualmente el trabajo se inicia en Salud, Educación, Economía, Trabajo y Agricultura, pudiendo incorporarse nuevas áreas según las necesidades regionales.</p></div><div class="card"><h3>Cómo trabajamos</h3><p>Las Mesas analizan antecedentes, escuchan a los actores del territorio, identifican problemas, estudian alternativas y desarrollan propuestas técnicamente fundamentadas.</p></div></div></section>
 <section id="mesas" class="page"><div class="kicker">Acceso privado</div><h1 class="section-title">Mesas Técnicas</h1><div class="notice"><b>Ingreso de integrantes.</b> Para acceder al trabajo de las Mesas Técnicas, primero debe validarse con el correo electrónico y la contraseña asociados a su cuenta. Una vez validado, la plataforma reconocerá automáticamente la Mesa o Mesas asignadas y el rol correspondiente en cada una.</div><br><div class="card" style="max-width:580px"><div class="form"><label>Correo electrónico</label><input id="loginEmail" type="email" placeholder="correo@ejemplo.cl" value="coordinador@demo.cl"><label>Contraseña</label><input id="loginPass" type="password" value="demo123"><button class="btn primary" onclick="login()">Validar e ingresar</button><button class="btn soft" type="button" onclick="abrirRecuperacion()">¿Olvidó su contraseña?</button>
   <div class="mini-note"><b>¿Ya tiene una cuenta?</b> No vuelva a registrarse. Use la recuperación de contraseña para conservar su perfil, sus Mesas de trabajo y los roles asignados.</div>
@@ -252,7 +259,7 @@ function seed(){
   localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(integrantes));
   if(!localStorage.getItem('frentePT_mesas'))localStorage.setItem('frentePT_mesas',JSON.stringify(mesas));
 }
-function go(id){if($('wsTitulo'))syncWorkFromUI(true);document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const p=$(id);if(p)p.classList.add('active');if(id==='biblioteca')renderBiblioteca();if(id==='galeria')renderGaleria();window.scrollTo({top:0,behavior:'smooth'})}
+function go(id){if($('wsTitulo'))syncWorkFromUI(true);document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const p=$(id);if(p)p.classList.add('active');if(id==='inicio')loadPresidencyMessage();if(id==='biblioteca')renderBiblioteca();if(id==='galeria')renderGaleria();window.scrollTo({top:0,behavior:'smooth'})}
 function abrirRecuperacion(){
   const e=$('loginEmail')?.value.trim()||'';
   if($('recoveryEmail'))$('recoveryEmail').value=e;
@@ -358,7 +365,7 @@ function renderAdminShell(){
  if(!isAnyAdmin()){shell.innerHTML='<div class="notice">Debe ingresar con una cuenta administrativa autorizada.</div>';return}
  const general=isAdminGeneral();
  const title=general?'Administración General':'Administración de Plataforma';
- const sensitive=general?'<button onclick="adminSeguridadLimites()">🛡️ Seguridad y límites</button>':'';
+ const sensitive=general?'<button onclick="adminPresidencia()">🗣️ Mensaje de Presidencia</button><button onclick="adminSeguridadLimites()">🛡️ Seguridad y límites</button>':'';
  shell.innerHTML='<div class="sidebar-layout"><aside class="side"><b>'+title+'</b>'+
  '<button onclick="adminHome()">🏠 Inicio</button>'+
  '<button onclick="adminUsuarios()">👥 Integrantes y asignaciones</button>'+
@@ -755,7 +762,7 @@ function adminHome(){
  '<div class="card" onclick="adminRepresentantes()" style="cursor:pointer"><h3>🏛️ Directorio</h3><p>Mantener autoridades y contactos institucionales verificados.</p></div>'+
  '<div class="card" onclick="adminBloqueos()" style="cursor:pointer"><h3>🔒 Bloqueos de edición</h3><p>Consultar secciones actualmente bloqueadas durante la edición.</p></div>'+
  '<div class="card" onclick="adminEstado()" style="cursor:pointer"><h3>📊 Estado operativo</h3><p>Resumen de integrantes, Mesas y publicaciones.</p></div>'+
- (general?'<div class="card" onclick="adminSeguridadLimites()" style="cursor:pointer"><h3>🛡️ Seguridad y límites</h3><p>Control exclusivo de Administración General.</p></div>':'')+
+ (general?'<div class="card" onclick="adminPresidencia()" style="cursor:pointer"><h3>🗣️ Mensaje de Presidencia</h3><p>Editar fotografía, palabras institucionales y mensaje de actualidad.</p></div><div class="card" onclick="adminSeguridadLimites()" style="cursor:pointer"><h3>🛡️ Seguridad y límites</h3><p>Control exclusivo de Administración General.</p></div>':'')+
  '</div>';
 }
 function adminUsuarios(){if(!requireAdmin())return;const c=$('admincontent');c.innerHTML=`<div class="kicker">Administración</div><h1 class="section-title">Integrantes y Roles</h1><div class="notice"><b>Regla de acceso:</b> Administración registra al profesional, asigna una Mesa y un rol. Una misma persona puede pertenecer a varias Mesas y tener un rol diferente en cada una. En producción, el sistema enviará al correo una invitación para que el profesional cree su propia contraseña; Administración no conocerá la contraseña definitiva.</div><br><div class="card"><div class="form-row"><div><label>Nombre</label><input id="admNombre"></div><div><label>Correo</label><input id="admCorreo" type="email"></div><div><label>Mesa Técnica</label><select id="admMesa">${mesasActivas().map(m=>`<option>${m}</option>`).join('')}</select></div><div><label>Rol en esta Mesa</label><select id="admRol"><option>Integrante de Mesa</option><option>Secretario/a Técnico/a</option><option>Coordinador/a de Mesa</option><option>Solo lector</option></select></div></div><br><button class="btn primary" onclick="guardarIntegrante()">Registrar / asignar rol</button><p id="admInviteStatus" class="muted"></p><div class="mini-note" style="margin-top:12px"><b>V1 de prueba:</b> para poder ensayar el ingreso, una cuenta nueva utiliza temporalmente la contraseña <b>demo123</b>. En la versión con Supabase, este paso será reemplazado por la invitación segura al correo.</div></div><h2 class="section-sub">Integrantes registrados</h2><div id="admListado"></div>`;renderIntegrantes()}
@@ -834,6 +841,95 @@ async function adminBloqueos(){
  '<div class="notice">Aquí puede identificar secciones que están siendo editadas. Los bloqueos abandonados se recuperan según la regla de la plataforma.</div><br>'+
  ((data&&data.length)?data.map(x=>'<div class="row"><div><b>'+esc(x.section_name||'Sección')+'</b><br><small>Mesa ID '+esc(x.technical_table_id)+' · Usuario '+esc(x.profile_id)+'</small></div><div><span class="pill">'+esc(new Date(x.locked_at).toLocaleString('es-CL'))+'</span></div></div>').join(''):'<div class="card"><p>No hay bloqueos activos.</p></div>');
 }
+async function loadPresidencyMessage(){
+ const box=$('presidencyPublic');if(!box||!sbAuth)return;
+ box.innerHTML='';
+ const {data,error}=await sbAuth.from('presidency_message').select('*').eq('id',1).maybeSingle();
+ if(error||!data||!data.is_published){box.innerHTML='';return}
+ let image='';
+ if(data.image_path){
+   const pub=sbAuth.storage.from('presidencia').getPublicUrl(data.image_path);
+   image=pub?.data?.publicUrl||'';
+ }
+ const date=data.message_date?new Date(data.message_date+'T12:00:00').toLocaleDateString('es-CL',{month:'long',year:'numeric'}):'';
+ box.innerHTML='<div class="kicker">Presidencia del Frente</div><h2 class="section-title" style="font-size:27px">Palabras del Presidente</h2>'+
+ '<article class="presidency-card"><div>'+(image?'<img class="presidency-photo" src="'+esc(image)+'" alt="Presidencia del Frente">':'<div class="presidency-placeholder">Fotografía de Presidencia</div>')+'</div>'+
+ '<div><div class="presidency-name">'+esc(data.president_name||'Presidencia del Frente')+'</div>'+
+ '<div class="presidency-role">'+esc(data.president_title||'Presidente Regional del Frente de Profesionales y Técnicos')+'</div>'+
+ (data.permanent_words?'<div class="presidency-words">'+esc(data.permanent_words)+'</div>':'')+
+ (data.current_message?'<div class="presidency-current"><h3>'+esc(data.current_message_title||'Mensaje de actualidad')+'</h3>'+
+ (date?'<div class="presidency-date">'+esc(date)+'</div>':'')+
+ '<p>'+esc(data.current_message)+'</p></div>':'')+
+ '</div></article>';
+}
+async function adminPresidencia(){
+ if(!requireAdmin(true))return;
+ const c=$('admincontent');if(!c)return;
+ c.innerHTML='<div class="kicker">Administrador General</div><h1 class="section-title">Mensaje de Presidencia</h1><p class="muted">Cargando contenido…</p>';
+ if(!sbAuth){c.innerHTML='<div class="notice">Servicio de datos no disponible.</div>';return}
+ const {data,error}=await sbAuth.from('presidency_message').select('*').eq('id',1).maybeSingle();
+ if(error){c.innerHTML='<div class="notice">No fue posible cargar el mensaje de Presidencia.</div>';return}
+ const x=data||{};
+ let img='';
+ if(x.image_path){const pub=sbAuth.storage.from('presidencia').getPublicUrl(x.image_path);img=pub?.data?.publicUrl||''}
+ c.innerHTML='<div class="kicker">Administrador General</div><h1 class="section-title">Mensaje de Presidencia</h1>'+
+ '<div class="notice"><b>Edición exclusiva del Administrador General.</b> Este contenido aparece en la página de Inicio cuando está marcado como publicado.</div><br>'+
+ '<div class="card form">'+
+ '<label>Nombre del Presidente</label><input id="presName" maxlength="180" value="'+esc(x.president_name||'')+'">'+
+ '<label>Cargo</label><input id="presTitle" maxlength="220" value="'+esc(x.president_title||'Presidente Regional del Frente de Profesionales y Técnicos')+'">'+
+ '<label>Palabras del Presidente</label><textarea id="presWords" rows="6" maxlength="6000" placeholder="Mensaje institucional más permanente">'+esc(x.permanent_words||'')+'</textarea>'+
+ '<label>Título del mensaje de actualidad</label><input id="presCurrentTitle" maxlength="220" value="'+esc(x.current_message_title||'Mensaje de actualidad')+'">'+
+ '<label>Mensaje de actualidad</label><textarea id="presCurrent" rows="7" maxlength="6000" placeholder="Mensaje que puede actualizarse periódicamente">'+esc(x.current_message||'')+'</textarea>'+
+ '<label>Fecha del mensaje</label><input id="presDate" type="date" value="'+esc(x.message_date||'')+'">'+
+ '<label>Fotografía del Presidente (JPEG, PNG o WebP, máximo 5 MB)</label><input id="presImage" type="file" accept="image/jpeg,image/png,image/webp">'+
+ (img?'<img src="'+esc(img)+'" class="gallery-preview" alt="Fotografía actual de Presidencia">':'')+
+ '<label style="display:flex;gap:8px;align-items:center"><input id="presPublished" type="checkbox" style="width:auto" '+(x.is_published?'checked':'')+'> Publicar esta sección en Inicio</label>'+
+ '<div><button class="btn primary" id="presSaveBtn" onclick="savePresidencyMessage()">Guardar cambios</button></div>'+
+ '<p id="presStatus" class="muted"></p></div>';
+}
+async function savePresidencyMessage(){
+ if(!requireAdmin(true)||!sbAuth)return;
+ const btn=$('presSaveBtn'),status=$('presStatus');if(btn)btn.disabled=true;
+ if(status)status.textContent='Guardando…';
+ try{
+   const {data:{user},error:ue}=await sbAuth.auth.getUser();if(ue||!user)throw ue||new Error('Sesión no disponible');
+   let imagePath=null;
+   const {data:existing,error:ee}=await sbAuth.from('presidency_message').select('image_path').eq('id',1).maybeSingle();
+   if(ee)throw ee;
+   imagePath=existing?.image_path||null;
+   const file=$('presImage')?.files?.[0];
+   if(file){
+     if(file.size>5*1024*1024)throw new Error('La fotografía supera el máximo de 5 MB.');
+     const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+     const path='presidente-'+Date.now()+'.'+ext;
+     const {error:upErr}=await sbAuth.storage.from('presidencia').upload(path,file,{upsert:false,contentType:file.type});
+     if(upErr)throw upErr;
+     const old=imagePath;imagePath=path;
+     if(old){const {error:delErr}=await sbAuth.storage.from('presidencia').remove([old]);if(delErr)console.warn(delErr)}
+   }
+   const payload={
+     id:1,
+     president_name:$('presName').value.trim()||null,
+     president_title:$('presTitle').value.trim()||'Presidente Regional del Frente de Profesionales y Técnicos',
+     permanent_words:$('presWords').value.trim()||null,
+     current_message_title:$('presCurrentTitle').value.trim()||null,
+     current_message:$('presCurrent').value.trim()||null,
+     message_date:$('presDate').value||null,
+     image_path:imagePath,
+     is_published:$('presPublished').checked,
+     updated_by:user.id,
+     updated_at:new Date().toISOString()
+   };
+   const {error}=await sbAuth.from('presidency_message').upsert(payload,{onConflict:'id'});
+   if(error)throw error;
+   if(status)status.textContent='Mensaje de Presidencia guardado correctamente.';
+   await loadPresidencyMessage();
+   setTimeout(()=>adminPresidencia(),500);
+ }catch(err){
+   console.error(err);
+   if(status)status.textContent='No se pudo guardar: '+(err?.message||'Error desconocido');
+ }finally{if(btn)btn.disabled=false}
+}
 async function adminSeguridadLimites(){
  if(!requireAdmin(true))return;
  const c=$('admincontent');
@@ -856,7 +952,7 @@ async function adminSeguridadLimites(){
 }
 function adminEstado(){if(!requireAdmin())return;const c=$('admincontent');c.innerHTML=`<div class="kicker">Control general</div><h1 class="section-title">Estado de la Plataforma</h1><div class="grid"><div class="card"><h3>${getIntegrantes().filter(x=>x.rol!=='Administrador General').length}</h3><p>Integrantes registrados</p></div><div class="card"><h3>${mesas.length}</h3><p>Mesas Técnicas registradas</p></div><div class="card"><h3>${mesasActivas().length}</h3><p>Mesas activas</p></div><div class="card"><h3>${getPublicaciones().length}</h3><p>Documentos en Biblioteca</p></div></div>`}
 window.addEventListener('pagehide',()=>{if($('wsTitulo'))syncWorkFromUI(true)});
-seed();seedRepresentantesOficiales();restoreSession();if(isAnyAdmin())renderAdminShell();
+seed();seedRepresentantesOficiales();restoreSession();if(isAnyAdmin())renderAdminShell();loadPresidencyMessage();
 
 /* Galería institucional: lectura pública de material aprobado; gestión exclusiva en Supabase. */
 let galleryRows=[],galleryEditing=null;
