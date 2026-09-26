@@ -865,7 +865,11 @@ async function loadPresidencyMessage(){
  box.innerHTML='';
  const {data,error}=await sbAuth.from('presidency_message').select('*').eq('id',1).maybeSingle();
  if(error||!data||!data.is_published){box.innerHTML='';return}
- let image='carlos-manzoliz-presidente.jpg';
+ let image='';
+ if(data.image_path){
+   const pub=sbAuth.storage.from('presidencia').getPublicUrl(data.image_path);
+   image=pub?.data?.publicUrl||'';
+ }
  const date=data.message_date?new Date(data.message_date+'T12:00:00').toLocaleDateString('es-CL',{month:'long',year:'numeric'}):'';
  box.innerHTML='<div class="kicker">Presidencia del Frente</div><h2 class="section-title" style="font-size:27px">Palabras del Presidente</h2>'+
  '<article class="presidency-card"><div>'+(image?'<img class="presidency-photo" src="'+esc(image)+'" onerror="this.onerror=null;this.src=&quot;carlos-manzoliz-presidente.jpg&quot;" alt="Presidencia del Frente">':'<div class="presidency-placeholder">Fotografía de Presidencia</div>')+'</div>'+
@@ -896,11 +900,21 @@ async function adminPresidencia(){
  '<label>Título del mensaje de actualidad</label><input id="presCurrentTitle" maxlength="220" value="'+esc(x.current_message_title||'Mensaje de actualidad')+'">'+
  '<label>Mensaje de actualidad</label><textarea id="presCurrent" rows="7" maxlength="6000" placeholder="Mensaje que puede actualizarse periódicamente">'+esc(x.current_message||'')+'</textarea>'+
  '<label>Fecha del mensaje</label><input id="presDate" type="date" value="'+esc(x.message_date||'')+'">'+
- '<label>Fotografía del Presidente (JPEG, PNG o WebP, máximo 5 MB)</label><input id="presImage" type="file" accept="image/jpeg,image/png,image/webp">'+
- (img?'<img src="'+esc(img)+'" class="gallery-preview" alt="Fotografía actual de Presidencia">':'')+
+ '<label>Fotografía del Presidente</label>'+
+ '<div class="mini-note">Seleccione la fotografía desde su teléfono o computador. Formatos permitidos: JPEG, PNG o WebP. Máximo 5 MB.</div>'+
+ '<input id="presImage" type="file" accept="image/jpeg,image/png,image/webp" onchange="previewPresidencyImage(event)">'+
+ '<div id="presImagePreview">'+(img?'<img src="'+esc(img)+'" class="gallery-preview" alt="Fotografía actual de Presidencia">':'<p class="muted">Aún no hay una fotografía cargada.</p>')+'</div>'+
  '<label style="display:flex;gap:8px;align-items:center"><input id="presPublished" type="checkbox" style="width:auto" '+(x.is_published?'checked':'')+'> Publicar esta sección en Inicio</label>'+
  '<div><button class="btn primary" id="presSaveBtn" onclick="savePresidencyMessage()">Guardar cambios</button></div>'+
  '<p id="presStatus" class="muted"></p></div>';
+}
+function previewPresidencyImage(event){
+ const file=event?.target?.files?.[0],box=$('presImagePreview');if(!box)return;
+ if(!file){box.innerHTML='<p class="muted">No se seleccionó una fotografía.</p>';return}
+ if(!['image/jpeg','image/png','image/webp'].includes(file.type)){box.innerHTML='<div class="notice">Formato no permitido. Use JPEG, PNG o WebP.</div>';return}
+ if(file.size>5*1024*1024){box.innerHTML='<div class="notice">La fotografía supera el máximo de 5 MB.</div>';return}
+ const url=URL.createObjectURL(file);
+ box.innerHTML='<img src="'+url+'" class="gallery-preview" alt="Vista previa de la fotografía seleccionada">';
 }
 async function savePresidencyMessage(){
  if(!requireAdmin(true)||!sbAuth)return;
