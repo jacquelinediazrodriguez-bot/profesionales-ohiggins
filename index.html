@@ -93,6 +93,15 @@ footer{text-align:center;color:var(--muted);padding:24px}
 .presidency-words{line-height:1.65;color:#405064;white-space:pre-wrap}.presidency-current{margin-top:18px;padding:16px;border-left:4px solid var(--blue2);background:#f3f7fb;border-radius:10px}
 .presidency-current h3{margin:0 0 5px;color:var(--blue)}.presidency-date{font-size:12px;color:var(--muted);margin-bottom:9px}.presidency-current p{margin:0;line-height:1.65;white-space:pre-wrap}
 @media(max-width:700px){.presidency-card{grid-template-columns:1fr}.presidency-photo,.presidency-placeholder{max-width:260px;margin:auto}}
+.presidency-left{min-width:0}
+.directiva-compact{margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
+.directiva-compact h3{margin:0 0 6px;color:var(--blue);font-size:13px;line-height:1.25}
+.directiva-row{font-size:11.5px;line-height:1.25;padding:3px 0;border-bottom:1px dotted #d9e3ed}
+.directiva-row:last-child{border-bottom:0}.directiva-row b{color:#294f74}.directiva-comuna{color:var(--muted)}
+.board-admin{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#f8fbfe}
+.board-admin h3{margin:0 0 5px;color:var(--blue)}.board-admin-row{display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px;margin-top:8px}
+.board-admin-row input{min-width:0}
+@media(max-width:700px){.presidency-left{max-width:300px;margin:auto}.board-admin-row{grid-template-columns:1fr}}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -860,6 +869,22 @@ async function adminBloqueos(){
  '<div class="notice">Aquí puede identificar secciones que están siendo editadas. Los bloqueos abandonados se recuperan según la regla de la plataforma.</div><br>'+
  ((data&&data.length)?data.map(x=>'<div class="row"><div><b>'+esc(x.section_name||'Sección')+'</b><br><small>Mesa ID '+esc(x.technical_table_id)+' · Usuario '+esc(x.profile_id)+'</small></div><div><span class="pill">'+esc(new Date(x.locked_at).toLocaleString('es-CL'))+'</span></div></div>').join(''):'<div class="card"><p>No hay bloqueos activos.</p></div>');
 }
+const DEFAULT_BOARD_MEMBERS=[
+ {role:'Presidente',name:'Carlos Enrique Manzoliz Jaramillo',commune:''},
+ {role:'1ª Vicepresidenta',name:'Jacqueline Angélica Díaz Rodríguez',commune:''},
+ {role:'2º Vicepresidente',name:'Manuel Alejandro Barrera Alarcón',commune:''},
+ {role:'3ª Vicepresidenta',name:'Maribel Carolina Cáceres Cruz',commune:''},
+ {role:'Secretario',name:'Francisco Javier Jara Reyes',commune:''},
+ {role:'Apoderado',name:'Alfonso Pancracia Jimenez González',commune:''}
+];
+function normalizeBoardMembers(value){
+ const arr=Array.isArray(value)&&value.length?value:DEFAULT_BOARD_MEMBERS;
+ return arr.map((m,i)=>({
+   role:String(m?.role||DEFAULT_BOARD_MEMBERS[i]?.role||'').trim(),
+   name:String(m?.name||DEFAULT_BOARD_MEMBERS[i]?.name||'').trim(),
+   commune:String(m?.commune||'').trim()
+ })).filter(m=>m.role||m.name||m.commune);
+}
 async function loadPresidencyMessage(){
  const box=$('presidencyPublic');if(!box||!sbAuth)return;
  box.innerHTML='';
@@ -871,8 +896,12 @@ async function loadPresidencyMessage(){
    image=pub?.data?.publicUrl||'';
  }
  const date=data.message_date?new Date(data.message_date+'T12:00:00').toLocaleDateString('es-CL',{month:'long',year:'numeric'}):'';
+ const board=normalizeBoardMembers(data.board_members);
+ const boardHtml='<div class="directiva-compact"><h3>Directiva Regional Frente PT O’Higgins</h3>'+
+   board.map(m=>'<div class="directiva-row"><b>'+esc(m.role)+'</b> — '+esc(m.name)+(m.commune?'<span class="directiva-comuna"> · '+esc(m.commune)+'</span>':'')+'</div>').join('')+
+   '</div>';
  box.innerHTML='<div class="kicker">Presidencia del Frente</div><h2 class="section-title" style="font-size:27px">Palabras del Presidente</h2>'+
- '<article class="presidency-card"><div>'+(image?'<img class="presidency-photo" src="'+esc(image)+'" onerror="this.onerror=null;this.src=&quot;carlos-manzoliz-presidente.jpg&quot;" alt="Presidencia del Frente">':'<div class="presidency-placeholder">Fotografía de Presidencia</div>')+'</div>'+
+ '<article class="presidency-card"><div class="presidency-left">'+(image?'<img class="presidency-photo" src="'+esc(image)+'" onerror="this.onerror=null;this.src=&quot;carlos-manzoliz-presidente.jpg&quot;" alt="Presidencia del Frente">':'<div class="presidency-placeholder">Fotografía de Presidencia</div>')+boardHtml+'</div>'+
  '<div><div class="presidency-name">'+esc(data.president_name||'Presidencia del Frente')+'</div>'+
  '<div class="presidency-role">'+esc(data.president_title||'Presidente Regional del Frente de Profesionales y Técnicos')+'</div>'+
  (data.permanent_words?'<div class="presidency-words">'+esc(data.permanent_words)+'</div>':'')+
@@ -889,10 +918,11 @@ async function adminPresidencia(){
  const {data,error}=await sbAuth.from('presidency_message').select('*').eq('id',1).maybeSingle();
  if(error){c.innerHTML='<div class="notice">No fue posible cargar el mensaje de Presidencia.</div>';return}
  const x=data||{};
+ const board=normalizeBoardMembers(x.board_members);
  let img='';
  if(x.image_path){const pub=sbAuth.storage.from('presidencia').getPublicUrl(x.image_path);img=pub?.data?.publicUrl||''}
  c.innerHTML='<div class="kicker">Administrador General</div><h1 class="section-title">Mensaje de Presidencia</h1>'+
- '<div class="notice"><b>Edición exclusiva del Administrador General.</b> Este contenido aparece en la página de Inicio cuando está marcado como publicado.</div><br>'+
+ '<div class="notice"><b>Edición exclusiva del Administrador General.</b> El mensaje y la Directiva se muestran en Inicio cuando esta sección está publicada.</div><br>'+
  '<div class="card form">'+
  '<label>Nombre del Presidente</label><input id="presName" maxlength="180" value="'+esc(x.president_name||'')+'">'+
  '<label>Cargo</label><input id="presTitle" maxlength="220" value="'+esc(x.president_title||'Presidente Regional del Frente de Profesionales y Técnicos')+'">'+
@@ -904,6 +934,9 @@ async function adminPresidencia(){
  '<div class="mini-note">Seleccione la fotografía desde su teléfono o computador. Formatos permitidos: JPEG, PNG o WebP. Máximo 5 MB.</div>'+
  '<input id="presImage" type="file" accept="image/jpeg,image/png,image/webp" onchange="previewPresidencyImage(event)">'+
  '<div id="presImagePreview">'+(img?'<img src="'+esc(img)+'" class="gallery-preview" alt="Fotografía actual de Presidencia">':'<p class="muted">Aún no hay una fotografía cargada.</p>')+'</div>'+
+ '<div class="board-admin"><h3>Directiva Regional Frente PT O’Higgins</h3><div class="mini-note">Puede actualizar aquí cargo, nombre y comuna cuando cambie la directiva.</div>'+
+ board.map((m,i)=>'<div class="board-admin-row"><input id="boardRole'+i+'" maxlength="100" aria-label="Cargo '+(i+1)+'" placeholder="Cargo" value="'+esc(m.role)+'"><input id="boardName'+i+'" maxlength="180" aria-label="Nombre '+(i+1)+'" placeholder="Nombre completo" value="'+esc(m.name)+'"><input id="boardCommune'+i+'" maxlength="120" aria-label="Comuna '+(i+1)+'" placeholder="Comuna" value="'+esc(m.commune)+'"></div>').join('')+
+ '</div>'+
  '<label style="display:flex;gap:8px;align-items:center"><input id="presPublished" type="checkbox" style="width:auto" '+(x.is_published?'checked':'')+'> Publicar esta sección en Inicio</label>'+
  '<div><button class="btn primary" id="presSaveBtn" onclick="savePresidencyMessage()">Guardar cambios</button></div>'+
  '<p id="presStatus" class="muted"></p></div>';
@@ -936,6 +969,13 @@ async function savePresidencyMessage(){
      const old=imagePath;imagePath=path;
      if(old){const {error:delErr}=await sbAuth.storage.from('presidencia').remove([old]);if(delErr)console.warn(delErr)}
    }
+   const board_members=[];
+   for(let i=0;i<6;i++){
+     const role=$('boardRole'+i)?.value.trim()||'';
+     const name=$('boardName'+i)?.value.trim()||'';
+     const commune=$('boardCommune'+i)?.value.trim()||'';
+     if(role||name||commune)board_members.push({role,name,commune});
+   }
    const payload={
      id:1,
      president_name:$('presName').value.trim()||null,
@@ -945,13 +985,14 @@ async function savePresidencyMessage(){
      current_message:$('presCurrent').value.trim()||null,
      message_date:$('presDate').value||null,
      image_path:imagePath,
+     board_members:board_members.length?board_members:DEFAULT_BOARD_MEMBERS,
      is_published:$('presPublished').checked,
      updated_by:user.id,
      updated_at:new Date().toISOString()
    };
    const {error}=await sbAuth.from('presidency_message').upsert(payload,{onConflict:'id'});
    if(error)throw error;
-   if(status)status.textContent='Mensaje de Presidencia guardado correctamente.';
+   if(status)status.textContent='Mensaje de Presidencia y Directiva guardados correctamente.';
    await loadPresidencyMessage();
    setTimeout(()=>adminPresidencia(),500);
  }catch(err){
