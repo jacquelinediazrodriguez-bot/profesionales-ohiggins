@@ -836,7 +836,15 @@ function guardarMesaTecnica(){
     const oldKey=workKey(orig),newKey=workKey(nombre),old=localStorage.getItem(oldKey);if(old&&!localStorage.getItem(newKey)){localStorage.setItem(newKey,old);localStorage.removeItem(oldKey)}
     const oldMeta=getMesaMeta(orig);removeMesaMeta(orig);setMesaMeta(nombre,{...oldMeta,descripcion:desc,estado});
   }else{
-    if(!orig)mesas.push(nombre);
+    if(!orig){
+      // Una Mesa nueva debe comenzar completamente vacía: sin integrantes,
+      // sin coordinación heredada y sin documentos antiguos con el mismo nombre.
+      mesas.push(nombre);
+      const fresh=getIntegrantes().filter(x=>String(x.mesa||'').trim().toLowerCase()!==nombre.toLowerCase());
+      localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(fresh));
+      localStorage.removeItem(workKey(nombre));
+      sessionStorage.removeItem(draftKey(nombre));
+    }
     setMesaMeta(nombre,{descripcion:desc,estado});
   }
   saveMesas();cancelarEdicionMesa(false);adminMesas();
