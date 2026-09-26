@@ -1079,7 +1079,7 @@
      if(error)throw error;
      if(!data?.user)throw Error('El servicio no confirmó la creación de la cuenta.');
      status.style.color='#2e7d62';
-     status.textContent=data.session?'Cuenta creada. Ya puede ingresar con su correo y contraseña. Administración debe habilitar las funciones correspondientes.':'Cuenta registrada. Revise su correo (también Spam) y confirme el enlace. Después ingrese aquí con su correo y contraseña.';
+     status.textContent=data.session?'Cuenta creada correctamente. Ya puede ingresar con su correo y contraseña. Administración podrá asignarle una Mesa Técnica y el rol correspondiente.':'Cuenta registrada correctamente. Revise su correo electrónico y confirme el enlace recibido. Una vez validado su correo, Administración podrá asignarle una Mesa Técnica y el rol correspondiente.';
      el('signupPassword').value='';
    }catch(error){
      console.error('Error de registro:',error);
