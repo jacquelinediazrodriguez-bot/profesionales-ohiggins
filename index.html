@@ -865,11 +865,7 @@ async function loadPresidencyMessage(){
  box.innerHTML='';
  const {data,error}=await sbAuth.from('presidency_message').select('*').eq('id',1).maybeSingle();
  if(error||!data||!data.is_published){box.innerHTML='';return}
- let image='';
- if(data.image_path){
-   const pub=sbAuth.storage.from('presidencia').getPublicUrl(data.image_path);
-   image=pub?.data?.publicUrl||'';
- }
+ let image='carlos-manzoliz-presidente.jpg';
  const date=data.message_date?new Date(data.message_date+'T12:00:00').toLocaleDateString('es-CL',{month:'long',year:'numeric'}):'';
  box.innerHTML='<div class="kicker">Presidencia del Frente</div><h2 class="section-title" style="font-size:27px">Palabras del Presidente</h2>'+
  '<article class="presidency-card"><div>'+(image?'<img class="presidency-photo" src="'+esc(image)+'" onerror="this.onerror=null;this.src=&quot;carlos-manzoliz-presidente.jpg&quot;" alt="Presidencia del Frente">':'<div class="presidency-placeholder">Fotografía de Presidencia</div>')+'</div>'+
