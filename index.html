@@ -809,7 +809,7 @@ function guardarSolicitud(){
   ['reqNombre','reqCorreo','reqInst','reqMotivo'].forEach(i=>$(i).value='');
   pubs.forEach(p=>selectedLibraryIds.delete(String(p.id)));
   cerrarSolicitud();renderBiblioteca();
-  alert('Solicitud registrada para '+pubs.length+' '+(pubs.length===1?'documento.':'documentos.'));
+  alert('Su solicitud fue enviada correctamente a Administración. Los documentos seleccionados quedaron registrados para su gestión.');
 }
 async function registrarContacto(){
  const n=$('ctNombre').value.trim(),e=$('ctCorreo').value.trim(),i=$('ctInst').value.trim(),a=$('ctAsunto').value.trim(),m=$('ctMsg').value.trim(),w=$('ctWebsite')?.value||'';
