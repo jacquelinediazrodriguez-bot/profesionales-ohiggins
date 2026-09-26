@@ -24,56 +24,40 @@ footer{text-align:center;color:var(--muted);padding:24px}
 @media(max-width:900px){nav{display:none}.grid{grid-template-columns:repeat(2,1fr)}.grid3,.grid2,.form-row,.source-categories,.source-grid{grid-template-columns:1fr}.sidebar-layout{grid-template-columns:1fr}.side{position:static;display:flex;overflow:auto;gap:4px}.side b{display:none}.side button{min-width:max-content}.hero{padding:34px 24px}.meta-strip,.summary-card{grid-template-columns:1fr 1fr}.task-head{display:none}.task-row{grid-template-columns:1fr}.task-row .btn{width:100%}.doc-page{padding:24px 18px}}
 @media(max-width:520px){.grid{grid-template-columns:1fr}.top{padding:12px}.brand small{display:none}main{padding:18px 12px 45px}.hero{border-radius:18px}.meta-strip,.summary-card{grid-template-columns:1fr}}
 .library-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px;background:#fff}
-.library-table{width:100%;border-collapse:collapse;min-width:980px}
+.library-table{width:100%;border-collapse:collapse;min-width:760px}
 .library-table th,.library-table td{padding:13px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .library-table th{background:#eef3f8;color:var(--blue);font-size:12px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;z-index:1}
 .library-table tr:last-child td{border-bottom:0}
-.library-table tbody tr:hover{background:#fbfdff}
-.library-table .library-group td{background:#f4f7fb;color:var(--blue);font-weight:850;font-size:14px;padding:11px 14px;border-top:2px solid #cfdbe7;border-bottom:1px solid #cfdbe7}
-.library-table .library-group:hover td{background:#f4f7fb}
+.library-table tbody tr:hover td{filter:brightness(.99)}
+.library-table .library-group td{font-weight:850;font-size:14px;padding:11px 14px;border-top:2px solid currentColor;border-bottom:1px solid var(--line)}
 .library-group-count{font-weight:650;color:var(--muted);font-size:12px;margin-left:8px}
-.library-table .library-title{font-weight:800;color:var(--blue)}
-.library-table .library-desc{min-width:220px;line-height:1.45;color:#405064}
-.library-table .library-cite{min-width:280px;line-height:1.45;font-size:13px;color:#526579}
-.library-actions{display:flex;gap:6px;flex-wrap:wrap;min-width:190px}
-.library-actions .btn{padding:7px 9px;font-size:12px}
-.library-mobile-label{display:none}
-@media(max-width:760px){
-  .library-table-wrap{
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-    border:1px solid var(--line);
-    border-radius:14px;
-    background:#fff;
-  }
-  .library-table{
-    min-width:980px;
-    border-collapse:collapse;
-  }
-  .library-table thead{display:table-header-group}
-  .library-table tbody{display:table-row-group}
-  .library-table tr{display:table-row}
-  .library-table th,.library-table td{
-    display:table-cell;
-    width:auto;
-    padding:12px 13px;
-    border-bottom:1px solid var(--line);
-    vertical-align:top;
-  }
-  .library-table td::before{content:none;display:none}
-  .library-table th{
-    position:sticky;
-    top:0;
-    background:#eef3f8;
-    z-index:2;
-    white-space:nowrap;
-  }
-  .library-table .library-desc{min-width:220px}
-  .library-table .library-cite{min-width:280px}
-  .library-actions{min-width:190px}
-}
+.library-table .library-title{font-weight:800;color:var(--blue);line-height:1.35}
+.library-table .library-title button{appearance:none;border:0;background:transparent;padding:0;color:var(--blue);font:inherit;font-weight:800;text-align:left;cursor:pointer}
+.library-table .library-title button:hover{text-decoration:underline}
+.library-table .library-desc{min-width:300px;line-height:1.45;color:#405064}
+.library-select-cell{width:82px;text-align:center!important}
+.library-select-cell input[type="checkbox"],.library-select-all{width:20px;height:20px;accent-color:var(--blue);cursor:pointer}
+.library-request-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.library-request-count{font-weight:800;color:var(--blue)}
+.library-row.tone-0 td,.library-group.tone-0 td{background:#f5f9fd}.library-group.tone-0 td{color:var(--blue)}
+.library-row.tone-1 td,.library-group.tone-1 td{background:#f4faf7}.library-group.tone-1 td{color:var(--green)}
+.library-row.tone-2 td,.library-group.tone-2 td{background:#f2f7fb}.library-group.tone-2 td{color:var(--blue2)}
+.library-row.tone-3 td,.library-group.tone-3 td{background:#fffaf0}.library-group.tone-3 td{color:var(--amber)}
+.library-row.tone-4 td,.library-group.tone-4 td{background:#fff6f4}.library-group.tone-4 td{color:var(--red)}
+.library-inline-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:12px}
+.library-inline-actions button{border:0;background:transparent;padding:0;color:var(--blue2);font-weight:750;cursor:pointer}
+.library-inline-actions button:hover{text-decoration:underline}
 .library-scroll-note{display:none;margin:0 0 8px;color:var(--muted);font-size:12px}
-@media(max-width:760px){.library-scroll-note{display:block}}
+.request-doc-list{max-height:210px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#f8fbfd;padding:10px 12px}
+.request-doc-list div{padding:7px 0;border-bottom:1px solid var(--line);line-height:1.35}.request-doc-list div:last-child{border-bottom:0}
+@media(max-width:760px){
+  .library-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .library-table{min-width:720px}
+  .library-table th,.library-table td{padding:11px 10px}
+  .library-table .library-desc{min-width:280px}
+  .library-scroll-note{display:block}
+  .library-request-bar .btn{width:100%}
+}
 
 .edit-status{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:#f7fafc;border-bottom:1px solid var(--line);font-size:13px}.edit-status .who{color:var(--muted)}.edit-status .available{color:var(--green);font-weight:700}.edit-status .busy{color:var(--amber);font-weight:700}.doc-page[contenteditable="false"]{background:#fbfcfe;color:#33465a}.how-box{margin:12px 0}.how-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.how-step{padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}.how-step b{color:var(--blue)}.state-flow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}.state-flow span{padding:6px 10px;border-radius:999px;background:#edf3f8;color:var(--blue);font-weight:750;font-size:12px}.state-flow i{color:var(--muted)}@media(max-width:900px){.how-grid{grid-template-columns:1fr}}
 
@@ -160,7 +144,7 @@ footer{text-align:center;color:var(--muted);padding:24px}
 </div>
 </section>
 
-<section id="biblioteca" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Biblioteca</h1><div class="notice"><b>Registro público de documentos aprobados y autorizados para difusión.</b> Las publicaciones se presentan en un registro ordenado por Mesa, título, descripción y cita sugerida. Puede abrir cada documento, copiar su cita o solicitar una copia.</div><br><div class="grid3"><div><label>Filtrar por Mesa / tema</label><select id="bibFiltro" onchange="renderBiblioteca()"><option value="Todos">Todos</option><option>Salud</option><option>Educación</option><option>Economía</option><option>Trabajo</option><option>Agricultura</option><option>Desarrollo Regional</option><option>Otros</option></select></div><div><label>Tipo de publicación</label><select id="bibTipo" onchange="renderBiblioteca()"><option value="Todos">Todos</option><option value="Documento de Mesa">Documento de Mesa</option><option value="Aporte individual">Aporte individual</option></select></div><div><label>Buscar</label><input id="bibBuscar" placeholder="Buscar por Mesa, título, descripción o autor" oninput="renderBiblioteca()"></div></div><br><div id="bibliotecaLista"></div><div id="bibliotecaDetalle" style="margin-top:16px"></div></section>
+<section id="biblioteca" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Biblioteca</h1><div class="notice"><b>Seleccione uno o varios documentos para solicitar una copia.</b> Los documentos están identificados directamente desde la Biblioteca; no es necesario escribir títulos. Puede filtrar por Mesa, mes o palabra clave.</div><br><div class="grid3"><div><label>Filtrar por Mesa</label><select id="bibFiltro" onchange="renderBiblioteca()"><option value="Todos">Todas las Mesas</option><option>Salud</option><option>Educación</option><option>Economía</option><option>Trabajo</option><option>Agricultura</option><option>Desarrollo Regional</option><option>Otros</option></select></div><div><label>Filtrar por Mes</label><select id="bibMes" onchange="renderBiblioteca()"><option value="Todos">Todos los meses</option></select></div><div><label>Buscar</label><input id="bibBuscar" placeholder="Buscar por Mesa, título o descripción" oninput="renderBiblioteca()"></div></div><div class="library-request-bar"><div><span class="library-request-count" id="bibSelectedCount">0 documentos seleccionados</span><div class="muted" style="font-size:12px;margin-top:3px">Puede marcar varios documentos y enviar una sola solicitud.</div></div><button id="bibRequestSelected" class="btn primary" onclick="solicitarSeleccionBiblioteca()" disabled>Solicitar documentos seleccionados</button></div><div id="bibliotecaLista"></div><div id="bibliotecaDetalle" style="margin-top:16px"></div></section>
 <section id="galeria" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Galería</h1><div class="notice">Registro fotográfico de actividades, encuentros, trabajo territorial y Mesas Técnicas. Se muestran únicamente las fotografías autorizadas para publicación.</div><div id="galeriaAdminShortcut" style="margin-top:12px"></div><br><div id="galeriaLista" class="gallery-list"><p class="muted">Cargando fotografías…</p></div></section>
 <section id="contacto" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Contacto</h1><div class="notice" style="max-width:760px">Envíenos su consulta, propuesta o comentario. El mensaje quedará registrado en la plataforma y Administración recibirá un aviso por correo electrónico.</div><br><div class="card" style="max-width:760px"><div class="form"><label>Nombre y apellido</label><input id="ctNombre" autocomplete="name"><label>Institución / organización <span class="muted">(opcional)</span></label><input id="ctInst" autocomplete="organization"><label>Correo electrónico</label><input id="ctCorreo" type="email" autocomplete="email"><label>Asunto</label><input id="ctAsunto" maxlength="240" placeholder="Ej.: Consulta sobre Mesa de Salud"><label>Mensaje</label><textarea id="ctMsg" rows="6" maxlength="5000" placeholder="Escriba aquí su mensaje..."></textarea><div style="position:absolute;left:-9999px" aria-hidden="true"><label>No completar</label><input id="ctWebsite" tabindex="-1" autocomplete="off"></div><button class="btn primary" id="ctSubmit" onclick="registrarContacto()">Enviar mensaje</button><p id="ctStatus" class="muted" role="status"></p></div></div></section>
 <section id="mifrente" class="page"><div class="sidebar-layout"><aside class="side"><b>Mi Trabajo</b><button data-ptab="panel" onclick="privateTab('panel')">🏠 Inicio</button><button data-ptab="perfil" onclick="privateTab('perfil')">👤 Mi Perfil</button><button data-ptab="espacio" onclick="privateTab('espacio')">✍️ Espacio de Trabajo</button><button data-ptab="aportes" onclick="privateTab('aportes')">📝 Mis aportes</button><button data-ptab="revisionaportes" onclick="privateTab('revisionaportes')">👀 Revisión de aportes</button><button data-ptab="fuentes" onclick="privateTab('fuentes')">🔎 Fuentes de Información</button><button data-ptab="representantes" onclick="privateTab('representantes')">🏛️ Directorio Nacional de Representantes DC</button><button data-ptab="tareas" onclick="privateTab('tareas')">📋 Tareas de la Mesa</button><button data-ptab="aprobados" onclick="privateTab('aprobados')">✅ Documentos Publicados</button><button onclick="logout()">↩ Salir</button></aside><div id="privatecontent"></div></div></section>
@@ -184,7 +168,7 @@ footer{text-align:center;color:var(--muted);padding:24px}
   <p id="newRecoveryStatus" class="muted"></p></div>
 </div>
 </div></div>
-<div class="modal-back" id="requestModal"><div class="modal"><div class="kicker">Solicitud de copia</div><h2 class="section-title" id="reqTitle">Solicitar documento</h2><div class="form"><label>Nombre y apellido</label><input id="reqNombre"><label>Correo electrónico</label><input id="reqCorreo" type="email"><label>Institución u organización (opcional)</label><input id="reqInst"><label>Motivo o área de interés (opcional)</label><textarea id="reqMotivo" rows="3"></textarea><div><button class="btn primary" onclick="guardarSolicitud()">Enviar solicitud</button> <button class="btn soft" onclick="cerrarSolicitud()">Cancelar</button></div></div></div></div>
+<div class="modal-back" id="requestModal"><div class="modal"><div class="kicker">Solicitud de copia</div><h2 class="section-title" id="reqTitle">Solicitar documentos</h2><div class="form"><div><label>Documentos seleccionados</label><div id="reqDocs" class="request-doc-list"></div></div><label>Nombre y apellido</label><input id="reqNombre" autocomplete="name"><label>Correo electrónico</label><input id="reqCorreo" type="email" autocomplete="email"><label>Institución u organización (opcional)</label><input id="reqInst" autocomplete="organization"><label>Motivo o área de interés (opcional)</label><textarea id="reqMotivo" rows="3"></textarea><div><button class="btn primary" onclick="guardarSolicitud()">Enviar solicitud</button> <button class="btn soft" onclick="cerrarSolicitud()">Cancelar</button></div></div></div></div>
 <script>
 const SUPABASE_URL='https://ozfcvaiatkmbehaokskz.supabase.co';
 const SUPABASE_KEY='sb_publishable_HZljMDp-yL6cEddxKWECiw_hJe-oaOQ';
@@ -195,7 +179,7 @@ function getMesaMeta(m){try{const all=JSON.parse(localStorage.getItem('frentePT_
 function setMesaMeta(m,v){let all={};try{all=JSON.parse(localStorage.getItem('frentePT_mesas_meta')||'{}')}catch(e){}all[m]={...getMesaMeta(m),...v};localStorage.setItem('frentePT_mesas_meta',JSON.stringify(all))}
 function removeMesaMeta(m){let all={};try{all=JSON.parse(localStorage.getItem('frentePT_mesas_meta')||'{}')}catch(e){}delete all[m];localStorage.setItem('frentePT_mesas_meta',JSON.stringify(all))}
 function mesasActivas(){return mesas.filter(m=>getMesaMeta(m).estado!=='Inactiva')}
-let currentUser=null,currentDocMesa='Trabajo',currentSection='Definición del estudio',requestingPubId=null;
+let currentUser=null,currentDocMesa='Trabajo',currentSection='Definición del estudio',requestingPubId=null,requestingPubIds=[],selectedLibraryIds=new Set();
 const STUDY_SECTIONS=[
   {name:'Definición del estudio',guide:'Defina el propósito del estudio, la pregunta que busca responder y el tipo de producto esperado: apoyo legislativo, política pública, programa o proyecto social, inversión pública u otro. Delimite claramente el alcance del trabajo.'},
   {name:'Problema público',guide:'Describa con precisión el problema que se busca abordar: qué ocurre, a quién afecta, dónde se presenta, desde cuándo y cuál es su magnitud. Evite comenzar proponiendo una solución.'},
@@ -703,13 +687,58 @@ function bibliotecaFechaTs(p){
   if(m)return new Date(Number(m[3]),Number(m[2])-1,Number(m[1])).getTime();
   return Number(p.id)||0;
 }
+function bibliotecaMesKey(p){
+  const ts=bibliotecaFechaTs(p);if(!ts)return '';
+  const d=new Date(ts);if(Number.isNaN(d.getTime()))return '';
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function bibliotecaMesLabel(key){
+  if(!/^\\d{4}-\\d{2}$/.test(key))return key;
+  const [y,m]=key.split('-').map(Number);
+  return new Intl.DateTimeFormat('es-CL',{month:'long',year:'numeric'}).format(new Date(y,m-1,1)).replace(/^./,x=>x.toUpperCase());
+}
+function bibliotecaMesaTone(mesa){
+  const s=String(mesa||'');let n=0;for(const ch of s)n+=ch.charCodeAt(0);return n%5;
+}
+function syncBibliotecaMonthOptions(publicaciones){
+  const sel=$('bibMes');if(!sel)return;
+  const current=sel.value||'Todos';
+  const keys=[...new Set(publicaciones.map(bibliotecaMesKey).filter(Boolean))].sort().reverse();
+  sel.innerHTML='<option value="Todos">Todos los meses</option>'+keys.map(k=>'<option value="'+esc(k)+'">'+esc(bibliotecaMesLabel(k))+'</option>').join('');
+  sel.value=keys.includes(current)?current:'Todos';
+}
+function toggleBibliotecaSeleccion(id,checked){
+  const key=String(id);
+  if(checked)selectedLibraryIds.add(key);else selectedLibraryIds.delete(key);
+  actualizarBibliotecaSeleccion();
+}
+function toggleBibliotecaTodos(checked){
+  const ids=Array.isArray(window._bibliotecaVisibleIds)?window._bibliotecaVisibleIds:[];
+  ids.forEach(id=>checked?selectedLibraryIds.add(String(id)):selectedLibraryIds.delete(String(id)));
+  ids.forEach(id=>{const el=document.querySelector('.bib-select[data-id="'+CSS.escape(String(id))+'"]');if(el)el.checked=checked});
+  actualizarBibliotecaSeleccion();
+}
+function actualizarBibliotecaSeleccion(){
+  const n=selectedLibraryIds.size;
+  const label=$('bibSelectedCount'),btn=$('bibRequestSelected'),master=$('bibSelectAll');
+  if(label)label.textContent=n+' '+(n===1?'documento seleccionado':'documentos seleccionados');
+  if(btn)btn.disabled=n===0;
+  if(master){
+    const visible=(window._bibliotecaVisibleIds||[]).map(String);
+    const marked=visible.filter(id=>selectedLibraryIds.has(id)).length;
+    master.checked=visible.length>0&&marked===visible.length;
+    master.indeterminate=marked>0&&marked<visible.length;
+  }
+}
 function renderBiblioteca(){
   const b=$('bibliotecaLista');if(!b)return;
-  const filtro=$('bibFiltro')?.value||'Todos',tipo=$('bibTipo')?.value||'Todos',q=($('bibBuscar')?.value||'').toLowerCase();
-  let a=getPublicaciones();
+  let all=getPublicaciones();
+  syncBibliotecaMonthOptions(all);
+  const filtro=$('bibFiltro')?.value||'Todos',mes=$('bibMes')?.value||'Todos',q=($('bibBuscar')?.value||'').toLowerCase();
+  let a=all;
   if(filtro!=='Todos')a=a.filter(x=>x.tema===filtro||x.mesa===filtro);
-  if(tipo!=='Todos')a=a.filter(x=>(x.origen||'Documento de Mesa')===tipo);
-  if(q)a=a.filter(x=>(x.titulo+' '+x.tema+' '+(x.mesa||'')+' '+(x.autor||'')+' '+(x.descripcion||x.resumen||'')+' '+bibliotecaCitation(x)).toLowerCase().includes(q));
+  if(mes!=='Todos')a=a.filter(x=>bibliotecaMesKey(x)===mes);
+  if(q)a=a.filter(x=>(x.titulo+' '+x.tema+' '+(x.mesa||'')+' '+(x.descripcion||x.resumen||'')).toLowerCase().includes(q));
 
   a=a.slice().sort((x,y)=>{
     const mx=bibliotecaMesaLabel(x),my=bibliotecaMesaLabel(y);
@@ -717,44 +746,71 @@ function renderBiblioteca(){
     if(byMesa!==0)return byMesa;
     return bibliotecaFechaTs(y)-bibliotecaFechaTs(x);
   });
+  window._bibliotecaVisibleIds=a.map(x=>x.id);
 
   const grupos=[];
   for(const p of a){
     const mesa=bibliotecaMesaLabel(p);
     let g=grupos.find(x=>x.mesa===mesa);
-    if(!g){g={mesa,items:[]};grupos.push(g)}
+    if(!g){g={mesa,items:[],tone:bibliotecaMesaTone(mesa)};grupos.push(g)}
     g.items.push(p);
   }
 
   const rows=grupos.map(g=>{
-    const groupRow=`<tr class="library-group"><td colspan="6">Mesa: ${esc(g.mesa)} <span class="library-group-count">${g.items.length} ${g.items.length===1?'publicación':'publicaciones'}</span></td></tr>`;
+    const groupRow='<tr class="library-group tone-'+g.tone+'"><td colspan="4">Mesa: '+esc(g.mesa)+' <span class="library-group-count">'+g.items.length+' '+(g.items.length===1?'publicación':'publicaciones')+'</span></td></tr>';
     const itemRows=g.items.map(p=>{
-      const origen=p.origen||'Documento de Mesa';
       const mesa=bibliotecaMesaLabel(p);
       const descripcion=p.descripcion||p.resumen||'Documento publicado en Biblioteca.';
-      const cita=bibliotecaCitation(p);
-      const fecha=p.fechaPublicacion||'—';
-      return `<tr>
-        <td data-label="Mesa"><span class="pill ${origen==='Aporte individual'?'amber':'green'}">${esc(mesa)}</span></td>
-        <td data-label="Título"><div class="library-title">${esc(p.titulo)}</div><small class="muted">${esc(origen)}${p.autor?' · '+esc(p.autor):''}${p.autorProfesion?' · '+esc(p.autorProfesion):''}</small></td>
-        <td data-label="Descripción" class="library-desc">${esc(descripcion)}</td>
-        <td data-label="Fecha">${esc(fecha)}</td>
-        <td data-label="Cita sugerida" class="library-cite">${esc(cita)}<br><button class="btn soft" style="margin-top:7px" onclick="copiarCitaBiblioteca(${p.id})">Copiar cita</button></td>
-        <td data-label="Acciones"><div class="library-actions"><button class="btn primary" onclick="leerBiblioteca(${p.id})">Ver documento</button>${currentUser?'<button class="btn success" onclick="citarPublicacionEnMesa('+p.id+')">Citar en mi trabajo</button> ':''}<button class="btn soft" onclick="abrirSolicitud(${p.id})">Solicitar copia</button></div></td>
-      </tr>`;
+      const checked=selectedLibraryIds.has(String(p.id))?' checked':'';
+      return '<tr class="library-row tone-'+g.tone+'">'+
+        '<td class="library-select-cell" data-label="Seleccionar"><input class="bib-select" data-id="'+esc(String(p.id))+'" type="checkbox" aria-label="Seleccionar '+esc(p.titulo)+'" onchange="toggleBibliotecaSeleccion(\''+String(p.id).replace(/'/g,"\\'")+'\',this.checked)"'+checked+'></td>'+
+        '<td data-label="Mesa"><span class="pill">'+esc(mesa)+'</span></td>'+
+        '<td data-label="Título"><div class="library-title"><button type="button" onclick="leerBiblioteca('+p.id+')">'+esc(p.titulo)+'</button></div><div class="library-inline-actions"><button type="button" onclick="leerBiblioteca('+p.id+')">Ver documento</button><button type="button" onclick="copiarCitaBiblioteca('+p.id+')">Copiar cita</button></div></td>'+
+        '<td data-label="Breve descripción" class="library-desc">'+esc(descripcion)+'</td>'+
+      '</tr>';
     }).join('');
     return groupRow+itemRows;
   }).join('');
 
-  b.innerHTML=rows?`<div class="mini-note" style="margin-bottom:10px"><b>Orden:</b> publicaciones agrupadas por Mesa; dentro de cada Mesa se muestran primero las más recientes.</div><div class="library-scroll-note">Deslice horizontalmente para ver todas las columnas.</div><div class="library-table-wrap"><table class="library-table"><thead><tr><th>Mesa</th><th>Título</th><th>Descripción</th><th>Fecha</th><th>Cita</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="card"><p>No hay documentos públicos para este filtro.</p></div>';
+  b.innerHTML=rows?'<div class="library-scroll-note">Deslice horizontalmente para ver todas las columnas.</div><div class="library-table-wrap"><table class="library-table"><thead><tr><th class="library-select-cell"><input id="bibSelectAll" class="library-select-all" type="checkbox" onchange="toggleBibliotecaTodos(this.checked)" aria-label="Seleccionar todos"><div style="margin-top:4px">Seleccionar</div></th><th>Mesa</th><th>Título</th><th>Breve descripción</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<div class="card"><p>No hay documentos públicos para este filtro.</p></div>';
+  actualizarBibliotecaSeleccion();
 }
 function leerBiblioteca(id){
-  const p=getPublicaciones().find(x=>x.id===id),b=$('bibliotecaDetalle');if(!p||!b)return;
+  const p=getPublicaciones().find(x=>String(x.id)===String(id)),b=$('bibliotecaDetalle');if(!p||!b)return;
   b.innerHTML=documentFinalHTML(p)+'<br>'+(currentUser?'<button class="btn success" onclick="citarPublicacionEnMesa('+p.id+')">Citar en mi trabajo</button> ':'')+'<button class="btn soft" onclick="abrirSolicitud('+p.id+')">📩 Solicitar copia de este documento</button>';
   b.scrollIntoView({behavior:'smooth'});
 }
-function abrirSolicitud(id){requestingPubId=id;const p=getPublicaciones().find(x=>x.id===id);$('reqTitle').textContent='Solicitar copia: '+(p?.titulo||'Documento');$('requestModal').classList.add('open')}function cerrarSolicitud(){$('requestModal').classList.remove('open');requestingPubId=null}
-function getSolicitudes(){try{return JSON.parse(localStorage.getItem('frentePT_solicitudes_documentos')||'[]')}catch(e){return[]}}function setSolicitudes(a){localStorage.setItem('frentePT_solicitudes_documentos',JSON.stringify(a))}function guardarSolicitud(){const p=getPublicaciones().find(x=>x.id===requestingPubId),n=$('reqNombre').value.trim(),e=$('reqCorreo').value.trim();if(!p||!n||!e.includes('@'))return alert('Ingrese nombre y correo válido.');const a=getSolicitudes();a.push({id:Date.now(),publicacionId:p.id,titulo:p.titulo,tema:p.tema,nombre:n,correo:e,institucion:$('reqInst').value.trim(),motivo:$('reqMotivo').value.trim(),fecha:new Date().toLocaleString('es-CL'),estado:'Pendiente'});setSolicitudes(a);['reqNombre','reqCorreo','reqInst','reqMotivo'].forEach(i=>$(i).value='');cerrarSolicitud();alert('Solicitud registrada. En producción, el envío se realizará desde el correo institucional.')}
+function abrirSolicitud(id){
+  requestingPubId=id;requestingPubIds=[id];
+  const p=getPublicaciones().find(x=>String(x.id)===String(id));if(!p)return;
+  $('reqTitle').textContent='Solicitar 1 documento';
+  $('reqDocs').innerHTML='<div><b>'+esc(bibliotecaMesaLabel(p))+'</b> · '+esc(p.titulo)+'</div>';
+  $('requestModal').classList.add('open');
+}
+function solicitarSeleccionBiblioteca(){
+  const pubs=getPublicaciones().filter(p=>selectedLibraryIds.has(String(p.id)));
+  if(!pubs.length)return alert('Seleccione al menos un documento.');
+  requestingPubIds=pubs.map(p=>p.id);requestingPubId=pubs[0].id;
+  $('reqTitle').textContent='Solicitar '+pubs.length+' '+(pubs.length===1?'documento':'documentos');
+  $('reqDocs').innerHTML=pubs.map(p=>'<div><b>'+esc(bibliotecaMesaLabel(p))+'</b> · '+esc(p.titulo)+'</div>').join('');
+  $('requestModal').classList.add('open');
+}
+function cerrarSolicitud(){$('requestModal').classList.remove('open');requestingPubId=null;requestingPubIds=[]}
+function getSolicitudes(){try{return JSON.parse(localStorage.getItem('frentePT_solicitudes_documentos')||'[]')}catch(e){return[]}}
+function setSolicitudes(a){localStorage.setItem('frentePT_solicitudes_documentos',JSON.stringify(a))}
+function guardarSolicitud(){
+  const ids=requestingPubIds.length?requestingPubIds:[requestingPubId];
+  const pubs=getPublicaciones().filter(x=>ids.some(id=>String(id)===String(x.id)));
+  const n=$('reqNombre').value.trim(),e=$('reqCorreo').value.trim();
+  if(!pubs.length||!n||!e.includes('@'))return alert('Ingrese nombre y correo válido.');
+  const a=getSolicitudes();
+  pubs.forEach((p,i)=>a.push({id:Date.now()+i,publicacionId:p.id,titulo:p.titulo,tema:p.tema,nombre:n,correo:e,institucion:$('reqInst').value.trim(),motivo:$('reqMotivo').value.trim(),fecha:new Date().toLocaleString('es-CL'),estado:'Pendiente'}));
+  setSolicitudes(a);
+  ['reqNombre','reqCorreo','reqInst','reqMotivo'].forEach(i=>$(i).value='');
+  pubs.forEach(p=>selectedLibraryIds.delete(String(p.id)));
+  cerrarSolicitud();renderBiblioteca();
+  alert('Solicitud registrada para '+pubs.length+' '+(pubs.length===1?'documento.':'documentos.'));
+}
 async function registrarContacto(){
  const n=$('ctNombre').value.trim(),e=$('ctCorreo').value.trim(),i=$('ctInst').value.trim(),a=$('ctAsunto').value.trim(),m=$('ctMsg').value.trim(),w=$('ctWebsite')?.value||'';
  const status=$('ctStatus'),btn=$('ctSubmit');
