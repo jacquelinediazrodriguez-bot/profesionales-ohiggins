@@ -872,7 +872,7 @@ async function loadPresidencyMessage(){
  }
  const date=data.message_date?new Date(data.message_date+'T12:00:00').toLocaleDateString('es-CL',{month:'long',year:'numeric'}):'';
  box.innerHTML='<div class="kicker">Presidencia del Frente</div><h2 class="section-title" style="font-size:27px">Palabras del Presidente</h2>'+
- '<article class="presidency-card"><div>'+(image?'<img class="presidency-photo" src="'+esc(image)+'" alt="Presidencia del Frente">':'<div class="presidency-placeholder">Fotografía de Presidencia</div>')+'</div>'+
+ '<article class="presidency-card"><div>'+(image?'<img class="presidency-photo" src="'+esc(image)+'" onerror="this.onerror=null;this.src=&quot;carlos-manzoliz-presidente.jpg&quot;" alt="Presidencia del Frente">':'<div class="presidency-placeholder">Fotografía de Presidencia</div>')+'</div>'+
  '<div><div class="presidency-name">'+esc(data.president_name||'Presidencia del Frente')+'</div>'+
  '<div class="presidency-role">'+esc(data.president_title||'Presidente Regional del Frente de Profesionales y Técnicos')+'</div>'+
  (data.permanent_words?'<div class="presidency-words">'+esc(data.permanent_words)+'</div>':'')+
