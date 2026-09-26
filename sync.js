@@ -295,8 +295,8 @@
    cerrarSolicitud();
    if(typeof renderBiblioteca==='function')renderBiblioteca();
    alert(emailSent
-     ?'Su solicitud de '+pubs.length+' '+(pubs.length===1?'documento fue registrada.':'documentos fue registrada.')+' Administración recibió un aviso por correo.'
-     :'Su solicitud fue registrada. Administración podrá verla en Solicitudes de documentos.');
+     ?'Su solicitud fue enviada correctamente a Administración. Los documentos seleccionados quedaron registrados y Administración recibió un aviso por correo electrónico.'
+     :'Su solicitud fue enviada correctamente a Administración. Los documentos seleccionados quedaron registrados para su gestión.');
  };
  window.loadPublicLibrary=async function(){
    if(!sbAuth)return;
