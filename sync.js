@@ -442,8 +442,9 @@
      titulo:x.title,fecha:new Date(x.requested_at).toLocaleString('es-CL'),version:x.version,contenido:x.snapshot?.contenido||{},
      referencias:x.snapshot?.referencias||[],solicitante:profiles.find(p=>p.id===x.requested_by)?.full_name||'Coordinación',
      correo:profiles.find(p=>p.id===x.requested_by)?.email||'',estado:x.status,cloud:true,snapshot:x.snapshot})),
-   solicitudes:documents.map(x=>({id:x.id,titulo:x.title,nombre:x.name,correo:x.email,institucion:x.institution,
-     fecha:new Date(x.created_at).toLocaleString('es-CL'),estado:x.status,cloud:true}))};
+   solicitudes:documents.map(x=>({id:x.id,libraryId:x.library_id,titulo:x.title,nombre:x.name,correo:x.email,institucion:x.institution,
+     motivo:x.reason||'',fecha:new Date(x.created_at).toLocaleString('es-CL'),createdAt:x.created_at,estado:x.status,cloud:true,
+     sentAt:x.sent_at||null,adminMessage:x.admin_message||'',deliveryEmailId:x.delivery_email_id||null,copyEmail:x.copy_email||'',sentBy:x.sent_by||null}))};
    STATE.contacts=contacts;
  }
  window.getAprobados=function(){
@@ -610,16 +611,76 @@
    if(error){console.error(error);return alert('No se pudo eliminar. Compruebe si existen documentos o registros asociados.')}
    delete STATE.ids[m];mesas=mesas.filter(x=>x!==m);saveMesas();removeMesaMeta(m);adminMesas();
  };
+ function solicitudGrupo(id){
+   const all=getSolicitudes(),base=all.find(x=>String(x.id)===String(id));if(!base)return [];
+   const t0=new Date(base.createdAt||0).getTime();
+   return all.filter(x=>String(x.correo||'').toLowerCase()===String(base.correo||'').toLowerCase()
+     &&String(x.nombre||'')===String(base.nombre||'')
+     &&Math.abs(new Date(x.createdAt||0).getTime()-t0)<=10000);
+ }
+ function solicitudEstadoLabel(s){
+   return s==='Entregado'?'Entregado':s==='Enviada'?'Enviado':s||'Pendiente';
+ }
+ window.revisarSolicitudDocumento=function(id){
+   if(!isReal())return;
+   const group=solicitudGrupo(id);if(!group.length)return alert('No se encontró la solicitud.');
+   const first=group[0],c=document.getElementById('admincontent');if(!c)return;
+   const docs=group.map(x=>'<div class="row" style="align-items:flex-start"><div><input type="checkbox" checked disabled style="margin-right:8px"> <b>'+esc(x.titulo)+'</b><br><small>ID Biblioteca: '+esc(String(x.libraryId||''))+'</small></div><span class="pill">'+esc(solicitudEstadoLabel(x.estado))+'</span></div>').join('');
+   c.innerHTML='<div class="kicker">Revisión de solicitud</div><h1 class="section-title">Enviar documentos de Biblioteca</h1>'+
+    '<div class="card"><h3>Solicitante</h3><p><b>'+esc(first.nombre)+'</b><br>'+esc(first.correo)+(first.institucion?'<br>'+esc(first.institucion):'')+'</p>'+
+    (first.motivo?'<p><b>Motivo / interés:</b><br>'+esc(first.motivo)+'</p>':'')+'</div>'+
+    '<div class="card" style="margin-top:12px"><h3>Documentos que se adjuntarán</h3>'+docs+'</div>'+
+    '<div class="card" style="margin-top:12px"><label><b>Mensaje al solicitante</b></label><textarea id="libraryReplyMessage" rows="6" placeholder="Escriba aquí el mensaje que acompañará los documentos.">'+esc(first.adminMessage||'Adjuntamos los documentos solicitados desde nuestra Biblioteca. Saludos cordiales.')+'</textarea>'+
+    '<p class="mini-note">Se enviará una copia del correo a la cuenta administrativa que realiza el envío.</p>'+
+    '<div style="margin-top:12px"><button id="sendLibraryDocsBtn" class="btn primary" onclick="enviarDocumentosSolicitud('+id+')">Enviar documentos</button> <button class="btn soft" onclick="adminSolicitudes()">Volver</button></div></div>';
+ }
+ window.enviarDocumentosSolicitud=async function(id){
+   if(!isReal())return;
+   const group=solicitudGrupo(id);if(!group.length)return alert('No se encontró la solicitud.');
+   const btn=document.getElementById('sendLibraryDocsBtn'),message=(document.getElementById('libraryReplyMessage')?.value||'').trim();
+   if(btn){btn.disabled=true;btn.textContent='Enviando…';}
+   try{
+     const {data,error}=await sbAuth.functions.invoke('send-library-copy',{body:{request_ids:group.map(x=>x.id),message}});
+     if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible enviar.');
+     await refreshSharedAdmin();
+     alert('Correo enviado correctamente con '+(data.attachments?.length||group.length)+' documento(s) adjunto(s). Se envió copia administrativa.');
+     await window.adminSolicitudes();
+   }catch(e){
+     console.error(e);alert('No fue posible enviar los documentos. La solicitud no se marcó como enviada.');
+     if(btn){btn.disabled=false;btn.textContent='Enviar documentos';}
+   }
+ };
+ window.comprobarEntregaSolicitudes=async function(){
+   if(!isReal())return;
+   const ids=getSolicitudes().filter(x=>x.deliveryEmailId&&x.estado!=='Entregado').map(x=>x.id);
+   if(!ids.length)return;
+   try{
+     const {data,error}=await sbAuth.functions.invoke('check-library-delivery',{body:{request_ids:ids}});
+     if(error)throw error;
+     if(data?.updated){await refreshSharedAdmin();}
+   }catch(e){console.warn('No se pudo comprobar el estado de entrega.',e)}
+ };
  window.marcarEnviada=async function(id){
-   if(!isReal())return original.marcarEnviada(id);
-   const {error}=await sbAuth.from('document_requests').update({status:'Enviada',sent_at:new Date().toISOString()}).eq('id',id);
-   if(error){console.error(error);return alert('No se pudo actualizar el estado en la nube.')}
-   await refreshSharedAdmin();adminSolicitudes();
+   return window.revisarSolicitudDocumento(id);
  };
  window.adminSolicitudes=async function(){
    if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return original.adminSolicitudes();
    await refreshSharedAdmin();
-   return original.adminSolicitudes();
+   await window.comprobarEntregaSolicitudes();
+   const c=document.getElementById('admincontent'),a=getSolicitudes();if(!c)return;
+   const groups=[];
+   for(const x of a){
+     if(groups.some(g=>g.some(y=>String(y.id)===String(x.id))))continue;
+     groups.push(solicitudGrupo(x.id));
+   }
+   c.innerHTML='<div class="kicker">Registro de interés</div><h1 class="section-title">Solicitudes de documentos</h1>'+
+    '<div class="notice">Revise qué se solicitó antes de enviar. El sistema muestra únicamente dos estados de despacho: <b>Enviado</b> y <b>Entregado</b>.</div><br>'+
+    (groups.length?groups.map(g=>{
+      const x=g[0],allDelivered=g.every(y=>y.estado==='Entregado'),allSent=g.every(y=>['Enviada','Entregado'].includes(y.estado));
+      const estado=allDelivered?'Entregado':allSent?'Enviado':'Pendiente';
+      const names=g.map(y=>y.titulo).join(' · ');
+      return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.nombre)+'</b> · '+esc(x.correo)+'<br><small>'+esc(x.fecha)+(x.institucion?' · '+esc(x.institucion):'')+'</small><p style="margin:8px 0 0"><b>'+g.length+' documento(s):</b> '+esc(names)+'</p>'+(x.copyEmail?'<small>Copia administrativa: '+esc(x.copyEmail)+'</small>':'')+'</div><div><span class="pill '+(estado==='Entregado'?'green':estado==='Enviado'?'amber':'')+'">'+estado+'</span><br><button class="btn soft" style="margin-top:8px" onclick="revisarSolicitudDocumento('+x.id+')">'+(allSent?'Ver envío':'Revisar y enviar')+'</button></div></div></div>';
+    }).join(''):'<div class="card"><p>Aún no hay solicitudes registradas.</p></div>');
  };
  window.publicarSolicitud=async function(id){
    if(!isReal())return original.publicarSolicitud(id);
