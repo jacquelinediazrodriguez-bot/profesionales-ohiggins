@@ -264,31 +264,39 @@
    }finally{button.disabled=false}
  };
  window.guardarSolicitud=async function(){
-   const p=getPublicaciones().find(x=>x.id===requestingPubId),name=document.getElementById('reqNombre').value.trim(),
+   const ids=(Array.isArray(requestingPubIds)&&requestingPubIds.length?requestingPubIds:[requestingPubId]).filter(x=>x!==null&&x!==undefined);
+   const pubs=getPublicaciones().filter(p=>ids.some(id=>String(id)===String(p.id)));
+   const name=document.getElementById('reqNombre').value.trim(),
      email=document.getElementById('reqCorreo').value.trim(),
      institution=document.getElementById('reqInst').value.trim(),
      reason=document.getElementById('reqMotivo').value.trim();
-   if(!p||!name||!email.includes('@'))return alert('Complete nombre y correo válidos.');
+   if(!pubs.length||!name||!email.includes('@'))return alert('Complete nombre y correo válidos.');
    if(!sbAuth)return alert('El registro de solicitudes no está disponible en este momento.');
-   // La solicitud debe quedar en la bandeja compartida aunque el usuario esté
-   // probando la Biblioteca desde una cuenta demo o el documento sea una copia
-   // local del prototipo. Cuando el documento proviene de la Biblioteca cloud,
-   // conservamos su relación; en los demás casos guardamos library_id como null.
-   const libraryId=p.cloud?p.id:null;
-   const {error}=await sbAuth.from('document_requests').insert({
-     library_id:libraryId,title:p.titulo,name,email,institution,reason});
+
+   const rows=pubs.map(p=>({
+     library_id:p.cloud?p.id:null,title:p.titulo,name,email,institution,reason
+   }));
+   const {error}=await sbAuth.from('document_requests').insert(rows);
    if(error){console.error(error);return alert('No se pudo registrar la solicitud. Inténtelo nuevamente.')}
+
    let emailSent=false;
    try{
+     const listado=pubs.map((p,i)=>(i+1)+'. '+p.titulo).join('\n');
      const {data:mailData,error:mailError}=await sbAuth.functions.invoke('send-platform-email',{body:{
-       type:'document_request',nombre:name,correo:email,institucion:institution,documento:p.titulo,motivo:reason,website:''
+       type:'document_request',nombre:name,correo:email,institucion:institution,
+       documento:listado,motivo:reason,website:''
      }});
      emailSent=!mailError&&!!mailData?.ok;
      if(mailError)console.warn('La solicitud quedó registrada, pero falló el aviso por correo.',mailError);
    }catch(e){console.warn('La solicitud quedó registrada, pero no fue posible enviar el aviso por correo.',e)}
+
    ['reqNombre','reqCorreo','reqInst','reqMotivo'].forEach(id=>document.getElementById(id).value='');
+   if(window.selectedLibraryIds&&typeof selectedLibraryIds.delete==='function')pubs.forEach(p=>selectedLibraryIds.delete(String(p.id)));
    cerrarSolicitud();
-   alert(emailSent?'Su solicitud fue registrada. Administración recibió un aviso por correo.':'Su solicitud fue registrada. Administración podrá verla en Solicitudes de documentos.');
+   if(typeof renderBiblioteca==='function')renderBiblioteca();
+   alert(emailSent
+     ?'Su solicitud de '+pubs.length+' '+(pubs.length===1?'documento fue registrada.':'documentos fue registrada.')+' Administración recibió un aviso por correo.'
+     :'Su solicitud fue registrada. Administración podrá verla en Solicitudes de documentos.');
  };
  window.loadPublicLibrary=async function(){
    if(!sbAuth)return;
