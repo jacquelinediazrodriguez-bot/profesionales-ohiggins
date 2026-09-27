@@ -707,16 +707,23 @@
    if(typeof vistaInformeFinalHTML!=='function')throw new Error('No está disponible el formato de informe final.');
    const x={...structuredClone(pub),estado:'Aprobado',borrador:false};
    const wrap=document.createElement('div');
-   // Mantener el documento en coordenadas válidas para html2canvas.
-   // Safari/iPhone puede generar un lienzo en blanco si el nodo está a -100000px.
-   wrap.style.position='fixed';
+   // Safari/iPhone: el nodo debe estar renderizado realmente y no quedar
+   // detrás del fondo de la página. Un z-index negativo puede producir un PDF
+   // completamente blanco aunque el HTML tenga contenido.
+   wrap.style.position='absolute';
    wrap.style.left='0';
    wrap.style.top='0';
-   wrap.style.width='900px';
+   wrap.style.width='794px';
+   wrap.style.minHeight='1123px';
    wrap.style.background='#fff';
-   wrap.style.zIndex='-2147483647';
+   wrap.style.color='#172536';
+   wrap.style.zIndex='1';
+   wrap.style.opacity='1';
+   wrap.style.visibility='visible';
+   wrap.style.display='block';
    wrap.style.pointerEvents='none';
    wrap.setAttribute('aria-hidden','true');
+   wrap.setAttribute('data-pdf-library-final','1');
    wrap.innerHTML=vistaInformeFinalHTML(x);
    document.body.appendChild(wrap);
    try{
@@ -733,12 +740,27 @@
        margin:[10,12,12,12],
        image:{type:'jpeg',quality:.98},
        html2canvas:{
-         scale:mobile?1.35:2,
+         scale:mobile?1:2,
          useCORS:true,
+         allowTaint:false,
          backgroundColor:'#ffffff',
          scrollX:0,
          scrollY:0,
-         logging:false
+         windowWidth:900,
+         logging:false,
+         onclone:(doc)=>{
+           const cloned=doc.body.querySelector('[data-pdf-library-final="1"]');
+           if(cloned){
+             cloned.style.position='absolute';
+             cloned.style.left='0';
+             cloned.style.top='0';
+             cloned.style.zIndex='1';
+             cloned.style.opacity='1';
+             cloned.style.visibility='visible';
+             cloned.style.display='block';
+             cloned.style.background='#fff';
+           }
+         }
        },
        jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
        pagebreak:{mode:['css','legacy']}
