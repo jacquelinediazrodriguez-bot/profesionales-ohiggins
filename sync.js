@@ -707,11 +707,15 @@
    if(typeof vistaInformeFinalHTML!=='function')throw new Error('No está disponible el formato de informe final.');
    const x={...structuredClone(pub),estado:'Aprobado',borrador:false};
    const wrap=document.createElement('div');
+   // Mantener el documento en coordenadas válidas para html2canvas.
+   // Safari/iPhone puede generar un lienzo en blanco si el nodo está a -100000px.
    wrap.style.position='fixed';
-   wrap.style.left='-100000px';
+   wrap.style.left='0';
    wrap.style.top='0';
    wrap.style.width='900px';
    wrap.style.background='#fff';
+   wrap.style.zIndex='-2147483647';
+   wrap.style.pointerEvents='none';
    wrap.setAttribute('aria-hidden','true');
    wrap.innerHTML=vistaInformeFinalHTML(x);
    document.body.appendChild(wrap);
@@ -722,10 +726,20 @@
        img.addEventListener('load',done,{once:true});
        img.addEventListener('error',done,{once:true});
      })));
+     if(document.fonts?.ready)await document.fonts.ready;
+     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+     const mobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
      const blob=await html2pdf().set({
        margin:[10,12,12,12],
        image:{type:'jpeg',quality:.98},
-       html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+       html2canvas:{
+         scale:mobile?1.35:2,
+         useCORS:true,
+         backgroundColor:'#ffffff',
+         scrollX:0,
+         scrollY:0,
+         logging:false
+       },
        jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
        pagebreak:{mode:['css','legacy']}
      }).from(wrap).toPdf().outputPdf('blob');
