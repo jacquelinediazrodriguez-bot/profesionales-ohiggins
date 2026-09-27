@@ -786,8 +786,8 @@
    // Portada institucional definitiva.
    if(typeof imagenAPngBytes!=='function')throw new Error('No está disponible el cargador de logos institucionales.');
    const [logoDC,logoFrente]=await Promise.all([
-     imagenAPngBytes('https://commons.wikimedia.org/wiki/Special:Redirect/file/Logo_Democracia_Cristiana_Chile_2020.png',260,92),
-     imagenAPngBytes('https://commons.wikimedia.org/wiki/Special:Redirect/file/Emblem_of_the_Christian_Democrat_Party_of_Chile.svg',110,92)
+     imagenAPngBytes('https://upload.wikimedia.org/wikipedia/commons/7/71/Logo_Democracia_Cristiana_Chile_2020.png',260,92),
+     imagenAPngBytes('https://upload.wikimedia.org/wikipedia/commons/1/1b/Emblem_of_the_Christian_Democrat_Party_of_Chile.svg',110,92)
    ]);
    const dcW=Math.min(78,logoDC.width*0.2646),dcH=logoDC.height*(dcW/logoDC.width);
    const frW=Math.min(28,logoFrente.width*0.2646),frH=logoFrente.height*(frW/logoFrente.width);
