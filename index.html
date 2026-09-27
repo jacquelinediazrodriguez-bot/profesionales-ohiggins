@@ -247,7 +247,7 @@ function seed(){
   localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(integrantes));
   if(!localStorage.getItem('frentePT_mesas'))localStorage.setItem('frentePT_mesas',JSON.stringify(mesas));
 }
-function go(id){if($('wsTitulo'))syncWorkFromUI(true);document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const p=$(id);if(p)p.classList.add('active');if(id==='inicio')loadPresidencyMessage();if(id==='biblioteca')renderBiblioteca();if(id==='galeria')renderGaleria();window.scrollTo({top:0,behavior:'smooth'})}
+function go(id){if($('wsTitulo'))syncWorkFromUI(true);document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const p=$(id);if(p)p.classList.add('active');if(id==='inicio')loadPresidencyMessage();if(id==='biblioteca'){const host=$('bibliotecaLista');if(host)host.innerHTML='<div class="card"><p>Cargando documentos publicados…</p></div>';if(typeof window.loadPublicLibrary==='function')window.loadPublicLibrary().catch(()=>renderBiblioteca());else renderBiblioteca()}if(id==='galeria')renderGaleria();window.scrollTo({top:0,behavior:'smooth'})}
 function abrirRecuperacion(){
   const e=$('loginEmail')?.value.trim()||'';
   if($('recoveryEmail'))$('recoveryEmail').value=e;
@@ -1289,7 +1289,7 @@ async function galleryDelete(id){
  await galleryLoadAdmin();alert('Fotografía eliminada definitivamente de la Galería.');
 }
 </script>
-<script src="./sync.js?v=20260927-2"></script>
+<script src="./sync.js?v=20260927-3"></script>
 <script>
 /* ===== Administración · Mensajes de contacto =====
    La respuesta se envía desde contacto@profesionalesohiggins.cl mediante la función segura reply-contact.
