@@ -270,7 +270,7 @@ async function solicitarRecuperacionClave(){
   if(!sbAuth){s.textContent='El servicio de recuperación no está disponible en este momento.';return}
   s.textContent='Enviando enlace de recuperación…';
   try{
-    const {error}=await sbAuth.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname});
+    const {error}=await sbAuth.auth.resetPasswordForEmail(e,{redirectTo:'https://profesionalesohiggins.cl/'});
     if(error)throw error;
     s.textContent='Si el correo está registrado, recibirá un enlace para crear una nueva contraseña. No vuelva a registrarse: conservará su perfil, sus Mesas y sus roles. Revise también Spam o No deseado.';
   }catch(err){
@@ -310,17 +310,6 @@ async function login(){
  const e=$('loginEmail').value.trim().toLowerCase(),p=$('loginPass').value,msg=$('loginMsg');
  msg.textContent='';
  if(!e||!p){msg.textContent='Ingrese correo y contraseña.';return}
- // Acceso de prueba independiente de los datos guardados en el dispositivo.
- const d=e==='coordinador@demo.cl'?{nombre:'Coordinador Demo',correo:e,mesa:'Trabajo',rol:'Coordinador/a de Mesa',estado:'Activo',clave:'demo123'}:e==='admin@demo.cl'?{nombre:'Administrador Demo',correo:e,mesa:'Administración',rol:'Administrador General',systemRole:'administrador_general',estado:'Activo',clave:'admin123'}:null;
- if(d){
-  if(p!==d.clave){msg.textContent='Contraseña de demostración incorrecta.';return}
-  const {clave,...u}=d;
-  let a=getIntegrantes().filter(x=>!(x.correo?.toLowerCase()===e&&x.mesa===u.mesa));
-  a.push({...u,password:clave});localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(a));
-  currentUser=u;sessionStorage.setItem('frentePT_user',JSON.stringify(u));
-  if(u.rol==='Administrador General'){go('adminarea');renderAdminShell();adminHome()}else{currentDocMesa=u.mesa;go('mifrente');privateTab('panel')}
-  return;
- }
  if(!sbAuth){msg.textContent='Servicio de acceso no disponible. Intente más tarde.';return}
  try{
   const {data,error}=await sbAuth.auth.signInWithPassword({email:e,password:p});
@@ -847,7 +836,7 @@ function adminHome(){
  (general?'<div class="card" onclick="adminPresidencia()" style="cursor:pointer"><h3>🗣️ Mensaje de Presidencia</h3><p>Editar fotografía, palabras institucionales y mensaje de actualidad.</p></div><div class="card" onclick="adminSeguridadLimites()" style="cursor:pointer"><h3>🛡️ Seguridad y límites</h3><p>Control exclusivo de Administración General.</p></div>':'')+
  '</div>';
 }
-function adminUsuarios(){if(!requireAdmin())return;const c=$('admincontent');c.innerHTML=`<div class="kicker">Administración</div><h1 class="section-title">Integrantes y Roles</h1><div class="notice"><b>Regla de acceso:</b> Administración registra al profesional, asigna una Mesa y un rol. Una misma persona puede pertenecer a varias Mesas y tener un rol diferente en cada una. En producción, el sistema enviará al correo una invitación para que el profesional cree su propia contraseña; Administración no conocerá la contraseña definitiva.</div><br><div class="card"><div class="form-row"><div><label>Nombre</label><input id="admNombre"></div><div><label>Correo</label><input id="admCorreo" type="email"></div><div><label>Mesa Técnica</label><select id="admMesa">${mesasActivas().map(m=>`<option>${m}</option>`).join('')}</select></div><div><label>Rol en esta Mesa</label><select id="admRol"><option>Integrante de Mesa</option><option>Secretario/a Técnico/a</option><option>Coordinador/a de Mesa</option><option>Solo lector</option></select></div></div><br><button class="btn primary" onclick="guardarIntegrante()">Registrar / asignar rol</button><p id="admInviteStatus" class="muted"></p><div class="mini-note" style="margin-top:12px"><b>V1 de prueba:</b> para poder ensayar el ingreso, una cuenta nueva utiliza temporalmente la contraseña <b>demo123</b>. En la versión con Supabase, este paso será reemplazado por la invitación segura al correo.</div></div><h2 class="section-sub">Integrantes registrados</h2><div id="admListado"></div>`;renderIntegrantes()}
+function adminUsuarios(){if(!requireAdmin())return;const c=$('admincontent');c.innerHTML=`<div class="kicker">Administración</div><h1 class="section-title">Integrantes y Roles</h1><div class="notice"><b>Regla de acceso:</b> Administración registra al profesional, asigna una Mesa y un rol. Una misma persona puede pertenecer a varias Mesas y tener un rol diferente en cada una. En producción, el sistema enviará al correo una invitación para que el profesional cree su propia contraseña; Administración no conocerá la contraseña definitiva.</div><br><div class="card"><div class="form-row"><div><label>Nombre</label><input id="admNombre"></div><div><label>Correo</label><input id="admCorreo" type="email"></div><div><label>Mesa Técnica</label><select id="admMesa">${mesasActivas().map(m=>`<option>${m}</option>`).join('')}</select></div><div><label>Rol en esta Mesa</label><select id="admRol"><option>Integrante de Mesa</option><option>Secretario/a Técnico/a</option><option>Coordinador/a de Mesa</option><option>Solo lector</option></select></div></div><br><button class="btn primary" onclick="guardarIntegrante()">Registrar / asignar rol</button><p id="admInviteStatus" class="muted"></p><div class="mini-note" style="margin-top:12px"><b>Acceso seguro:</b> las cuentas se habilitan únicamente mediante invitación. Administración no conoce ni almacena la contraseña personal del profesional.</div></div><h2 class="section-sub">Integrantes registrados</h2><div id="admListado"></div>`;renderIntegrantes()}
 function guardarIntegrante(){const n=$('admNombre').value.trim(),e=$('admCorreo').value.trim().toLowerCase(),m=$('admMesa').value,r=$('admRol').value;if(!n||!e.includes('@'))return alert('Complete nombre y correo.');let a=getIntegrantes();const existing=a.find(x=>x.correo===e&&x.rol!=='Administrador General');const pass=existing?.password||'demo123';const i=a.findIndex(x=>x.correo===e&&x.mesa===m);const x={nombre:n,correo:e,password:pass,mesa:m,rol:r,estado:'Activo'};if(i>=0)a[i]=x;else a.push(x);localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(a));$('admInviteStatus').textContent='Asignación guardada. En producción se enviará una invitación a '+e+' para crear la contraseña.';renderIntegrantes()}
 function renderIntegrantes(){const b=$('admListado');if(!b)return;const a=getIntegrantes().filter(x=>x.rol!=='Administrador General');const by={};a.forEach(x=>{(by[x.correo]??=[]).push(x)});const rows=Object.entries(by);b.innerHTML=rows.length?rows.map(([correo,items])=>`<div class="card" style="margin-bottom:10px"><b>${esc(items[0].nombre)}</b><br><small>${esc(correo)}</small><div style="margin-top:10px">${items.map(x=>`<div class="row"><div><b>${esc(x.mesa)}</b></div><div><span class="pill">${esc(x.rol)}</span> <span class="pill green">${esc(x.estado)}</span></div></div>`).join('')}</div></div>`).join(''):'<div class="notice">Sin integrantes registrados.</div>'}
 function adminMesas(){if(!requireAdmin())return;
