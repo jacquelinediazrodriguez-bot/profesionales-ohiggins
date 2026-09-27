@@ -589,6 +589,53 @@
    await refreshSharedAdmin();renderIntegrantes();
    alert('El integrante fue quitado únicamente de la Mesa '+mesa+'. Su cuenta y las demás asignaciones permanecen.');
  };
+
+ function fmtBytes(n){
+   n=Number(n||0);if(n<1024)return n+' B';
+   const u=['KB','MB','GB','TB'];let i=-1;do{n/=1024;i++}while(n>=1024&&i<u.length-1);
+   return n.toLocaleString('es-CL',{maximumFractionDigits:n>=100?0:n>=10?1:2})+' '+u[i];
+ }
+ function pct(v,max){return max?Math.min(999,Math.round((Number(v||0)/max)*100)):0}
+ function healthFor(values){
+   const max=Math.max(...values);
+   if(max>=85)return {label:'Evaluar cambio a Pro',icon:'🔴',className:'amber'};
+   if(max>=70)return {label:'Revisar capacidad',icon:'🟡',className:'amber'};
+   return {label:'Plan Free suficiente',icon:'🟢',className:'green'};
+ }
+ window.adminEstado=async function(){
+   if(!requireAdmin())return;
+   const c=document.getElementById('admincontent');if(!c)return;
+   c.innerHTML='<div class="kicker">Control general</div><h1 class="section-title">Estado de la Plataforma</h1><p class="muted">Calculando uso actual…</p>';
+   if(!isReal()){c.innerHTML+='<div class="notice">Ingrese con una cuenta administrativa real para consultar el estado.</div>';return}
+   try{
+     const {data,error}=await sbAuth.rpc('admin_system_usage');if(error)throw error;
+     const DB_MAX=500*1024*1024,STORAGE_MAX=1024*1024*1024,MAU_MAX=50000;
+     const dbPct=pct(data.database_bytes,DB_MAX),stPct=pct(data.storage_bytes,STORAGE_MAX),mauPct=pct(data.mau_30d,MAU_MAX);
+     const health=healthFor([dbPct,stPct,mauPct]);
+     const bar=(p)=>'<div style="height:8px;background:#e7ebef;border-radius:99px;overflow:hidden;margin-top:8px"><div style="height:100%;width:'+Math.min(100,p)+'%;background:currentColor"></div></div>';
+     c.innerHTML='<div class="kicker">Control general</div><h1 class="section-title">Estado de la Plataforma</h1>'+
+       '<div class="notice"><b>'+health.icon+' '+health.label+'.</b> El semáforo considera Base de Datos, Storage y usuarios activos mensuales medidos automáticamente.</div><br>'+
+       '<div class="grid3">'+
+       '<div class="card"><span class="pill green">Actual</span><h3>Free</h3><p>Plan Supabase</p><small>Verificado para esta organización el 27-09-2026.</small></div>'+
+       '<div class="card"><h3>'+esc(String(data.profiles||0))+'</h3><p>Profesionales activos</p></div>'+
+       '<div class="card"><h3>'+esc(String(data.active_tables||0))+'</h3><p>Mesas activas</p></div>'+
+       '<div class="card"><h3>'+fmtBytes(data.database_bytes)+'</h3><p>Base de datos · '+dbPct+'% de 500 MB</p>'+bar(dbPct)+'</div>'+
+       '<div class="card"><h3>'+fmtBytes(data.storage_bytes)+'</h3><p>Archivos · '+stPct+'% de 1 GB</p><small>'+esc(String(data.storage_files||0))+' archivo(s)</small>'+bar(stPct)+'</div>'+
+       '<div class="card"><h3>'+esc(String(data.mau_30d||0))+'</h3><p>Usuarios activos últimos 30 días · '+mauPct+'% de 50.000</p>'+bar(mauPct)+'</div>'+
+       '</div>'+
+       '<h2 class="section-sub">Seguridad y límites del plan</h2>'+
+       '<div class="grid3">'+
+       '<div class="card"><h3>🔒 No disponible en Free</h3><p>Protección contra contraseñas filtradas</p><small>Se habilita al pasar a Pro o superior.</small></div>'+
+       '<div class="card"><h3>5 GB</h3><p>Egress incluido</p><small>El consumo exacto debe revisarse en Supabase → Usage.</small></div>'+
+       '<div class="card"><h3>500.000</h3><p>Invocaciones Edge Function</p><small>El consumo exacto debe revisarse en Supabase → Usage.</small></div>'+
+       '</div>'+
+       '<div class="mini-note" style="margin-top:16px"><b>Regla del semáforo:</b> verde bajo 70%; amarillo desde 70%; rojo desde 85%. Si aparece rojo, conviene revisar el cambio a Pro antes de alcanzar el límite.</div>'+
+       '<div class="mini-note" style="margin-top:10px">Última medición: '+new Date(data.measured_at).toLocaleString('es-CL')+'. Algunas métricas de facturación, especialmente transferencia y Edge Functions, solo están disponibles en el panel oficial de Supabase.</div>';
+   }catch(e){
+     console.error(e);
+     c.innerHTML='<div class="kicker">Control general</div><h1 class="section-title">Estado de la Plataforma</h1><div class="notice">No fue posible calcular el uso de Supabase en este momento.</div>';
+   }
+ };
  window.guardarIntegrante=async function(){
    if(!isReal())return original.guardarIntegrante();
    const name=document.getElementById('admNombre').value.trim(),email=document.getElementById('admCorreo').value.trim().toLowerCase(),
