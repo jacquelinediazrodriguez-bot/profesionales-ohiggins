@@ -89,6 +89,36 @@ footer{text-align:center;color:var(--muted);padding:24px}
 .board-admin-row input{min-width:0}.board-admin-row .board-remove{white-space:nowrap;padding:8px 10px}
 .board-admin-actions{margin:10px 0 14px}.board-admin-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:700px){.presidency-left{max-width:300px;margin:auto}.board-admin-row{grid-template-columns:1fr}.board-admin-meta{grid-template-columns:1fr}}
+
+/* Formato institucional definitivo de informes PDF */
+.institutional-cover{position:relative;text-align:center;padding:34px 54px 24px!important}
+.institutional-top{display:flex;align-items:flex-start;justify-content:space-between;width:100%;margin-bottom:14px}
+.institutional-logo-block{width:43%;text-align:left}.institutional-logo-block.right{text-align:right}
+.institutional-logo-block .logo-dc{max-width:190px;max-height:86px;object-fit:contain}
+.institutional-logo-block .logo-frente{max-width:82px;max-height:86px;object-fit:contain}
+.institutional-party{font-size:17px;font-weight:900;letter-spacing:.04em;color:#123b67;margin-top:4px}
+.institutional-front{font-size:20px;font-weight:900;letter-spacing:.02em;color:#123b67;margin-top:5px}
+.institutional-region{font-size:14px;font-weight:800;letter-spacing:.08em;color:#52677d;margin-top:5px}
+.institutional-rule{display:flex;gap:6px;justify-content:center;margin:18px auto 16px;max-width:520px}
+.institutional-rule span:first-child{height:4px;background:#123b67;flex:4}.institutional-rule span:last-child{height:4px;background:#cf1f3a;flex:1}
+.institutional-platform{font-size:18px;font-weight:850;color:#123b67;margin-top:4px}
+.institutional-motto{font-size:12.5px;font-weight:700;color:#1e5d91;margin-top:6px}
+.institutional-final-label{font-size:15px;font-weight:900;letter-spacing:.06em;color:#1e5d91;margin-top:28px}
+.institutional-title{font-size:29px!important;margin:20px auto 16px!important;max-width:650px!important}
+.institutional-meta{margin-top:18px!important;max-width:620px!important;border-radius:0!important;border:1px solid #c8d4df!important}
+.institutional-meta div{grid-template-columns:210px 1fr!important}
+.institutional-meta b{background:#eef3f8!important;color:#123b67!important}
+.institutional-band{height:8px;background:linear-gradient(90deg,#123b67 0 72%,#cf1f3a 72% 84%,#fff 84% 88%,#123b67 88%);width:100%;margin-top:24px}
+.institutional-page{padding:34px 50px 28px!important}
+.institutional-page-head{display:flex;justify-content:space-between;align-items:center;border-top:2px solid #123b67;border-bottom:2px solid #123b67;padding:8px 0 9px;margin-bottom:28px;color:#123b67;font-size:11.5px;line-height:1.35}
+.institutional-page-head b{font-size:12.5px}.institutional-page-head span{color:#52677d}
+.institutional-mini-logos{display:flex;align-items:center;gap:9px}
+.institutional-mini-logos img:first-child{max-height:34px;max-width:84px}.institutional-mini-logos img:last-child{max-height:32px;max-width:32px}
+.institutional-footer{border-top:2px solid #123b67!important;border-bottom:1px solid #cf1f3a;padding:8px 0 6px!important;color:#657487!important;font-size:10.5px!important}
+@media(max-width:700px){
+ .institutional-cover{padding:24px 20px 18px!important}.institutional-logo-block .logo-dc{max-width:145px}.institutional-title{font-size:24px!important}
+ .institutional-meta div{grid-template-columns:1fr!important}.institutional-page{padding:24px 20px!important}
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -576,15 +606,80 @@ function vistaSimpleHTML(x){
 }
 function vistaInformeFinalHTML(x){
   const aprobado=x.estado==='Aprobado'||x.estado==='Publicado'||x.borrador===false;
-  const team=getTeamForMesa(x.mesa);const reviewers=Array.isArray(x.revisiones)?x.revisiones:[];
+  const team=getTeamForMesa(x.mesa);
+  const reviewers=Array.isArray(x.revisiones)?x.revisiones:[];
   const refs=[...(x.referencias||[])].sort((a,b)=>(a.autor||'').localeCompare(b.autor||''));
   const logoDC='https://commons.wikimedia.org/wiki/Special:Redirect/file/Logo_Democracia_Cristiana_Chile_2020.png';
   const logoFrente='https://commons.wikimedia.org/wiki/Special:Redirect/file/Emblem_of_the_Christian_Democrat_Party_of_Chile.svg';
-    const portada='<div class="preview-paper"><div class="preview-cover"><div class="preview-logos"><img class="logo-dc" crossorigin="anonymous" referrerpolicy="no-referrer" src="'+logoDC+'" alt="Partido Demócrata Cristiano"><img class="logo-frente" crossorigin="anonymous" referrerpolicy="no-referrer" src="'+logoFrente+'" alt="Frente de Profesionales y Técnicos"></div><div class="preview-brand" style="font-size:27px;line-height:1.15;letter-spacing:.01em">Plataforma Digital Frente PT<br>O’Higgins</div><div class="preview-subbrand" style="font-size:18px;font-weight:750;color:#1e5d91;margin-top:12px">Conocimiento · Participación ·<br>Colaboración · Propuestas</div><div style="margin-top:34px;color:#1e5d91;font-size:20px;font-weight:850">INFORME TÉCNICO FINAL</div><div class="preview-title">'+esc(x.titulo||'Documento técnico')+'</div><div class="preview-meta"><div><b>Mesa Técnica</b><span>'+esc(x.mesa)+'</span></div><div><b>Tipo de estudio</b><span>'+esc(x.tipoEstudio||x.tipo_estudio||'Estudio técnico')+'</span></div><div><b>Coordinador/a</b><span>'+esc((typeof getCoordinator==='function'?getCoordinator(x.mesa):'')||'No registrado')+'</span></div><div><b>Fecha de aprobación</b><span>'+esc(String(x.fechaPublicacion||x.fecha||'').split(',')[0])+'</span></div><div><b>Versión</b><span>'+esc(String(x.version||''))+'</span></div><div><b>Estado</b><span>'+(aprobado?'APROBADO PARA PUBLICACIÓN':'VISTA PREVIA — AÚN NO APROBADO')+'</span></div></div><div class="preview-footer" style="margin-top:auto"><span>Documento técnico institucional</span><span>Página 1</span></div></div></div>';
-  const equipo=aprobado?'<div class="preview-paper" style="margin-top:16px"><div class="preview-page"><div class="preview-header">Frente de Profesionales y Técnicos · Región de O’Higgins</div><h2>Equipo de elaboración</h2><p>Integrantes de la Mesa Técnica que participaron en el desarrollo del documento.</p><table class="preview-team"><thead><tr><th>Nombre</th><th>Título profesional / especialidad</th><th>Rol en la Mesa</th></tr></thead><tbody>'+team.map(p=>'<tr><td>'+esc(p.nombre)+'</td><td>'+esc(p.titulo)+'</td><td>'+esc(p.rol)+'</td></tr>').join('')+'</tbody></table><h2 style="margin-top:28px">Revisión técnica</h2><p>Integrantes que registraron formalmente su visto bueno a esta versión.</p>'+(reviewers.length?'<table class="preview-team"><thead><tr><th>Nombre</th><th>Profesión</th><th>Cargo en la Mesa</th></tr></thead><tbody>'+reviewers.map(r=>'<tr><td>'+esc(r.nombre||'')+'</td><td>'+esc(r.profesion||'Profesión no registrada')+'</td><td>'+esc(r.cargo||'Integrante de Mesa')+'</td></tr>').join('')+'</tbody></table>':'<p class="muted">Sin vistos buenos registrados.</p>')+'<div class="preview-footer"><span>Documento técnico institucional</span><span>Página</span></div></div></div>':'<div class="preview-mode-note" style="max-width:820px;margin:16px auto">La página <b>Equipo de elaboración y revisión técnica</b> se incorporará automáticamente cuando el documento sea aprobado para publicación.</div>';
-  const toc='<div class="preview-paper" style="margin-top:16px"><div class="preview-page"><div class="preview-header">Frente de Profesionales y Técnicos · Región de O’Higgins</div><h2>Índice</h2><div class="preview-toc"><div><span>Resumen ejecutivo</span><span>—</span></div>'+STUDY_SECTION_NAMES.map((s,i)=>'<div><span>'+(i+1)+'. '+esc(s)+'</span><span>—</span></div>').join('')+'<div><span>Referencias</span><span>—</span></div><div><span>Anexos</span><span>—</span></div></div><div class="preview-footer"><span>Documento técnico institucional</span><span>Página</span></div></div></div>';
-  const cuerpo='<div class="preview-paper" style="margin-top:16px"><div class="preview-page"><div class="preview-header">Frente de Profesionales y Técnicos · Región de O’Higgins</div><h2>Resumen ejecutivo</h2><p class="muted">Se genera a partir de la versión final del estudio.</p>'+STUDY_SECTION_NAMES.map((s,i)=>'<h2>'+(i+1)+'. '+esc(s)+'</h2><div style="line-height:1.8">'+(cleanSectionHTML(s,x.contenido?.[s])||'<p class="muted">Sin contenido.</p>')+'</div>').join('')+'<h2>Referencias</h2>'+(refs.length?'<ol>'+refs.map(r=>'<li>'+esc(r.apa||'')+'</li>').join('')+'</ol>':'<p class="muted">Sin referencias registradas.</p>')+'<h2>Anexos</h2><p class="muted">Se incorporarán cuando corresponda.</p><div class="preview-footer"><span>Documento técnico institucional</span><span>Página</span></div></div></div>';
-  return (aprobado?'':'<div class="preview-mode-note" style="max-width:820px;margin:0 auto 14px"><b>Vista previa del informe final.</b> Este formato adquiere carácter de informe final únicamente después de su aprobación para publicación.</div>')+portada+equipo+toc+cuerpo;
+  const estado=aprobado?'APROBADO PARA PUBLICACIÓN':'VISTA PREVIA — AÚN NO APROBADO';
+  const fecha=esc(String(x.fechaPublicacion||x.fecha||'').split(',')[0]);
+  const coordinador=esc((typeof getCoordinator==='function'?getCoordinator(x.mesa):'')||'No registrado');
+
+  const portada='<div class="preview-paper"><div class="preview-cover institutional-cover">'
+    +'<div class="institutional-top">'
+      +'<div class="institutional-logo-block"><img class="logo-dc" crossorigin="anonymous" referrerpolicy="no-referrer" src="'+logoDC+'" alt="Partido Demócrata Cristiano"></div>'
+      +'<div class="institutional-logo-block right"><img class="logo-frente" crossorigin="anonymous" referrerpolicy="no-referrer" src="'+logoFrente+'" alt="Frente de Profesionales y Técnicos"></div>'
+    +'</div>'
+    +'<div class="institutional-party">PARTIDO DEMÓCRATA CRISTIANO</div>'
+    +'<div class="institutional-front">FRENTE DE PROFESIONALES Y TÉCNICOS</div>'
+    +'<div class="institutional-region">REGIÓN DE O’HIGGINS</div>'
+    +'<div class="institutional-rule"><span></span><span></span></div>'
+    +'<div class="institutional-platform">Plataforma Digital Frente PT O’Higgins</div>'
+    +'<div class="institutional-motto">Conocimiento · Participación · Colaboración · Propuestas</div>'
+    +'<div class="institutional-final-label">INFORME TÉCNICO FINAL</div>'
+    +'<div class="preview-title institutional-title">'+esc(x.titulo||'Documento técnico')+'</div>'
+    +'<div class="preview-meta institutional-meta">'
+      +'<div><b>Mesa Técnica</b><span>'+esc(x.mesa)+'</span></div>'
+      +'<div><b>Tipo de estudio</b><span>'+esc(x.tipoEstudio||x.tipo_estudio||'Estudio técnico')+'</span></div>'
+      +'<div><b>Coordinador/a</b><span>'+coordinador+'</span></div>'
+      +'<div><b>Fecha de aprobación</b><span>'+fecha+'</span></div>'
+      +'<div><b>Versión</b><span>'+esc(String(x.version||''))+'</span></div>'
+      +'<div><b>Estado</b><span>'+estado+'</span></div>'
+    +'</div>'
+    +'<div class="institutional-band"></div>'
+    +'<div class="preview-footer institutional-footer"><span>Frente de Profesionales y Técnicos · Región de O’Higgins</span><span>Página 1</span></div>'
+  +'</div></div>';
+
+  const encabezado='<div class="institutional-page-head">'
+    +'<div><b>PARTIDO DEMÓCRATA CRISTIANO</b><br><span>Frente de Profesionales y Técnicos · Región de O’Higgins</span></div>'
+    +'<div class="institutional-mini-logos"><img crossorigin="anonymous" referrerpolicy="no-referrer" src="'+logoDC+'" alt=""><img crossorigin="anonymous" referrerpolicy="no-referrer" src="'+logoFrente+'" alt=""></div>'
+  +'</div>';
+
+  const pie='<div class="preview-footer institutional-footer"><span>Plataforma Digital Frente PT O’Higgins</span><span>Página</span></div>';
+
+  const equipo=aprobado
+    ?'<div class="preview-paper" style="margin-top:16px"><div class="preview-page institutional-page">'+encabezado
+      +'<h2>Equipo de elaboración</h2>'
+      +'<p>El presente informe fue desarrollado colaborativamente por los integrantes de la Mesa Técnica que se individualizan a continuación.</p>'
+      +'<table class="preview-team"><thead><tr><th>Nombre</th><th>Título profesional / especialidad</th><th>Rol en la Mesa</th></tr></thead><tbody>'
+      +team.map(p=>'<tr><td>'+esc(p.nombre)+'</td><td>'+esc(p.titulo)+'</td><td>'+esc(p.rol)+'</td></tr>').join('')
+      +'</tbody></table>'
+      +'<h2 style="margin-top:28px">Revisión técnica</h2>'
+      +'<p>Integrantes que registraron formalmente su visto bueno a esta versión.</p>'
+      +(reviewers.length
+        ?'<table class="preview-team"><thead><tr><th>Nombre</th><th>Profesión</th><th>Cargo en la Mesa</th></tr></thead><tbody>'
+          +reviewers.map(r=>'<tr><td>'+esc(r.nombre||'')+'</td><td>'+esc(r.profesion||'Profesión no registrada')+'</td><td>'+esc(r.cargo||'Integrante de Mesa')+'</td></tr>').join('')
+          +'</tbody></table>'
+        :'<p class="muted">Sin vistos buenos registrados.</p>')
+      +pie+'</div></div>'
+    :'<div class="preview-mode-note" style="max-width:820px;margin:16px auto">La página <b>Equipo de elaboración y revisión técnica</b> se incorporará automáticamente cuando el documento sea aprobado para publicación.</div>';
+
+  const toc='<div class="preview-paper" style="margin-top:16px"><div class="preview-page institutional-page">'+encabezado
+    +'<h2>Índice</h2><div class="preview-toc"><div><span>Resumen ejecutivo</span><span>—</span></div>'
+    +STUDY_SECTION_NAMES.map((s,i)=>'<div><span>'+(i+1)+'. '+esc(s)+'</span><span>—</span></div>').join('')
+    +'<div><span>Conclusiones</span><span>—</span></div><div><span>Referencias</span><span>—</span></div><div><span>Anexos</span><span>—</span></div></div>'
+    +pie+'</div></div>';
+
+  const cuerpo='<div class="preview-paper" style="margin-top:16px"><div class="preview-page institutional-page">'+encabezado
+    +'<h2>Resumen ejecutivo</h2><p class="muted">Se genera a partir de la versión final del estudio.</p>'
+    +STUDY_SECTION_NAMES.map((s,i)=>'<h2>'+(i+1)+'. '+esc(s)+'</h2><div style="line-height:1.8">'+(cleanSectionHTML(s,x.contenido?.[s])||'<p class="muted">Sin contenido.</p>')+'</div>').join('')
+    +'<h2>Conclusiones</h2><p class="muted">Se consolidan desde el contenido final aprobado de la Mesa Técnica.</p>'
+    +'<h2>Referencias</h2>'+(refs.length?'<ol>'+refs.map(r=>'<li>'+esc(r.apa||'')+'</li>').join('')+'</ol>':'<p class="muted">Sin referencias registradas.</p>')
+    +'<h2>Anexos</h2><p class="muted">Se incorporarán cuando corresponda.</p>'
+    +pie+'</div></div>';
+
+  return (aprobado?'':'<div class="preview-mode-note" style="max-width:820px;margin:0 auto 14px"><b>Vista previa del informe final.</b> Este formato adquiere carácter de informe final únicamente después de su aprobación para publicación.</div>')
+    +portada+equipo+toc+cuerpo;
 }
 function mostrarVistaDocumento(tipo){
   const b=$('documentPreview');if(!b)return;
