@@ -703,77 +703,137 @@
     '<div style="margin-top:12px"><button id="sendLibraryDocsBtn" class="btn primary" onclick="enviarDocumentosSolicitud('+id+')">Enviar documentos</button> <button class="btn soft" onclick="adminSolicitudes()">Volver</button></div></div>';
  }
  async function generarAdjuntoPDFFinalBiblioteca(pub){
-   if(typeof html2pdf==='undefined')throw new Error('No fue posible cargar el generador PDF.');
-   if(typeof vistaInformeFinalHTML!=='function')throw new Error('No está disponible el formato de informe final.');
+   const jsPDF=window.jspdf?.jsPDF;
+   if(!jsPDF)throw new Error('No fue posible cargar jsPDF para generar el documento.');
+
    const x={...structuredClone(pub),estado:'Aprobado',borrador:false};
-   const wrap=document.createElement('div');
-   // Safari/iPhone: el nodo debe estar renderizado realmente y no quedar
-   // detrás del fondo de la página. Un z-index negativo puede producir un PDF
-   // completamente blanco aunque el HTML tenga contenido.
-   wrap.style.position='absolute';
-   wrap.style.left='0';
-   wrap.style.top='0';
-   wrap.style.width='794px';
-   wrap.style.minHeight='1123px';
-   wrap.style.background='#fff';
-   wrap.style.color='#172536';
-   wrap.style.zIndex='1';
-   wrap.style.opacity='1';
-   wrap.style.visibility='visible';
-   wrap.style.display='block';
-   wrap.style.pointerEvents='none';
-   wrap.setAttribute('aria-hidden','true');
-   wrap.setAttribute('data-pdf-library-final','1');
-   wrap.innerHTML=vistaInformeFinalHTML(x);
-   document.body.appendChild(wrap);
-   try{
-     const imgs=[...wrap.querySelectorAll('img')];
-     await Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(resolve=>{
-       const done=()=>resolve();
-       img.addEventListener('load',done,{once:true});
-       img.addEventListener('error',done,{once:true});
-     })));
-     if(document.fonts?.ready)await document.fonts.ready;
-     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-     const mobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-     const blob=await html2pdf().set({
-       margin:[10,12,12,12],
-       image:{type:'jpeg',quality:.98},
-       html2canvas:{
-         scale:mobile?1:2,
-         useCORS:true,
-         allowTaint:false,
-         backgroundColor:'#ffffff',
-         scrollX:0,
-         scrollY:0,
-         windowWidth:900,
-         logging:false,
-         onclone:(doc)=>{
-           const cloned=doc.body.querySelector('[data-pdf-library-final="1"]');
-           if(cloned){
-             cloned.style.position='absolute';
-             cloned.style.left='0';
-             cloned.style.top='0';
-             cloned.style.zIndex='1';
-             cloned.style.opacity='1';
-             cloned.style.visibility='visible';
-             cloned.style.display='block';
-             cloned.style.background='#fff';
-           }
-         }
-       },
-       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-       pagebreak:{mode:['css','legacy']}
-     }).from(wrap).toPdf().outputPdf('blob');
-     const bytes=new Uint8Array(await blob.arrayBuffer());
-     let binary='',chunk=0x8000;
-     for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
-     return {
-       library_id:Number(pub.id),
-       filename:limpiarNombreArchivo(pub.titulo||'documento')+'_VERSION_FINAL.pdf',
-       content:btoa(binary)
-     };
-   }finally{wrap.remove()}
+   const pdf=new jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+   const pageW=210,pageH=297,marginX=18,top=18,bottom=18,maxW=pageW-marginX*2;
+   let y=top;
+
+   const toText=(html)=>{
+     const box=document.createElement('div');
+     box.innerHTML=String(html||'');
+     return (box.innerText||box.textContent||'')
+       .replace(/\u00a0/g,' ')
+       .replace(/[ \t]+\n/g,'\n')
+       .replace(/\n{3,}/g,'\n\n')
+       .trim();
+   };
+   const ensure=(need=8)=>{
+     if(y+need>pageH-bottom){
+       pdf.addPage();
+       y=top;
+       drawHeader();
+     }
+   };
+   const write=(text,{size=10,bold=false,italic=false,indent=0,after=4,line=5.2}={})=>{
+     const clean=String(text||'').trim();
+     if(!clean)return;
+     pdf.setFont('helvetica',bold?'bold':(italic?'italic':'normal'));
+     pdf.setFontSize(size);
+     const lines=pdf.splitTextToSize(clean,maxW-indent);
+     ensure(Math.max(line,lines.length*line)+after);
+     for(const ln of lines){
+       ensure(line);
+       pdf.text(ln,marginX+indent,y);
+       y+=line;
+     }
+     y+=after;
+   };
+   const drawHeader=()=>{
+     pdf.setDrawColor(18,59,103);
+     pdf.setLineWidth(.5);
+     pdf.line(marginX,12,pageW-marginX,12);
+     pdf.setFont('helvetica','bold');pdf.setFontSize(8);
+     pdf.setTextColor(18,59,103);
+     pdf.text('Frente de Profesionales y Técnicos · Región de O’Higgins',marginX,9);
+     pdf.setTextColor(23,37,54);
+   };
+   const drawFooter=()=>{
+     const pages=pdf.getNumberOfPages();
+     for(let p=1;p<=pages;p++){
+       pdf.setPage(p);
+       pdf.setDrawColor(180,190,200);
+       pdf.setLineWidth(.3);
+       pdf.line(marginX,pageH-12,pageW-marginX,pageH-12);
+       pdf.setFont('helvetica','normal');pdf.setFontSize(8);pdf.setTextColor(101,116,135);
+       pdf.text('Documento técnico institucional',marginX,pageH-8);
+       pdf.text('Página '+p,pageW-marginX,pageH-8,{align:'right'});
+     }
+     pdf.setTextColor(23,37,54);
+   };
+
+   // Portada
+   pdf.setTextColor(18,59,103);
+   pdf.setFont('helvetica','bold');pdf.setFontSize(15);
+   pdf.text('Plataforma Digital Frente PT O’Higgins',pageW/2,42,{align:'center'});
+   pdf.setFontSize(10);
+   pdf.text('Conocimiento · Participación · Colaboración · Propuestas',pageW/2,50,{align:'center'});
+   pdf.setFontSize(13);
+   pdf.text('INFORME TÉCNICO FINAL',pageW/2,78,{align:'center'});
+   pdf.setTextColor(23,37,54);pdf.setFontSize(22);
+   const titleLines=pdf.splitTextToSize(x.titulo||'Documento técnico',150);
+   pdf.text(titleLines,pageW/2,98,{align:'center'});
+   let my=98+titleLines.length*9+10;
+   pdf.setFont('helvetica','normal');pdf.setFontSize(10);
+   const meta=[
+     'Mesa Técnica: '+(x.mesa||''),
+     'Fecha: '+(x.fechaPublicacion||x.fecha||new Date().toLocaleDateString('es-CL')),
+     'Versión: '+(x.version||1),
+     'Estado: APROBADO PARA PUBLICACIÓN'
+   ];
+   meta.forEach(t=>{pdf.text(t,marginX,my);my+=7;});
+
+   // Equipo y revisión
+   pdf.addPage();y=top;drawHeader();
+   write('Equipo de elaboración',{size:15,bold:true,after:6,line:7});
+   write('Integrantes de la Mesa Técnica que participaron en el desarrollo del documento.',{size:10,after:5});
+   const team=typeof getTeamForMesa==='function'?getTeamForMesa(x.mesa):[];
+   if(team.length){
+     team.forEach(p=>write((p.nombre||'')+' - '+(p.titulo||'Título profesional no registrado')+' - '+(p.rol||'Integrante'),{size:9,indent:3,after:2,line:4.5}));
+   }else write('Sin integrantes registrados.',{size:9,italic:true});
+   write('Revisión técnica',{size:14,bold:true,after:5,line:6.5});
+   const reviewers=Array.isArray(x.revisiones)?x.revisiones:[];
+   if(reviewers.length){
+     reviewers.forEach(r=>write((r.nombre||'')+' - '+(r.profesion||'Profesión no registrada')+' - '+(r.cargo||'Integrante de Mesa'),{size:9,indent:3,after:2,line:4.5}));
+   }else write('Sin vistos buenos registrados.',{size:9,italic:true});
+
+   // Índice
+   pdf.addPage();y=top;drawHeader();
+   write('Índice',{size:15,bold:true,after:7,line:7});
+   write('Resumen ejecutivo',{size:10,after:2});
+   STUDY_SECTION_NAMES.forEach((s,idx)=>write((idx+1)+'. '+s,{size:10,after:2}));
+   write('Referencias',{size:10,after:2});
+   write('Anexos',{size:10,after:2});
+
+   // Cuerpo
+   pdf.addPage();y=top;drawHeader();
+   write('Resumen ejecutivo',{size:15,bold:true,after:6,line:7});
+   write('Se genera a partir de la versión final del estudio.',{size:10,italic:true,after:6});
+   STUDY_SECTION_NAMES.forEach((s,idx)=>{
+     write((idx+1)+'. '+s,{size:14,bold:true,after:5,line:6.5});
+     const txt=toText(x.contenido?.[s]);
+     write(txt||'Sin contenido.',{size:10,after:6,line:5.2});
+   });
+   write('Referencias',{size:14,bold:true,after:5,line:6.5});
+   const refs=[...(x.referencias||[])].sort((a,b)=>(a.autor||'').localeCompare(b.autor||''));
+   if(refs.length)refs.forEach((r,idx)=>write((idx+1)+'. '+(r.apa||''),{size:9,indent:2,after:3,line:4.7}));
+   else write('Sin referencias registradas.',{size:9,italic:true});
+   write('Anexos',{size:14,bold:true,after:5,line:6.5});
+   write('Se incorporarán cuando corresponda.',{size:9,italic:true});
+
+   drawFooter();
+
+   const blob=pdf.output('blob');
+   const bytes=new Uint8Array(await blob.arrayBuffer());
+   let binary='',chunk=0x8000;
+   for(let k=0;k<bytes.length;k+=chunk)binary+=String.fromCharCode(...bytes.subarray(k,k+chunk));
+   return {
+     library_id:Number(pub.id),
+     filename:limpiarNombreArchivo(pub.titulo||'documento')+'_VERSION_FINAL.pdf',
+     content:btoa(binary)
+   };
  }
  window.enviarDocumentosSolicitud=async function(id){
    if(!isReal())return;
