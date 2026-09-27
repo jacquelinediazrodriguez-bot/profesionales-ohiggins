@@ -13,6 +13,7 @@
   toggleMesaTecnica:window.toggleMesaTecnica,eliminarMesaTecnica:window.eliminarMesaTecnica,
   marcarEnviada:window.marcarEnviada,
   registrarContacto:window.registrarContacto,guardarSolicitud:window.guardarSolicitud,adminSolicitudes:window.adminSolicitudes,
+  renderAprobados:window.renderAprobados,
   guardarIntegrante:window.guardarIntegrante,guardarMesaTecnica:window.guardarMesaTecnica,
   solicitarPublicacion:window.solicitarPublicacion,publicarSolicitud:window.publicarSolicitud,
   rechazarSolicitudPublicacion:window.rechazarSolicitudPublicacion};
