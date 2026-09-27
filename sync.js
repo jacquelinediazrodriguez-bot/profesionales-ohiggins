@@ -702,19 +702,70 @@
     '<p class="mini-note">Se enviará una copia del correo a la cuenta administrativa que realiza el envío.</p>'+
     '<div style="margin-top:12px"><button id="sendLibraryDocsBtn" class="btn primary" onclick="enviarDocumentosSolicitud('+id+')">Enviar documentos</button> <button class="btn soft" onclick="adminSolicitudes()">Volver</button></div></div>';
  }
+ async function generarAdjuntoPDFFinalBiblioteca(pub){
+   if(typeof html2pdf==='undefined')throw new Error('No fue posible cargar el generador PDF.');
+   if(typeof vistaInformeFinalHTML!=='function')throw new Error('No está disponible el formato de informe final.');
+   const x={...structuredClone(pub),estado:'Aprobado',borrador:false};
+   const wrap=document.createElement('div');
+   wrap.style.position='fixed';
+   wrap.style.left='-100000px';
+   wrap.style.top='0';
+   wrap.style.width='900px';
+   wrap.style.background='#fff';
+   wrap.setAttribute('aria-hidden','true');
+   wrap.innerHTML=vistaInformeFinalHTML(x);
+   document.body.appendChild(wrap);
+   try{
+     const imgs=[...wrap.querySelectorAll('img')];
+     await Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(resolve=>{
+       const done=()=>resolve();
+       img.addEventListener('load',done,{once:true});
+       img.addEventListener('error',done,{once:true});
+     })));
+     const blob=await html2pdf().set({
+       margin:[10,12,12,12],
+       image:{type:'jpeg',quality:.98},
+       html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+       jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+       pagebreak:{mode:['css','legacy']}
+     }).from(wrap).toPdf().outputPdf('blob');
+     const bytes=new Uint8Array(await blob.arrayBuffer());
+     let binary='',chunk=0x8000;
+     for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+     return {
+       library_id:Number(pub.id),
+       filename:limpiarNombreArchivo(pub.titulo||'documento')+'_VERSION_FINAL.pdf',
+       content:btoa(binary)
+     };
+   }finally{wrap.remove()}
+ }
  window.enviarDocumentosSolicitud=async function(id){
    if(!isReal())return;
    const group=solicitudGrupo(id);if(!group.length)return alert('No se encontró la solicitud.');
    const btn=document.getElementById('sendLibraryDocsBtn'),message=(document.getElementById('libraryReplyMessage')?.value||'').trim();
-   if(btn){btn.disabled=true;btn.textContent='Enviando…';}
+   if(btn){btn.disabled=true;btn.textContent='Generando PDF final…';}
    try{
-     const {data,error}=await sbAuth.functions.invoke('send-library-copy',{body:{request_ids:group.map(x=>x.id),message}});
+     if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
+     const pubs=getPublicaciones();
+     const libraryIds=[...new Set(group.map(x=>String(x.libraryId||'')).filter(Boolean))];
+     const selected=libraryIds.map(libraryId=>pubs.find(p=>String(p.id)===libraryId)).filter(Boolean);
+     if(selected.length!==libraryIds.length)throw new Error('No fue posible recuperar todos los documentos publicados.');
+     const attachments=[];
+     for(const pub of selected){
+       attachments.push(await generarAdjuntoPDFFinalBiblioteca(pub));
+     }
+     if(btn)btn.textContent='Enviando PDF…';
+     const {data,error}=await sbAuth.functions.invoke('send-library-copy',{body:{
+       request_ids:group.map(x=>x.id),
+       message,
+       attachments
+     }});
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible enviar.');
      await refreshSharedAdmin();
-     alert('Correo enviado correctamente con '+(data.attachments?.length||group.length)+' documento(s) adjunto(s). Se envió copia administrativa.');
+     alert('Correo enviado correctamente con '+(data.attachments?.length||attachments.length)+' PDF final adjunto(s). Se envió copia administrativa.');
      await window.adminSolicitudes();
    }catch(e){
-     console.error(e);alert('No fue posible enviar los documentos. La solicitud no se marcó como enviada.');
+     console.error(e);alert('No fue posible generar o enviar el PDF final. La solicitud no se marcó como enviada.');
      if(btn){btn.disabled=false;btn.textContent='Enviar documentos';}
    }
  };
