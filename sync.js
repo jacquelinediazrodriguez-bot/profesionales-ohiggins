@@ -431,10 +431,10 @@
    const [profiles,members,requests,documents,contacts]=results.map(x=>x.data||[]);
    const arr=[];
    for(const p of profiles){
-     if(['administrador_general','administrador_plataforma'].includes(p.role))arr.push({nombre:p.full_name,correo:p.email,rol:p.role==='administrador_general'?'Administrador General':'Administrador de Plataforma',mesa:'Administración',estado:p.is_active?'Activo':'Inactivo'});
+     if(['administrador_general','administrador_plataforma'].includes(p.role))arr.push({profileId:p.id,nombre:p.full_name,correo:p.email,rol:p.role==='administrador_general'?'Administrador General':'Administrador de Plataforma',mesa:'Administración',estado:p.is_active?'Activo':'Inactivo'});
      for(const x of members.filter(a=>a.profile_id===p.id)){
        const name=Object.keys(STATE.ids).find(m=>String(STATE.ids[m])===String(x.technical_table_id));
-       if(name)arr.push({nombre:p.full_name,correo:p.email,rol:x.is_coordinator?'Coordinador/a de Mesa':x.member_role,
+       if(name)arr.push({profileId:p.id,technicalTableId:x.technical_table_id,nombre:p.full_name,correo:p.email,rol:x.is_coordinator?'Coordinador/a de Mesa':x.member_role,
          mesa:name,estado:p.is_active?'Activo':'Inactivo'});
      }
    }
@@ -567,6 +567,27 @@
    const {error}=await sbAuth.from('representatives_directory').delete().eq('id',x.cloudId);
    if(error){console.error(error);return alert('No se pudo eliminar el registro compartido.')}
    STATE.directory=STATE.directory.filter(r=>r.id!==id);adminRepresentantes();
+ };
+
+ window.renderIntegrantes=function(){
+   const b=document.getElementById('admListado');if(!b)return;
+   const a=getIntegrantes().filter(x=>x.rol!=='Administrador General'&&x.mesa!=='Administración');
+   const by={};a.forEach(x=>{(by[x.correo]??=[]).push(x)});
+   const rows=Object.entries(by);
+   b.innerHTML=rows.length?rows.map(([correo,items])=>
+     '<div class="card" style="margin-bottom:10px"><b>'+esc(items[0].nombre)+'</b><br><small>'+esc(correo)+'</small><div style="margin-top:10px">'+
+     items.map(x=>'<div class="row"><div><b>'+esc(x.mesa)+'</b></div><div><span class="pill">'+esc(x.rol)+'</span> <span class="pill green">'+esc(x.estado)+'</span> <button class="btn danger" onclick="quitarIntegranteDeMesa(\''+String(x.profileId||'').replace(/'/g,"\\'")+'\','+Number(x.technicalTableId||0)+',\''+String(x.nombre||'Integrante').replace(/'/g,"\\'")+'\',\''+String(x.mesa||'Mesa').replace(/'/g,"\\'")+'\')">Quitar de esta Mesa</button></div></div>').join('')+
+     '</div></div>').join(''):'<div class="notice">Sin integrantes registrados.</div>';
+ };
+ window.quitarIntegranteDeMesa=async function(profileId,technicalTableId,nombre,mesa){
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return;
+   if(!profileId||!technicalTableId)return alert('No se pudo identificar esta asignación.');
+   if(!confirm('¿Quitar a '+nombre+' de la Mesa '+mesa+'?\n\nSe conservarán su cuenta, perfil y cualquier otra Mesa asignada.'))return;
+   const {error}=await sbAuth.from('table_memberships').delete()
+     .eq('profile_id',profileId).eq('technical_table_id',Number(technicalTableId));
+   if(error){console.error(error);return alert('No fue posible quitar al integrante de esta Mesa.')}
+   await refreshSharedAdmin();renderIntegrantes();
+   alert('El integrante fue quitado únicamente de la Mesa '+mesa+'. Su cuenta y las demás asignaciones permanecen.');
  };
  window.guardarIntegrante=async function(){
    if(!isReal())return original.guardarIntegrante();
@@ -1163,6 +1184,92 @@
      await window.adminInvitaciones();
    }catch(e){console.error(e);alert(e?.message||'No fue posible enviar la invitación.');}
  };
+
+ const _renderInvitacionesIntegrantes=window.renderInvitacionesIntegrantes;
+ window.renderInvitacionesIntegrantes=async function(container){
+   const c=container||document.getElementById('privatecontent');
+   await _renderInvitacionesIntegrantes(c);
+   if(!c||!isReal())return;
+   const mesasCoord=coordinatorMesas();if(!mesasCoord.length)return;
+   const ids=mesasCoord.map(m=>Number(mesaId(m))).filter(Boolean);
+   const [{data:members,error:me},{data:removals,error:re}]=await Promise.all([
+     sbAuth.from('table_memberships')
+       .select('profile_id,technical_table_id,member_role,is_coordinator,profiles(id,full_name,email),technical_tables(name)')
+       .in('technical_table_id',ids),
+     sbAuth.from('member_removal_requests')
+       .select('id,profile_id,technical_table_id,reason,status,requested_at,profiles(full_name,email),technical_tables(name)')
+       .eq('requested_by',STATE.uid).order('requested_at',{ascending:false})
+   ]);
+   if(me||re){console.warn(me||re);return}
+   const current=(members||[]).filter(x=>String(x.profile_id)!==String(STATE.uid));
+   const pending=new Set((removals||[]).filter(x=>x.status==='Pendiente').map(x=>String(x.profile_id)+'|'+String(x.technical_table_id)));
+   const sec=document.createElement('div');
+   sec.innerHTML='<h2 class="section-sub">Integrantes de mis Mesas</h2>'+
+     '<div class="notice">El Coordinador puede solicitar que una persona sea retirada de su Mesa. Administración debe aprobar la solicitud. La cuenta del profesional nunca se elimina.</div><br>'+
+     (current.length?current.map(x=>{
+       const key=String(x.profile_id)+'|'+String(x.technical_table_id),wait=pending.has(key);
+       return '<div class="row"><div><b>'+esc(x.profiles?.full_name||'Integrante')+'</b> · '+esc(x.profiles?.email||'')+
+         '<br><small>'+esc(x.technical_tables?.name||'Mesa')+' · '+esc(x.is_coordinator?'Coordinador/a de Mesa':x.member_role||'Integrante de Mesa')+'</small></div><div>'+
+         (wait?'<span class="pill amber">Retiro pendiente</span>':'<button class="btn danger" onclick="solicitarRetiroIntegrante(\''+String(x.profile_id).replace(/'/g,"\\'")+'\','+Number(x.technical_table_id)+',\''+String(x.profiles?.full_name||'Integrante').replace(/'/g,"\\'")+'\',\''+String(x.technical_tables?.name||'Mesa').replace(/'/g,"\\'")+'\')">Solicitar quitar de esta Mesa</button>')+
+         '</div></div>';
+     }).join(''):'<div class="card"><p>No hay otros integrantes asignados a sus Mesas.</p></div>')+
+     '<h2 class="section-sub">Solicitudes de retiro enviadas</h2>'+
+     ((removals||[]).length?(removals||[]).map(x=>'<div class="row"><div><b>'+esc(x.profiles?.full_name||'Integrante')+'</b><br><small>'+esc(x.technical_tables?.name||'Mesa')+(x.reason?' · '+esc(x.reason):'')+' · '+new Date(x.requested_at).toLocaleString('es-CL')+'</small></div><span class="pill '+(x.status==='Aprobada'?'green':x.status==='Rechazada'?'amber':'')+'">'+esc(x.status)+'</span></div>').join(''):'<div class="card"><p>No ha solicitado retiros.</p></div>');
+   c.appendChild(sec);
+ };
+ window.solicitarRetiroIntegrante=async function(profileId,technicalTableId,nombre,mesa){
+   const reason=prompt('Motivo para solicitar que '+nombre+' sea retirado/a de la Mesa '+mesa+':','');
+   if(reason===null)return;
+   try{
+     const {data,error}=await sbAuth.functions.invoke('member-removal',{body:{action:'submit',profile_id:profileId,technical_table_id:Number(technicalTableId),reason:reason.trim()}});
+     if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible registrar la solicitud.');
+     alert('Solicitud enviada a Administración.');
+     await window.renderInvitacionesIntegrantes(document.getElementById('privatecontent'));
+   }catch(e){console.error(e);alert(e?.message||'No fue posible enviar la solicitud de retiro.');}
+ };
+
+ const _adminInvitaciones=window.adminInvitaciones;
+ window.adminInvitaciones=async function(){
+   await _adminInvitaciones();
+   const c=document.getElementById('admincontent');if(!c||!isReal())return;
+   const [{data:rows,error},{data:profiles}]=await Promise.all([
+     sbAuth.from('member_removal_requests')
+       .select('id,profile_id,technical_table_id,reason,status,requested_by,requested_at,reviewed_at,profiles(full_name,email),technical_tables(name)')
+       .order('requested_at',{ascending:false}),
+     sbAuth.from('profiles').select('id,full_name,email')
+   ]);
+   if(error){console.warn(error);return}
+   const who=id=>(profiles||[]).find(p=>String(p.id)===String(id));
+   const sec=document.createElement('div');
+   sec.innerHTML='<h2 class="section-sub">Solicitudes para quitar integrantes de una Mesa</h2>'+
+     '<div class="notice">Administración puede quitar únicamente la asignación a una Mesa. La cuenta y el perfil del profesional no se eliminan y puede ser asignado posteriormente a otra Mesa o rol.</div><br>'+
+     ((rows||[]).length?(rows||[]).map(x=>{
+       const r=who(x.requested_by),pending=x.status==='Pendiente';
+       return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.profiles?.full_name||'Integrante')+'</b> · '+esc(x.profiles?.email||'')+
+       '<br><small>Mesa '+esc(x.technical_tables?.name||'')+' · Solicitado por '+esc(r?.full_name||'Coordinación')+' · '+new Date(x.requested_at).toLocaleString('es-CL')+'</small>'+
+       (x.reason?'<p class="muted"><b>Motivo:</b> '+esc(x.reason)+'</p>':'')+'</div><div><span class="pill '+(x.status==='Aprobada'?'green':x.status==='Rechazada'?'amber':'')+'">'+esc(x.status)+'</span>'+
+       (pending?'<br><button class="btn danger" style="margin-top:8px" onclick="aprobarRetiroIntegrante('+x.id+')">Aprobar retiro de Mesa</button> <button class="btn soft" style="margin-top:8px" onclick="rechazarRetiroIntegrante('+x.id+')">Rechazar</button>':'')+'</div></div></div>';
+     }).join(''):'<div class="card"><p>No hay solicitudes de retiro.</p></div>');
+   c.appendChild(sec);
+ };
+ window.aprobarRetiroIntegrante=async function(id){
+   if(!confirm('¿Aprobar que esta persona sea quitada de la Mesa?\n\nSu cuenta, perfil y otras Mesas se conservarán.'))return;
+   try{
+     const {data,error}=await sbAuth.functions.invoke('member-removal',{body:{action:'approve',id}});
+     if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible aprobar el retiro.');
+     await refreshSharedAdmin();alert('La persona fue quitada únicamente de esa Mesa.');
+     await window.adminInvitaciones();
+   }catch(e){console.error(e);alert(e?.message||'No fue posible aprobar el retiro.');}
+ };
+ window.rechazarRetiroIntegrante=async function(id){
+   if(!confirm('¿Rechazar esta solicitud de retiro?'))return;
+   try{
+     const {data,error}=await sbAuth.functions.invoke('member-removal',{body:{action:'reject',id}});
+     if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible rechazar.');
+     await window.adminInvitaciones();
+   }catch(e){console.error(e);alert(e?.message||'No fue posible rechazar la solicitud.');}
+ };
+
  function invitationModal(){
    let m=document.getElementById('invitationPasswordModal');if(m)return m;
    m=document.createElement('div');m.id='invitationPasswordModal';m.className='modal-back';
