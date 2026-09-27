@@ -1062,6 +1062,139 @@
      '<h2 class="section-sub">Historial de Biblioteca</h2>'+
      ((libs.data||[]).length?(libs.data||[]).map(p=>'<div class="row"><div><span class="pill '+(p.origin_type==='Aporte individual'?'amber':'green')+'">'+esc(p.origin_type||'Documento de Mesa')+'</span> <b>'+esc(p.title)+'</b><br><small>'+esc(p.topic)+' · '+(p.author_name?'Autor: '+esc(p.author_name)+' · ':'')+new Date(p.published_at).toLocaleDateString('es-CL')+(p.withdrawn_at?' · Retirado '+new Date(p.withdrawn_at).toLocaleDateString('es-CL'):'')+(p.withdrawal_reason?' · '+esc(p.withdrawal_reason):'')+'</small></div><div><span class="pill '+(p.is_public?'green':'amber')+'">'+(p.is_public?'PUBLICADO':'RETIRADO DE PUBLICACIÓN')+'</span> '+(p.is_public?'<button class="btn danger" onclick="retirarPublicacion('+p.id+')">Retirar de publicación</button>':'')+'</div></div>').join(''):'<div class="card"><p>Aún no hay documentos en el historial de Biblioteca.</p></div>');
  };
+
+ function coordinatorMesas(){
+   return getAssignedMesas().filter(m=>/Coordinador/i.test(getRoleForMesa(m)));
+ }
+ window.renderInvitacionesIntegrantes=async function(container){
+   const c=container||document.getElementById('privatecontent');if(!c)return;
+   if(!isReal()){c.innerHTML='<div class="notice">Ingrese con una cuenta real para gestionar incorporaciones.</div>';return}
+   const mesasCoord=coordinatorMesas();
+   if(!mesasCoord.length){c.innerHTML='<div class="notice">Esta sección está disponible para Coordinadores de Mesa.</div>';return}
+   const {data,error}=await sbAuth.from('member_invitation_requests')
+     .select('id,full_name,email,profession,phone,technical_table_id,proposed_role,status,requested_at,rejection_reason,technical_tables(name)')
+     .eq('requested_by',STATE.uid).order('requested_at',{ascending:false});
+   if(error){console.error(error);c.innerHTML='<div class="notice">No fue posible consultar las solicitudes de incorporación.</div>';return}
+   const options=mesasCoord.map(m=>'<option value="'+esc(String(mesaId(m)))+'">'+esc(m)+'</option>').join('');
+   c.innerHTML='<div class="kicker">Coordinación de Mesa</div><h1 class="section-title">Nuevos integrantes</h1>'+
+    '<div class="notice">La Coordinación propone la incorporación. Administración revisa la solicitud y, si la aprueba, envía la invitación al profesional.</div><br>'+
+    '<div class="card form" style="max-width:720px"><h3>Solicitar incorporación</h3>'+
+    '<label>Nombre completo</label><input id="invName" autocomplete="name">'+
+    '<label>Correo electrónico</label><input id="invEmail" type="email" autocomplete="email">'+
+    '<label>Profesión</label><input id="invProfession" autocomplete="organization-title">'+
+    '<label>Teléfono <span class="muted">(opcional)</span></label><input id="invPhone" autocomplete="tel">'+
+    '<label>Mesa Técnica</label><select id="invMesa">'+options+'</select>'+
+    '<label>Rol propuesto</label><select id="invRole"><option>Integrante de Mesa</option><option>Secretario Técnico</option></select>'+
+    '<button id="invSubmitBtn" class="btn primary" onclick="solicitarNuevoIntegrante()">Enviar solicitud a Administración</button><p id="invStatus" class="muted"></p></div>'+
+    '<h2 class="section-sub">Mis solicitudes</h2>'+
+    ((data||[]).length?(data||[]).map(x=>'<div class="row"><div><b>'+esc(x.full_name)+'</b> · '+esc(x.email)+'<br><small>'+esc(x.technical_tables?.name||'Mesa')+' · '+esc(x.proposed_role)+' · '+new Date(x.requested_at).toLocaleString('es-CL')+(x.rejection_reason?' · '+esc(x.rejection_reason):'')+'</small></div><span class="pill '+(x.status==='Cuenta activada'?'green':x.status==='Rechazada'?'amber':'')+'">'+esc(x.status)+'</span></div>').join(''):'<div class="card"><p>Aún no ha enviado solicitudes de incorporación.</p></div>');
+ };
+ window.solicitarNuevoIntegrante=async function(){
+   if(!isReal())return;
+   const name=document.getElementById('invName')?.value.trim()||'',
+     email=document.getElementById('invEmail')?.value.trim().toLowerCase()||'',
+     profession=document.getElementById('invProfession')?.value.trim()||'',
+     phone=document.getElementById('invPhone')?.value.trim()||'',
+     technical_table_id=Number(document.getElementById('invMesa')?.value),
+     proposed_role=document.getElementById('invRole')?.value||'Integrante de Mesa',
+     status=document.getElementById('invStatus'),btn=document.getElementById('invSubmitBtn');
+   if(!name||!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)||!technical_table_id){status.textContent='Complete nombre, correo válido y Mesa.';return}
+   btn.disabled=true;btn.textContent='Enviando…';status.textContent='';
+   try{
+     const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'submit',full_name:name,email,profession,phone,technical_table_id,proposed_role}});
+     if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible registrar la solicitud.');
+     status.style.color='#2e7d62';status.textContent='Solicitud enviada a Administración.';
+     await window.renderInvitacionesIntegrantes(document.getElementById('privatecontent'));
+   }catch(e){
+     console.error(e);status.style.color='#a3352a';status.textContent=e?.message||'No fue posible enviar la solicitud.';
+   }finally{if(btn){btn.disabled=false;btn.textContent='Enviar solicitud a Administración';}}
+ };
+ window.adminInvitaciones=async function(){
+   const c=document.getElementById('admincontent');if(!c)return;
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){c.innerHTML='<div class="notice">Se requiere una cuenta administrativa.</div>';return}
+   const [{data:rows,error},{data:profiles}]=await Promise.all([
+     sbAuth.from('member_invitation_requests')
+       .select('id,full_name,email,profession,phone,technical_table_id,proposed_role,status,requested_by,requested_at,reviewed_at,invitation_sent_at,rejection_reason,technical_tables(name)')
+       .order('requested_at',{ascending:false}),
+     sbAuth.from('profiles').select('id,full_name,email')
+   ]);
+   if(error){console.error(error);c.innerHTML='<div class="notice">No fue posible consultar las solicitudes de incorporación.</div>';return}
+   const who=id=>(profiles||[]).find(p=>String(p.id)===String(id));
+   c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Invitaciones de integrantes</h1>'+
+    '<div class="notice">Administración autoriza las incorporaciones. Al aprobar, la plataforma envía la invitación y asigna la Mesa y el rol aprobados.</div><br>'+
+    '<button class="btn primary" onclick="adminInvitacionDirecta()">＋ Invitar directamente</button>'+
+    '<h2 class="section-sub">Solicitudes recibidas</h2>'+
+    ((rows||[]).length?(rows||[]).map(x=>{
+      const r=who(x.requested_by),pending=x.status==='Pendiente';
+      return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.full_name)+'</b> · '+esc(x.email)+'<br><small>'+esc(x.profession||'Profesión no indicada')+(x.phone?' · '+esc(x.phone):'')+' · '+esc(x.technical_tables?.name||'Mesa')+' · '+esc(x.proposed_role)+'</small><br><small>Solicitado por: '+esc(r?.full_name||'Administración')+' · '+new Date(x.requested_at).toLocaleString('es-CL')+'</small>'+(x.rejection_reason?'<p class="muted"><b>Motivo:</b> '+esc(x.rejection_reason)+'</p>':'')+'</div><div><span class="pill '+(x.status==='Cuenta activada'?'green':x.status==='Rechazada'?'amber':'')+'">'+esc(x.status)+'</span>'+(pending?'<br><button class="btn primary" style="margin-top:8px" onclick="aprobarInvitacionIntegrante('+x.id+')">Aprobar y enviar invitación</button> <button class="btn soft" style="margin-top:8px" onclick="rechazarInvitacionIntegrante('+x.id+')">Rechazar</button>':'')+'</div></div></div>';
+    }).join(''):'<div class="card"><p>No hay solicitudes de incorporación.</p></div>');
+ };
+ window.aprobarInvitacionIntegrante=async function(id){
+   if(!confirm('¿Aprobar esta incorporación y enviar la invitación por correo?'))return;
+   try{
+     const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'approve',id}});
+     if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible aprobar.');
+     alert(data.status==='Cuenta activada'?'La persona ya tenía cuenta. Se agregó la Mesa y el rol aprobados.':'Invitación enviada correctamente por correo.');
+     await window.adminInvitaciones();
+   }catch(e){console.error(e);alert(e?.message||'No fue posible aprobar la solicitud.');}
+ };
+ window.rechazarInvitacionIntegrante=async function(id){
+   const reason=prompt('Indique el motivo del rechazo:');if(reason===null)return;if(!reason.trim())return alert('Debe indicar un motivo.');
+   try{
+     const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'reject',id,reason:reason.trim()}});
+     if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible rechazar.');
+     await window.adminInvitaciones();
+   }catch(e){console.error(e);alert(e?.message||'No fue posible rechazar la solicitud.');}
+ };
+ window.adminInvitacionDirecta=async function(){
+   const name=prompt('Nombre completo del profesional:');if(name===null||!name.trim())return;
+   const email=prompt('Correo electrónico:');if(email===null||!email.trim())return;
+   const profession=prompt('Profesión:','')??'';
+   const active=Object.entries(STATE.ids).filter(([m])=>getMesaMeta(m).estado!=='Inactiva');
+   if(!active.length)return alert('No hay Mesas activas.');
+   const names=active.map(([m])=>m);const picked=prompt('Mesa Técnica:\n\n'+names.join('\n'),names[0]);if(picked===null)return;
+   const found=active.find(([m])=>m.toLowerCase()===picked.trim().toLowerCase());if(!found)return alert('Escriba exactamente una de las Mesas mostradas.');
+   const role=prompt('Rol: Integrante de Mesa o Secretario Técnico','Integrante de Mesa');if(role===null)return;
+   const proposed_role=/secretario/i.test(role)?'Secretario Técnico':'Integrante de Mesa';
+   try{
+     const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'submit',full_name:name.trim(),email:email.trim().toLowerCase(),profession:profession.trim(),technical_table_id:found[1],proposed_role,send_now:true}});
+     if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible enviar la invitación.');
+     alert(data.status==='Cuenta activada'?'La persona ya tenía cuenta y fue incorporada a la Mesa.':'Invitación enviada correctamente.');
+     await window.adminInvitaciones();
+   }catch(e){console.error(e);alert(e?.message||'No fue posible enviar la invitación.');}
+ };
+ function invitationModal(){
+   let m=document.getElementById('invitationPasswordModal');if(m)return m;
+   m=document.createElement('div');m.id='invitationPasswordModal';m.className='modal-back';
+   m.innerHTML='<div class="modal"><div class="kicker">Invitación aceptada</div><h2 class="section-title">Crear contraseña</h2><p class="muted">Defina una contraseña personal de al menos 8 caracteres para completar su acceso.</p><div class="form"><label>Nueva contraseña</label><input id="invNewPass" type="password" minlength="8" autocomplete="new-password"><label>Repetir contraseña</label><input id="invNewPass2" type="password" minlength="8" autocomplete="new-password"><button id="invSetPassBtn" class="btn primary" onclick="guardarClaveInvitacion()">Guardar contraseña y activar cuenta</button><p id="invSetPassStatus" class="muted"></p></div></div>';
+   document.body.appendChild(m);return m;
+ }
+ window.mostrarClaveInvitacion=async function(){
+   if(!sbAuth||new URLSearchParams(location.search).get('invite')!=='1')return;
+   const {data}=await sbAuth.auth.getSession();if(!data?.session)return;
+   invitationModal().classList.add('open');
+ };
+ window.guardarClaveInvitacion=async function(){
+   const p=document.getElementById('invNewPass')?.value||'',p2=document.getElementById('invNewPass2')?.value||'',s=document.getElementById('invSetPassStatus'),btn=document.getElementById('invSetPassBtn');
+   if(p.length<8){s.textContent='La contraseña debe tener al menos 8 caracteres.';return}
+   if(p!==p2){s.textContent='Las contraseñas no coinciden.';return}
+   btn.disabled=true;btn.textContent='Activando…';s.textContent='';
+   try{
+     const {error}=await sbAuth.auth.updateUser({password:p});if(error)throw error;
+     try{await sbAuth.functions.invoke('member-invitation',{body:{action:'activate'}})}catch(e){console.warn(e)}
+     history.replaceState({},document.title,location.pathname);
+     invitationModal().classList.remove('open');
+     alert('Cuenta activada correctamente. Ya puede ingresar con su correo y nueva contraseña.');
+     await sbAuth.auth.signOut();go('mesas');
+   }catch(e){console.error(e);s.textContent='No fue posible guardar la contraseña. Abra nuevamente el enlace de invitación.';btn.disabled=false;btn.textContent='Guardar contraseña y activar cuenta';}
+ };
+ if(sbAuth){
+   sbAuth.auth.onAuthStateChange((event,session)=>{
+     if(session&&new URLSearchParams(location.search).get('invite')==='1')setTimeout(()=>window.mostrarClaveInvitacion(),0);
+   });
+   setTimeout(()=>window.mostrarClaveInvitacion(),400);
+ }
+
  window.signupProfesional=async function(){
    const el=id=>document.getElementById(id),status=el('signupStatus');
    const name=el('signupName').value.trim(),email=el('signupEmail').value.trim().toLowerCase(),password=el('signupPassword').value,button=el('signupSubmit');
