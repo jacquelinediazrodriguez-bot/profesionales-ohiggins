@@ -301,7 +301,7 @@
  window.loadPublicLibrary=async function(){
    if(!sbAuth)return;
    const {data,error}=await sbAuth.from('public_library')
-     .select('id,technical_table_id,title,topic,description,snapshot,published_at,origin_type,author_id,author_name,source_contribution_id')
+     .select('id,technical_table_id,title,topic,description,snapshot,published_at,origin_type,author_id,author_name,source_contribution_id,final_pdf_path,final_pdf_name,final_pdf_size_bytes,final_pdf_created_at')
      .eq('is_public',true).order('published_at',{ascending:false});
    if(error){console.warn('No se pudo cargar la biblioteca compartida',error);return}
    const pubs=(data||[]).map(x=>({
@@ -311,6 +311,10 @@
      autorProfesion:x.snapshot?.author_profession||'',
      authorId:x.author_id||null,
      sourceContributionId:x.source_contribution_id||null,
+     finalPdfPath:x.final_pdf_path||'',
+     finalPdfName:x.final_pdf_name||'',
+     finalPdfSize:Number(x.final_pdf_size_bytes||0),
+     finalPdfCreatedAt:x.final_pdf_created_at||null,
      mesa:x.snapshot?.mesa||'',
      titulo:x.title,tema:x.topic,descripcion:x.description||'',
      fechaPublicacion:new Date(x.published_at).toLocaleDateString('es-CL'),
@@ -467,6 +471,15 @@
        referencias:copy(p.referencias||[]),revisiones:copy(p.revisiones||[]),estado:'Aprobado'});
    }
    return [...result.values()];
+ };
+ window.renderAprobados=async function(c){
+   if(!isReal())return original.renderAprobados?original.renderAprobados(c):undefined;
+   if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
+   const ass=getAssignedMesas();
+   const docs=getPublicaciones().filter(p=>ass.includes(p.mesa));
+   c.innerHTML='<div class="kicker">Archivo interno oficial</div><h1 class="section-title">Documentos Publicados</h1>'+
+     '<div class="notice"><b>Documento publicado.</b> Esta versión fue aprobada y convertida en documento final. El archivo oficial es el PDF guardado en Biblioteca.</div><br>'+
+     (docs.length?'<div class="list">'+docs.map(p=>'<div class="row"><div><b>'+esc(p.titulo)+'</b><br><small>Mesa '+esc(p.mesa)+' · '+esc(p.fechaPublicacion||'')+' · Versión '+esc(String(p.version||1))+'</small></div><div><span class="pill green">DOCUMENTO FINAL</span> <button class="btn primary" onclick="verDocumentoFinalPDF('+Number(p.id)+',false)">Ver documento final en PDF</button> <button class="btn soft" onclick="verDocumentoFinalPDF('+Number(p.id)+',true)">Descargar PDF</button></div></div>').join('')+'</div>':'<div class="card"><p>No hay documentos finales publicados para sus Mesas.</p></div>');
  };
  window.actualizarEstadoContacto=async function(id,status){
    if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return;
@@ -759,33 +772,35 @@
        pdf.line(marginX,pageH-12,pageW-marginX,pageH-12);
        pdf.setFont('helvetica','normal');pdf.setFontSize(8);pdf.setTextColor(101,116,135);
        pdf.text('Documento técnico institucional',marginX,pageH-8);
-       pdf.text('Página '+p,pageW-marginX,pageH-8,{align:'right'});
+       pdf.text('Página '+p+' de '+pages,pageW-marginX,pageH-8,{align:'right'});
      }
      pdf.setTextColor(23,37,54);
    };
 
-   // Portada institucional: mismo formato aprobado para los Informes Técnicos Finales.
-   try{
-     if(typeof imagenAPngBytes==='function'){
-       const logo=await imagenAPngBytes('https://commons.wikimedia.org/wiki/Special:Redirect/file/Logo_Democracia_Cristiana_Chile_2020.png',170,72);
-       const w=Math.min(38,logo.width*0.2646),h=logo.height*(w/logo.width);
-       pdf.addImage(logo.data,'PNG',(pageW-w)/2,16,w,h);
-     }
-   }catch(e){console.warn('No fue posible incorporar el logo institucional al PDF.',e)}
+   // Portada institucional definitiva.
+   if(typeof imagenAPngBytes!=='function')throw new Error('No está disponible el cargador de logos institucionales.');
+   const [logoDC,logoFrente]=await Promise.all([
+     imagenAPngBytes('https://commons.wikimedia.org/wiki/Special:Redirect/file/Logo_Democracia_Cristiana_Chile_2020.png',260,92),
+     imagenAPngBytes('https://commons.wikimedia.org/wiki/Special:Redirect/file/Emblem_of_the_Christian_Democrat_Party_of_Chile.svg',110,92)
+   ]);
+   const dcW=Math.min(78,logoDC.width*0.2646),dcH=logoDC.height*(dcW/logoDC.width);
+   const frW=Math.min(28,logoFrente.width*0.2646),frH=logoFrente.height*(frW/logoFrente.width);
+   pdf.addImage(logoDC.data,'PNG',22,15,dcW,dcH);
+   pdf.addImage(logoFrente.data,'PNG',pageW-22-frW,14,frW,frH);
 
    pdf.setTextColor(18,59,103);
-   pdf.setFont('helvetica','bold');pdf.setFontSize(15);
-   pdf.text('FRENTE DE PROFESIONALES Y TÉCNICOS',pageW/2,52,{align:'center'});
-   pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.setTextColor(101,116,135);
-   pdf.text("REGIÓN DE O'HIGGINS",pageW/2,60,{align:'center'});
+   pdf.setFont('helvetica','bold');pdf.setFontSize(15.5);
+   pdf.text('Plataforma Digital Frente PT O’Higgins',pageW/2,48,{align:'center'});
+   pdf.setFont('helvetica','bold');pdf.setFontSize(10.5);pdf.setTextColor(30,93,145);
+   pdf.text('Conocimiento · Participación · Colaboración · Propuestas',pageW/2,57,{align:'center'});
 
-   pdf.setTextColor(30,93,145);pdf.setFont('helvetica','bold');pdf.setFontSize(12);
-   pdf.text('INFORME TÉCNICO FINAL',pageW/2,77,{align:'center'});
+   pdf.setTextColor(30,93,145);pdf.setFont('helvetica','bold');pdf.setFontSize(13);
+   pdf.text('INFORME TÉCNICO FINAL',pageW/2,75,{align:'center'});
 
    pdf.setTextColor(23,37,54);pdf.setFontSize(22);
    const titleLines=pdf.splitTextToSize(x.titulo||'Documento técnico',155);
-   pdf.text(titleLines,pageW/2,94,{align:'center'});
-   let my=94+titleLines.length*9+16;
+   pdf.text(titleLines,pageW/2,93,{align:'center'});
+   let my=93+titleLines.length*9+16;
 
    const coordinador=(typeof getCoordinator==='function'?getCoordinator(x.mesa):'')||'No registrado';
    const fechaRaw=x.fechaPublicacion||x.fecha||new Date().toLocaleDateString('es-CL');
@@ -853,44 +868,60 @@
    drawFooter();
 
    const blob=pdf.output('blob');
-   const bytes=new Uint8Array(await blob.arrayBuffer());
-   let binary='',chunk=0x8000;
-   for(let k=0;k<bytes.length;k+=chunk)binary+=String.fromCharCode(...bytes.subarray(k,k+chunk));
    return {
-     library_id:Number(pub.id),
+     library_id:Number(pub.id||0),
      filename:limpiarNombreArchivo(pub.titulo||'documento')+'_VERSION_FINAL.pdf',
-     content:btoa(binary)
+     blob,
+     size:blob.size
    };
  }
  window.enviarDocumentosSolicitud=async function(id){
    if(!isReal())return;
    const group=solicitudGrupo(id);if(!group.length)return alert('No se encontró la solicitud.');
    const btn=document.getElementById('sendLibraryDocsBtn'),message=(document.getElementById('libraryReplyMessage')?.value||'').trim();
-   if(btn){btn.disabled=true;btn.textContent='Generando PDF final…';}
+   if(btn){btn.disabled=true;btn.textContent='Enviando PDF oficial…';}
    try{
      if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
      const pubs=getPublicaciones();
      const libraryIds=[...new Set(group.map(x=>String(x.libraryId||'')).filter(Boolean))];
      const selected=libraryIds.map(libraryId=>pubs.find(p=>String(p.id)===libraryId)).filter(Boolean);
      if(selected.length!==libraryIds.length)throw new Error('No fue posible recuperar todos los documentos publicados.');
-     const attachments=[];
-     for(const pub of selected){
-       attachments.push(await generarAdjuntoPDFFinalBiblioteca(pub));
-     }
-     if(btn)btn.textContent='Enviando PDF…';
+     if(selected.some(p=>!p.finalPdfPath))throw new Error('Uno de los documentos aún no tiene su PDF final oficial guardado.');
      const {data,error}=await sbAuth.functions.invoke('send-library-copy',{body:{
        request_ids:group.map(x=>x.id),
-       message,
-       attachments
+       message
      }});
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible enviar.');
      await refreshSharedAdmin();
-     alert('Correo enviado correctamente con '+(data.attachments?.length||attachments.length)+' PDF final adjunto(s). Se envió copia administrativa.');
+     alert('Correo enviado correctamente con '+(data.attachments?.length||selected.length)+' PDF oficial adjunto(s). Se utilizó exactamente el archivo guardado en Biblioteca.');
      await window.adminSolicitudes();
    }catch(e){
-     console.error(e);alert('No fue posible generar o enviar el PDF final. La solicitud no se marcó como enviada.');
+     console.error(e);alert('No fue posible enviar el PDF oficial. La solicitud no se marcó como enviada.');
      if(btn){btn.disabled=false;btn.textContent='Enviar documentos';}
    }
+ };
+ window.verDocumentoFinalPDF=async function(id,descargar=false){
+   try{
+     if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
+     const p=getPublicaciones().find(x=>String(x.id)===String(id));
+     if(!p||!p.finalPdfPath)return alert('Este documento todavía no tiene un PDF final oficial disponible.');
+     const opts=descargar?{download:p.finalPdfName||'documento-final.pdf'}:undefined;
+     const signed=await sbAuth.storage.from('frente-documentos').createSignedUrl(p.finalPdfPath,300,opts);
+     if(signed.error||!signed.data?.signedUrl)throw signed.error||new Error('No se pudo crear el acceso al PDF.');
+     if(descargar){
+       const a=document.createElement('a');a.href=signed.data.signedUrl;a.download=p.finalPdfName||'documento-final.pdf';
+       document.body.appendChild(a);a.click();a.remove();
+     }else{
+       const w=window.open(signed.data.signedUrl,'_blank','noopener,noreferrer');
+       if(!w)location.href=signed.data.signedUrl;
+     }
+   }catch(e){console.error(e);alert('No fue posible abrir el documento final en PDF. Inténtelo nuevamente.')}
+ };
+ window.verDocumentoFinalMesaActual=async function(){
+   if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
+   const p=getPublicaciones().find(x=>x.mesa===currentDocMesa&&x.titulo===getWork(currentDocMesa).titulo);
+   if(!p)return alert('No se encontró la publicación final de esta Mesa.');
+   return window.verDocumentoFinalPDF(p.id,false);
  };
  window.comprobarEntregaSolicitudes=async function(){
    if(!isReal())return;
@@ -929,12 +960,48 @@
    const x=getPubRequests().find(a=>a.id===id);if(!x)return;
    const tema=prompt('Tema para clasificar en Biblioteca:',x.mesa);if(tema===null)return;
    const description=prompt('Descripción pública:','Documento técnico autorizado por la Mesa.');if(description===null)return;
-   const {error}=await sbAuth.rpc('publish_publication_request',{
-     p_request_id:id,p_topic:tema,p_description:description
-   });
-   if(error){console.error(error);return alert('No se pudo publicar. No se realizó ningún cambio parcial.')}
-   await refreshSharedAdmin();await window.loadPublicLibrary();await window.adminPublicaciones();
-   alert('Documento publicado en Biblioteca.');
+   let uploadedPath='';
+   try{
+     const source={
+       ...copy(x.snapshot||{}),
+       ...copy(x),
+       id:0,
+       mesa:x.mesa,
+       titulo:x.titulo,
+       version:x.version||x.snapshot?.version||1,
+       contenido:copy(x.snapshot?.contenido||x.contenido||{}),
+       referencias:copy(x.snapshot?.referencias||x.referencias||[]),
+       revisiones:copy(x.snapshot?.revisiones||x.revisiones||[]),
+       fechaPublicacion:new Date().toLocaleDateString('es-CL'),
+       estado:'Aprobado',
+       borrador:false
+     };
+     const finalPdf=await generarAdjuntoPDFFinalBiblioteca(source);
+     const safeFile=finalPdf.filename.replace(/[^a-zA-Z0-9._-]+/g,'_');
+     uploadedPath=STATE.uid+'/biblioteca/solicitud-'+id+'-'+Date.now()+'/'+safeFile;
+     const upload=await sbAuth.storage.from('frente-documentos').upload(uploadedPath,finalPdf.blob,{
+       contentType:'application/pdf',upsert:false
+     });
+     if(upload.error)throw upload.error;
+
+     const {data:libraryId,error}=await sbAuth.rpc('publish_publication_request_with_pdf',{
+       p_request_id:id,
+       p_topic:tema,
+       p_description:description,
+       p_pdf_path:uploadedPath,
+       p_pdf_name:finalPdf.filename,
+       p_pdf_size_bytes:finalPdf.size
+     });
+     if(error)throw error;
+     await refreshSharedAdmin();await window.loadPublicLibrary();await window.adminPublicaciones();
+     alert('Documento publicado. El PDF final oficial quedó guardado en Biblioteca y será el mismo archivo que se visualizará, descargará y enviará por correo.');
+   }catch(error){
+     console.error(error);
+     if(uploadedPath){
+       try{await sbAuth.storage.from('frente-documentos').remove([uploadedPath])}catch(e){console.warn('No se pudo limpiar el PDF temporal',e)}
+     }
+     alert('No se pudo completar la publicación del documento final. No se publicará sin su PDF oficial.');
+   }
  };
  window.rechazarSolicitudPublicacion=async function(id){
    if(!isReal())return original.rechazarSolicitudPublicacion(id);
