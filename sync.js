@@ -747,7 +747,7 @@
      pdf.line(marginX,12,pageW-marginX,12);
      pdf.setFont('helvetica','bold');pdf.setFontSize(8);
      pdf.setTextColor(18,59,103);
-     pdf.text('Frente de Profesionales y Técnicos · Región de O’Higgins',marginX,9);
+     pdf.text('Frente de Profesionales y Técnicos - Región de O’Higgins',marginX,9);
      pdf.setTextColor(23,37,54);
    };
    const drawFooter=()=>{
@@ -764,31 +764,58 @@
      pdf.setTextColor(23,37,54);
    };
 
-   // Portada
+   // Portada institucional: mismo formato aprobado para los Informes Técnicos Finales.
+   try{
+     if(typeof imagenAPngBytes==='function'){
+       const logo=await imagenAPngBytes('https://commons.wikimedia.org/wiki/Special:Redirect/file/Logo_Democracia_Cristiana_Chile_2020.png',170,72);
+       const w=Math.min(38,logo.width*0.2646),h=logo.height*(w/logo.width);
+       pdf.addImage(logo.data,'PNG',(pageW-w)/2,16,w,h);
+     }
+   }catch(e){console.warn('No fue posible incorporar el logo institucional al PDF.',e)}
+
    pdf.setTextColor(18,59,103);
    pdf.setFont('helvetica','bold');pdf.setFontSize(15);
-   pdf.text('Plataforma Digital Frente PT O’Higgins',pageW/2,42,{align:'center'});
-   pdf.setFontSize(10);
-   pdf.text('Conocimiento · Participación · Colaboración · Propuestas',pageW/2,50,{align:'center'});
-   pdf.setFontSize(13);
-   pdf.text('INFORME TÉCNICO FINAL',pageW/2,78,{align:'center'});
-   pdf.setTextColor(23,37,54);pdf.setFontSize(22);
-   const titleLines=pdf.splitTextToSize(x.titulo||'Documento técnico',150);
-   pdf.text(titleLines,pageW/2,98,{align:'center'});
-   let my=98+titleLines.length*9+10;
-   pdf.setFont('helvetica','normal');pdf.setFontSize(10);
-   const meta=[
-     'Mesa Técnica: '+(x.mesa||''),
-     'Fecha: '+(x.fechaPublicacion||x.fecha||new Date().toLocaleDateString('es-CL')),
-     'Versión: '+(x.version||1),
-     'Estado: APROBADO PARA PUBLICACIÓN'
-   ];
-   meta.forEach(t=>{pdf.text(t,marginX,my);my+=7;});
+   pdf.text('FRENTE DE PROFESIONALES Y TÉCNICOS',pageW/2,52,{align:'center'});
+   pdf.setFont('helvetica','normal');pdf.setFontSize(10);pdf.setTextColor(101,116,135);
+   pdf.text("REGIÓN DE O'HIGGINS",pageW/2,60,{align:'center'});
 
-   // Equipo y revisión
+   pdf.setTextColor(30,93,145);pdf.setFont('helvetica','bold');pdf.setFontSize(12);
+   pdf.text('INFORME TÉCNICO FINAL',pageW/2,77,{align:'center'});
+
+   pdf.setTextColor(23,37,54);pdf.setFontSize(22);
+   const titleLines=pdf.splitTextToSize(x.titulo||'Documento técnico',155);
+   pdf.text(titleLines,pageW/2,94,{align:'center'});
+   let my=94+titleLines.length*9+16;
+
+   const coordinador=(typeof getCoordinator==='function'?getCoordinator(x.mesa):'')||'No registrado';
+   const fechaRaw=x.fechaPublicacion||x.fecha||new Date().toLocaleDateString('es-CL');
+   const fecha=String(fechaRaw).split(',')[0];
+   const tipo=x.tipoEstudio||x.tipo_estudio||'Estudio técnico';
+   const meta=[
+     ['Mesa Técnica',x.mesa||''],
+     ['Tipo de estudio',tipo],
+     ['Coordinador/a',coordinador],
+     ['Fecha de aprobación',fecha],
+     ['Versión',String(x.version||1)],
+     ['Estado','APROBADO PARA PUBLICACIÓN']
+   ];
+   const labelW=66,rowH=10;
+   pdf.setFontSize(9);
+   meta.forEach(([label,value])=>{
+     pdf.setFillColor(238,243,248);
+     pdf.rect(marginX,my,labelW,rowH,'F');
+     pdf.setTextColor(30,93,145);pdf.setFont('helvetica','bold');
+     pdf.text(label,marginX+2,my+6.4);
+     pdf.setTextColor(23,37,54);pdf.setFont('helvetica','normal');
+     const lines=pdf.splitTextToSize(String(value||''),maxW-labelW-4);
+     pdf.text(lines,marginX+labelW+2,my+6.4);
+     my+=Math.max(rowH,lines.length*4.2+3);
+   });
+
+   // Equipo de elaboración y revisión técnica.
    pdf.addPage();y=top;drawHeader();
    write('Equipo de elaboración',{size:15,bold:true,after:6,line:7});
-   write('Integrantes de la Mesa Técnica que participaron en el desarrollo del documento.',{size:10,after:5});
+   write('El presente informe fue desarrollado colaborativamente por los integrantes de la Mesa Técnica que se individualizan a continuación.',{size:10,after:5});
    const team=typeof getTeamForMesa==='function'?getTeamForMesa(x.mesa):[];
    if(team.length){
      team.forEach(p=>write((p.nombre||'')+' - '+(p.titulo||'Título profesional no registrado')+' - '+(p.rol||'Integrante'),{size:9,indent:3,after:2,line:4.5}));
@@ -799,21 +826,21 @@
      reviewers.forEach(r=>write((r.nombre||'')+' - '+(r.profesion||'Profesión no registrada')+' - '+(r.cargo||'Integrante de Mesa'),{size:9,indent:3,after:2,line:4.5}));
    }else write('Sin vistos buenos registrados.',{size:9,italic:true});
 
-   // Índice
+   // Índice.
    pdf.addPage();y=top;drawHeader();
    write('Índice',{size:15,bold:true,after:7,line:7});
    write('Resumen ejecutivo',{size:10,after:2});
-   STUDY_SECTION_NAMES.forEach((s,idx)=>write((idx+1)+'. '+s,{size:10,after:2}));
+   STUDY_SECTION_NAMES.forEach((sec,idx)=>write((idx+1)+'. '+sec,{size:10,after:2}));
    write('Referencias',{size:10,after:2});
    write('Anexos',{size:10,after:2});
 
-   // Cuerpo
+   // Cuerpo final.
    pdf.addPage();y=top;drawHeader();
    write('Resumen ejecutivo',{size:15,bold:true,after:6,line:7});
    write('Se genera a partir de la versión final del estudio.',{size:10,italic:true,after:6});
-   STUDY_SECTION_NAMES.forEach((s,idx)=>{
-     write((idx+1)+'. '+s,{size:14,bold:true,after:5,line:6.5});
-     const txt=toText(x.contenido?.[s]);
+   STUDY_SECTION_NAMES.forEach((sec,idx)=>{
+     write((idx+1)+'. '+sec,{size:14,bold:true,after:5,line:6.5});
+     const txt=toText(x.contenido?.[sec]);
      write(txt||'Sin contenido.',{size:10,after:6,line:5.2});
    });
    write('Referencias',{size:14,bold:true,after:5,line:6.5});
