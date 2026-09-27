@@ -327,6 +327,11 @@
      version:x.snapshot?.version||1,
      ...x.snapshot
    }));
+   if(isReal()&&['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){
+     for(const p of pubs.filter(x=>!x.finalPdfPath)){
+       try{await guardarPdfFinalLegacy(p)}catch(e){console.warn('No se pudo crear el PDF oficial de una publicación anterior.',e)}
+     }
+   }
    STATE.publications=pubs;
    STATE.publicReady=true;
    try{localStorage.setItem('frentePT_biblioteca_cloud',JSON.stringify(pubs));}catch(e){console.warn('No se pudo guardar la copia local de Biblioteca',e)}
@@ -901,6 +906,26 @@
      if(btn){btn.disabled=false;btn.textContent='Enviar documentos';}
    }
  };
+ async function guardarPdfFinalLegacy(pub){
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)||pub.finalPdfPath)return pub;
+   const finalPdf=await generarAdjuntoPDFFinalBiblioteca({...copy(pub),estado:'Aprobado',borrador:false});
+   const safeFile=finalPdf.filename.replace(/[^a-zA-Z0-9._-]+/g,'_');
+   const path=STATE.uid+'/biblioteca/legacy-'+pub.id+'-'+Date.now()+'/'+safeFile;
+   const upload=await sbAuth.storage.from('frente-documentos').upload(path,finalPdf.blob,{contentType:'application/pdf',upsert:false});
+   if(upload.error)throw upload.error;
+   const {error}=await sbAuth.from('public_library').update({
+     final_pdf_path:path,
+     final_pdf_name:finalPdf.filename,
+     final_pdf_size_bytes:finalPdf.size,
+     final_pdf_created_at:new Date().toISOString()
+   }).eq('id',pub.id).eq('is_public',true);
+   if(error){
+     try{await sbAuth.storage.from('frente-documentos').remove([path])}catch(e){}
+     throw error;
+   }
+   pub.finalPdfPath=path;pub.finalPdfName=finalPdf.filename;pub.finalPdfSize=finalPdf.size;pub.finalPdfCreatedAt=new Date().toISOString();
+   return pub;
+ }
  window.verDocumentoFinalPDF=async function(id,descargar=false){
    try{
      if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
