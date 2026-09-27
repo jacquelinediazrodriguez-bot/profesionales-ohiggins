@@ -243,14 +243,7 @@ function safeRichHTML(html){
 function seed(){
   let integrantes=[];
   try{integrantes=JSON.parse(localStorage.getItem('frentePT_integrantes_roles')||'[]')}catch(e){integrantes=[]}
-  const demo=[
-    {nombre:'Coordinador Demo',correo:'coordinador@demo.cl',password:'demo123',mesa:'Trabajo',rol:'Coordinador/a de Mesa',estado:'Activo'},
-    {nombre:'Administrador Demo',correo:'admin@demo.cl',password:'admin123',mesa:'Administración',rol:'Administrador General',estado:'Activo'}
-  ];
-  demo.forEach(d=>{
-    const i=integrantes.findIndex(x=>String(x.correo||'').toLowerCase()===d.correo&&x.mesa===d.mesa);
-    if(i>=0) integrantes[i]={...integrantes[i],...d}; else integrantes.push(d);
-  });
+  integrantes=integrantes.filter(x=>!['coordinador@demo.cl','admin@demo.cl'].includes(String(x.correo||'').toLowerCase()));
   localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(integrantes));
   if(!localStorage.getItem('frentePT_mesas'))localStorage.setItem('frentePT_mesas',JSON.stringify(mesas));
 }
