@@ -972,7 +972,7 @@
      if(groups.some(g=>g.some(y=>String(y.id)===String(x.id))))continue;
      groups.push(solicitudGrupo(x.id));
    }
-   c.innerHTML='<div class="kicker">Registro de interés</div><h1 class="section-title">Solicitudes de documentos</h1>'+
+   c.innerHTML='<div class="kicker">Registro de interés</div><h1 class="section-title">Solicitudes documentos de biblioteca</h1>'+
     '<div class="notice">Revise qué se solicitó antes de enviar. El sistema muestra únicamente dos estados de despacho: <b>Enviado</b> y <b>Entregado</b>.</div><br>'+
     (groups.length?groups.map(g=>{
       const x=g[0],allDelivered=g.every(y=>y.estado==='Entregado'),allSent=g.every(y=>['Enviada','Entregado'].includes(y.estado));
