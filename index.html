@@ -1099,7 +1099,47 @@ async function adminSeguridadLimites(){
  '<div class="card"><h3>'+(le?'—':esc(limits?.storage_critical_percent??'—'))+'%</h3><p>Nivel crítico de almacenamiento</p></div>'+
  '</div><div class="mini-note" style="margin-top:16px">Los cambios de roles globales, activación de cuentas, cuotas y límites continúan protegidos por Supabase.</div>';
 }
-function adminEstado(){if(!requireAdmin())return;const c=$('admincontent');c.innerHTML=`<div class="kicker">Control general</div><h1 class="section-title">Estado de la Plataforma</h1><div class="grid"><div class="card"><h3>${getIntegrantes().filter(x=>x.rol!=='Administrador General').length}</h3><p>Integrantes registrados</p></div><div class="card"><h3>${mesas.length}</h3><p>Mesas Técnicas registradas</p></div><div class="card"><h3>${mesasActivas().length}</h3><p>Mesas activas</p></div><div class="card"><h3>${getPublicaciones().length}</h3><p>Documentos en Biblioteca</p></div></div>`}
+async function adminEstado(){
+ if(!requireAdmin())return;
+ const c=$('admincontent');
+ const integrantes=getIntegrantes().filter(x=>x.rol!=='Administrador General').length;
+ c.innerHTML=`<div class="kicker">Control general</div>
+ <h1 class="section-title">Estado de la Plataforma</h1>
+ <div class="grid">
+   <div class="card"><h3>${integrantes}</h3><p>Integrantes registrados</p></div>
+   <div class="card"><h3>${mesas.length}</h3><p>Mesas Técnicas registradas</p></div>
+   <div class="card"><h3>${mesasActivas().length}</h3><p>Mesas activas</p></div>
+   <div class="card"><h3>${getPublicaciones().length}</h3><p>Documentos en Biblioteca</p></div>
+ </div>
+ <h2 class="section-sub">Estado de Supabase</h2>
+ <div class="grid3">
+   <div class="card"><h3 id="supabaseHealth">Consultando…</h3><p>Conexión con Supabase</p></div>
+   <div class="card"><h3 id="supabaseProfiles">—</h3><p>Perfiles en la base de datos</p></div>
+   <div class="card"><h3 id="supabaseProject">plataforma-frente-pt-ohiggins</h3><p>Proyecto de datos</p></div>
+ </div>
+ <div id="supabaseHealthNote" class="mini-note" style="margin-top:16px">Verificando el servicio de datos…</div>`;
+ const health=$('supabaseHealth'), profilesEl=$('supabaseProfiles'), note=$('supabaseHealthNote');
+ if(!sbAuth){
+   health.textContent='No disponible';
+   health.style.color='var(--red)';
+   note.textContent='No se pudo iniciar la conexión con Supabase. Revise la configuración antes de continuar.';
+   return;
+ }
+ try{
+   const {count,error}=await sbAuth.from('profiles').select('id',{count:'exact',head:true});
+   if(error)throw error;
+   health.textContent='Operativo';
+   health.style.color='var(--green)';
+   profilesEl.textContent=count??0;
+   note.innerHTML='<b>Supabase conectado correctamente.</b> La plataforma puede consultar la base de datos. Si esta tarjeta cambia a “Con problemas”, conviene revisar Supabase antes de modificar información.';
+ }catch(err){
+   console.error('Supabase health check failed',err);
+   health.textContent='Con problemas';
+   health.style.color='var(--red)';
+   profilesEl.textContent='—';
+   note.textContent='La plataforma abrió correctamente, pero no pudo consultar Supabase. Revise la sesión administrativa, las políticas de acceso o el estado del proyecto.';
+ }
+}
 window.addEventListener('pagehide',()=>{if($('wsTitulo'))syncWorkFromUI(true)});
 seed();seedRepresentantesOficiales();restoreSession();if(isAnyAdmin())renderAdminShell();loadPresidencyMessage();
 
