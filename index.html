@@ -440,7 +440,7 @@ function syncWorkFromUI(persist=true){
   if(!currentUser||!currentDocMesa)return null;
   let d=getWorkView(currentDocMesa);
   const t=$('wsTitulo');if(t)d.titulo=t.value.trim()||d.titulo;
-  STUDY_SECTION_NAMES.forEach(s=>{const e=$(sectionEditorId(s));if(e)d.contenido[s]=e.innerHTML});
+  STUDY_SECTION_NAMES.forEach(s=>{const e=$(sectionEditorId(s));if(!e)return;const l=getLock(currentDocMesa,s);const canReadEditor=!currentUser?.supabaseId||(l&&currentUser&&l.email===currentUser.correo);if(canReadEditor)d.contenido[s]=e.innerHTML});
   if(persist){
     try{
       d.ultima=new Date().toLocaleString('es-CL');
