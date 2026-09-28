@@ -525,6 +525,33 @@
    if(error){console.error(error);return alert('No se pudo guardar la nota.')}
    await window.adminContactos();
  };
+ window.enviarRespuestaContacto=async function(id){
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return;
+   const x=(STATE.contactRows||[]).find(a=>a.id===id);if(!x)return;
+   const textEl=document.getElementById('contact-reply-text-'+id);
+   const statusEl=document.getElementById('contact-reply-status-'+id);
+   const button=document.getElementById('contact-send-'+id);
+   const respuesta=(textEl?.value||'').trim();
+   if(!respuesta){
+     if(statusEl)statusEl.textContent='Escriba una respuesta antes de enviar.';
+     if(textEl)textEl.focus();
+     return;
+   }
+   if(button){button.disabled=true;button.textContent='Enviando…';}
+   if(statusEl)statusEl.textContent='Enviando correo desde contacto@profesionalesohiggins.cl…';
+   try{
+     const {data,error}=await sbAuth.functions.invoke('reply-contact',{body:{id,respuesta}});
+     if(error)throw error;
+     if(!data?.ok)throw Error(data?.error||'No fue posible enviar la respuesta.');
+     if(statusEl)statusEl.textContent='Correo enviado correctamente. El mensaje quedó marcado como Respondido.';
+     if(textEl)textEl.value='';
+     setTimeout(()=>window.adminContactos(),900);
+   }catch(error){
+     console.error('No fue posible enviar la respuesta de contacto:',error);
+     if(statusEl)statusEl.textContent='No fue posible enviar el correo. Revise la conexión e inténtelo nuevamente.';
+     if(button){button.disabled=false;button.textContent='Enviar correo desde la plataforma';}
+   }
+ };
  window.adminContactos=async function(){
    const b=document.getElementById('admincontent');if(!b)return;
    if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){
