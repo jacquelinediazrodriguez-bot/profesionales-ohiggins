@@ -3,6 +3,7 @@
 (function(){
  'use strict';
  const STATE={ready:false,initializing:false,uid:null,ids:{},snapshots:{},timers:{},busy:{},retry:{},publicReady:false,adminData:null};
+ let libraryRequestSubmitting=false;
  const original={setWork:window.setWork,guardarPerfil:window.guardarPerfil,
   workKey:window.workKey,draftKey:window.draftKey,getIntegrantes:window.getIntegrantes,
   getPubRequests:window.getPubRequests,getSolicitudes:window.getSolicitudes,
@@ -265,8 +266,15 @@
    }finally{button.disabled=false}
  };
  window.guardarSolicitud=async function(){
-   const ids=(Array.isArray(requestingPubIds)&&requestingPubIds.length?requestingPubIds:[requestingPubId]).filter(x=>x!==null&&x!==undefined);
-   const pubs=getPublicaciones().filter(p=>ids.some(id=>String(id)===String(p.id)));
+   if(libraryRequestSubmitting)return;
+   const ids=[...new Set((Array.isArray(requestingPubIds)&&requestingPubIds.length?requestingPubIds:[requestingPubId])
+     .filter(x=>x!==null&&x!==undefined).map(String))];
+   const seenPubs=new Set();
+   const pubs=getPublicaciones().filter(p=>{
+     const key=String(p.id);
+     if(!ids.includes(key)||seenPubs.has(key))return false;
+     seenPubs.add(key);return true;
+   });
    const name=document.getElementById('reqNombre').value.trim(),
      email=document.getElementById('reqCorreo').value.trim(),
      institution=document.getElementById('reqInst').value.trim(),
@@ -274,30 +282,41 @@
    if(!pubs.length||!name||!email.includes('@'))return alert('Complete nombre y correo válidos.');
    if(!sbAuth)return alert('El registro de solicitudes no está disponible en este momento.');
 
-   const rows=pubs.map(p=>({
-     library_id:p.cloud?p.id:null,title:p.titulo,name,email,institution,reason
-   }));
-   const {error}=await sbAuth.from('document_requests').insert(rows);
-   if(error){console.error(error);return alert('No se pudo registrar la solicitud. Inténtelo nuevamente.')}
-
-   let emailSent=false;
+   const submitBtn=document.querySelector('#requestModal button.btn.primary');
+   libraryRequestSubmitting=true;
+   if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Enviando solicitud…';}
    try{
-     const listado=pubs.map((p,i)=>(i+1)+'. '+p.titulo).join('\n');
-     const {data:mailData,error:mailError}=await sbAuth.functions.invoke('send-platform-email',{body:{
-       type:'document_request',nombre:name,correo:email,institucion:institution,
-       documento:listado,motivo:reason,website:''
-     }});
-     emailSent=!mailError&&!!mailData?.ok;
-     if(mailError)console.warn('La solicitud quedó registrada, pero falló el aviso por correo.',mailError);
-   }catch(e){console.warn('La solicitud quedó registrada, pero no fue posible enviar el aviso por correo.',e)}
+     const rows=pubs.map(p=>({
+       library_id:p.cloud?p.id:null,title:p.titulo,name,email,institution,reason
+     }));
+     const {error}=await sbAuth.from('document_requests').insert(rows);
+     if(error)throw error;
 
-   ['reqNombre','reqCorreo','reqInst','reqMotivo'].forEach(id=>document.getElementById(id).value='');
-   if(window.selectedLibraryIds&&typeof selectedLibraryIds.delete==='function')pubs.forEach(p=>selectedLibraryIds.delete(String(p.id)));
-   cerrarSolicitud();
-   if(typeof renderBiblioteca==='function')renderBiblioteca();
-   alert(emailSent
-     ?'Su solicitud fue enviada correctamente a Administración. Los documentos seleccionados quedaron registrados y Administración recibió un aviso por correo electrónico.'
-     :'Su solicitud fue enviada correctamente a Administración. Los documentos seleccionados quedaron registrados para su gestión.');
+     let emailSent=false;
+     try{
+       const listado=pubs.map((p,i)=>(i+1)+'. '+p.titulo).join('\n');
+       const {data:mailData,error:mailError}=await sbAuth.functions.invoke('send-platform-email',{body:{
+         type:'document_request',nombre:name,correo:email,institucion:institution,
+         documento:listado,motivo:reason,website:''
+       }});
+       emailSent=!mailError&&!!mailData?.ok;
+       if(mailError)console.warn('La solicitud quedó registrada, pero falló el aviso por correo.',mailError);
+     }catch(e){console.warn('La solicitud quedó registrada, pero no fue posible enviar el aviso por correo.',e)}
+
+     ['reqNombre','reqCorreo','reqInst','reqMotivo'].forEach(id=>document.getElementById(id).value='');
+     if(window.selectedLibraryIds&&typeof selectedLibraryIds.delete==='function')pubs.forEach(p=>selectedLibraryIds.delete(String(p.id)));
+     cerrarSolicitud();
+     if(typeof renderBiblioteca==='function')renderBiblioteca();
+     alert(emailSent
+       ?'Su solicitud fue enviada correctamente a Administración. Los documentos seleccionados quedaron registrados y Administración recibió un aviso por correo electrónico.'
+       :'Su solicitud fue enviada correctamente a Administración. Los documentos seleccionados quedaron registrados para su gestión.');
+   }catch(error){
+     console.error(error);
+     alert('No se pudo registrar la solicitud. Inténtelo nuevamente.');
+   }finally{
+     libraryRequestSubmitting=false;
+     if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Enviar solicitud';}
+   }
  };
  window.loadPublicLibrary=async function(){
    if(!sbAuth)return;
@@ -705,6 +724,14 @@
      &&String(x.nombre||'')===String(base.nombre||'')
      &&Math.abs(new Date(x.createdAt||0).getTime()-t0)<=10000);
  }
+ function solicitudDocumentosUnicos(group){
+   const seen=new Set();
+   return (group||[]).filter(x=>{
+     const key=String(x.libraryId||x.library_id||x.titulo||'');
+     if(seen.has(key))return false;
+     seen.add(key);return true;
+   });
+ }
  function solicitudEstadoLabel(s){
    return s==='Entregado'?'Entregado':s==='Enviada'?'Enviado':s||'Pendiente';
  }
@@ -712,7 +739,8 @@
    if(!isReal())return;
    const group=solicitudGrupo(id);if(!group.length)return alert('No se encontró la solicitud.');
    const first=group[0],c=document.getElementById('admincontent');if(!c)return;
-   const docs=group.map(x=>'<div class="row" style="align-items:flex-start"><div><input type="checkbox" checked disabled style="margin-right:8px"> <b>'+esc(x.titulo)+'</b><br><small>ID Biblioteca: '+esc(String(x.libraryId||''))+'</small></div><span class="pill">'+esc(solicitudEstadoLabel(x.estado))+'</span></div>').join('');
+   const uniqueDocs=solicitudDocumentosUnicos(group);
+   const docs=uniqueDocs.map(x=>'<div class="row" style="align-items:flex-start"><div><input type="checkbox" checked disabled style="margin-right:8px"> <b>'+esc(x.titulo)+'</b><br><small>ID Biblioteca: '+esc(String(x.libraryId||''))+'</small></div><span class="pill">'+esc(solicitudEstadoLabel(x.estado))+'</span></div>').join('');
    c.innerHTML='<div class="kicker">Revisión de solicitud</div><h1 class="section-title">Enviar documentos de Biblioteca</h1>'+
     '<div class="card"><h3>Solicitante</h3><p><b>'+esc(first.nombre)+'</b><br>'+esc(first.correo)+(first.institucion?'<br>'+esc(first.institucion):'')+'</p>'+
     (first.motivo?'<p><b>Motivo / interés:</b><br>'+esc(first.motivo)+'</p>':'')+'</div>'+
@@ -977,8 +1005,9 @@
     (groups.length?groups.map(g=>{
       const x=g[0],allDelivered=g.every(y=>y.estado==='Entregado'),allSent=g.every(y=>['Enviada','Entregado'].includes(y.estado));
       const estado=allDelivered?'Entregado':allSent?'Enviado':'Pendiente';
-      const names=g.map(y=>y.titulo).join(' · ');
-      return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.nombre)+'</b> · '+esc(x.correo)+'<br><small>'+esc(x.fecha)+(x.institucion?' · '+esc(x.institucion):'')+'</small><p style="margin:8px 0 0"><b>'+g.length+' documento(s):</b> '+esc(names)+'</p>'+(x.copyEmail?'<small>Copia administrativa: '+esc(x.copyEmail)+'</small>':'')+'</div><div><span class="pill '+(estado==='Entregado'?'green':estado==='Enviado'?'amber':'')+'">'+estado+'</span><br><button class="btn soft" style="margin-top:8px" onclick="revisarSolicitudDocumento('+x.id+')">'+(allSent?'Ver envío':'Revisar y enviar')+'</button></div></div></div>';
+      const uniqueDocs=solicitudDocumentosUnicos(g);
+      const names=uniqueDocs.map(y=>y.titulo).join(' · ');
+      return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.nombre)+'</b> · '+esc(x.correo)+'<br><small>'+esc(x.fecha)+(x.institucion?' · '+esc(x.institucion):'')+'</small><p style="margin:8px 0 0"><b>'+uniqueDocs.length+' documento(s):</b> '+esc(names)+'</p>'+(x.copyEmail?'<small>Copia administrativa: '+esc(x.copyEmail)+'</small>':'')+'</div><div><span class="pill '+(estado==='Entregado'?'green':estado==='Enviado'?'amber':'')+'">'+estado+'</span><br><button class="btn soft" style="margin-top:8px" onclick="revisarSolicitudDocumento('+x.id+')">'+(allSent?'Ver envío':'Revisar y enviar')+'</button></div></div></div>';
     }).join(''):'<div class="card"><p>Aún no hay solicitudes registradas.</p></div>');
  };
  window.publicarSolicitud=async function(id){
