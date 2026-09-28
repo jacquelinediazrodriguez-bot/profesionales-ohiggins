@@ -1425,7 +1425,6 @@ function contactPill(status){
   const cls=s==='Respondido'?'green':(s==='En revisión'?'amber':'');
   return '<span class="pill '+cls+'">'+esc(s)+'</span>';
 }
-async 
 let adminMailData={received:[],sent:[]};
 async function adminCorreoInstitucional(tab='entrada'){
   if(!requireAdmin())return;
