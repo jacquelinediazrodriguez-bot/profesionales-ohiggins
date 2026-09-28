@@ -1277,16 +1277,23 @@ async function galleryCanAdmin(){
  const {data:{user},error}=await sbAuth.auth.getUser();
  if(error||!user)return false;
  const {data,error:profileError}=await sbAuth.from('profiles').select('role,is_active').eq('id',user.id).single();
- return !profileError&&data?.is_active&&['administrador_general','administrador_plataforma'].includes(data.role);
+ if(profileError||!data?.is_active)return false;
+ if(['administrador_general','administrador_plataforma'].includes(data.role))return true;
+ const {data:coord,error:coordError}=await sbAuth.from('table_memberships').select('id').eq('profile_id',user.id).eq('is_coordinator',true).limit(1);
+ return !coordError&&Array.isArray(coord)&&coord.length>0;
 }
 async function gallerySignedImage(path){
  const {data,error}=await sbAuth.storage.from('frente-galeria').createSignedUrl(path,3600);
  return error?'':data.signedUrl;
 }
 async function abrirGestionGaleria(){
- if(!requireAdmin())return;
+ if(!(await galleryCanAdmin()))return alert('Solo Administración y las Coordinaciones de Mesa pueden gestionar la Galería.');
  go('adminarea');
- renderAdminShell();
+ if(isAnyAdmin())renderAdminShell();
+ else{
+   const shell=document.getElementById('adminShell');
+   if(shell)shell.innerHTML='<div class="sidebar-layout"><aside class="side"><b>Galería</b><button onclick="go(\'galeria\')">← Volver a Galería</button><button onclick="logout()">↩ Salir</button></aside><div id="admincontent"></div></div>';
+ }
  await adminGaleria();
 }
 async function renderGaleria(){
@@ -1313,9 +1320,9 @@ function galleryPreviewInput(){
 async function adminGaleria(){
  const c=document.getElementById('admincontent');if(!c)return;
  c.innerHTML='<h1 class="section-title">Gestión de Galería</h1><p class="muted">Verificando permisos…</p>';
- if(!(await galleryCanAdmin())){c.innerHTML='<div class="notice">Solo Administración General y Administración de Plataforma pueden gestionar fotografías. Ingrese con su cuenta real.</div>';return}
- c.innerHTML=`<div class="kicker">Administración</div><h1 class="section-title">Gestión de Galería</h1>
- <div class="notice">Las fotografías se guardan en la base de datos compartida. Hasta que se publiquen, solo Administración puede verlas.</div><br>
+ if(!(await galleryCanAdmin())){c.innerHTML='<div class="notice">Solo Administración y las Coordinaciones de Mesa pueden gestionar fotografías. Ingrese con su cuenta real.</div>';return}
+ c.innerHTML=`<div class="kicker">Gestión autorizada</div><h1 class="section-title">Gestión de Galería</h1>
+ <div class="notice">Las fotografías se guardan en la base de datos compartida. Hasta que se publiquen, solo Administración y las Coordinaciones autorizadas pueden verlas.</div><br>
  <div class="card"><h3 id="galleryFormTitle">Agregar fotografía</h3><div class="form">
  <label>Título de la actividad<input id="galleryTitle" maxlength="180" required></label>
  <div class="form-row"><label>Fecha de la actividad<input id="galleryDate" type="date" required></label>
