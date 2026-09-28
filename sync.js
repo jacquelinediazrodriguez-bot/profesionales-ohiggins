@@ -1749,15 +1749,30 @@
    const {data,error}=await sbAuth.from('workspace_locks').select('section_name,profile_id,locked_at')
      .eq('technical_table_id',id);
    if(error)return console.warn('No se pudo consultar el estado de los bloqueos:',error);
+   const otherIds=[...new Set((data||[]).filter(x=>x.profile_id&&x.profile_id!==STATE.uid).map(x=>x.profile_id))];
+   let people=[];
+   if(otherIds.length){
+     const {data:profiles,error:profileError}=await sbAuth.from('profiles').select('id,full_name,email').in('id',otherIds);
+     if(!profileError)people=profiles||[];
+   }
    const now=Date.now();
+   let changed=false;
    for(const name of STUDY_SECTION_NAMES){
      const row=(data||[]).find(x=>x.section_name===name&&now-new Date(x.locked_at).getTime()<300000);
      const current=getLock(m,name);
      if(row&&row.profile_id!==STATE.uid){
-       localStorage.setItem(lockKey(m,name),JSON.stringify({
-         email:'cloud:'+row.profile_id,nombre:'Otro integrante',ts:new Date(row.locked_at).getTime()
-       }));
-     }else if(current?.email?.startsWith('cloud:'))localStorage.removeItem(lockKey(m,name));
+       const person=people.find(p=>String(p.id)===String(row.profile_id));
+       const next={email:'cloud:'+row.profile_id,nombre:person?.full_name||person?.email||'Otro integrante',ts:new Date(row.locked_at).getTime()};
+       if(!current||current.email!==next.email||current.nombre!==next.nombre||current.ts!==next.ts)changed=true;
+       localStorage.setItem(lockKey(m,name),JSON.stringify(next));
+     }else if(current?.email?.startsWith('cloud:')){localStorage.removeItem(lockKey(m,name));changed=true}
+   }
+   if(changed&&!ownedLocks().length&&m===currentDocMesa&&document.getElementById('wsTitulo')){
+     const active=currentSection;
+     renderEspacio(document.getElementById('privatecontent'));
+     const tab=document.querySelector('[data-tabsec="'+active+'"]');
+     if(tab)showDocSection(active,tab,false);
+     label('Estado de edición actualizado.');
    }
  }
  window.logout=async function(){
@@ -1816,7 +1831,7 @@
  setInterval(pollSharedChanges,25000);
  setInterval(renewMyLocks,60000);
  window.addEventListener('online',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>flush(m))});
- window.addEventListener('pagehide',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>{if(localStorage.getItem(pendingKey(m))==='1')flush(m)})});
+ window.addEventListener('pagehide',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>{if(localStorage.getItem(pendingKey(m))==='1')flush(m)});const m=currentDocMesa,names=ownedLocks();if(names.length)void flushThenRelease(m,names)});
  // Hacer que las solicitudes y los documentos públicos tengan el mismo origen en todos los dispositivos.
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>window.loadPublicLibrary());else window.loadPublicLibrary();
 })();
