@@ -1360,7 +1360,7 @@ function galleryClear(){
 }
 async function galleryEdit(id){
  if(!(await galleryCanAdmin()))return;
- const r=galleryRows.find(x=>x.id===id);if(!r)return;galleryEditing=id;
+ const r=galleryRows.find(x=>String(x.id)===String(id));if(!r)return;galleryEditing=String(r.id);
  document.getElementById('galleryTitle').value=r.title;
  document.getElementById('galleryDate').value=r.activity_date;
  document.getElementById('galleryCategory').value=r.category;
@@ -1385,7 +1385,7 @@ async function gallerySave(){
  btn.disabled=true;status.textContent='Guardando fotografía…';
  let path=null;
  try{
-  const original=galleryEditing?galleryRows.find(x=>x.id===galleryEditing):null;
+  const original=galleryEditing?galleryRows.find(x=>String(x.id)===String(galleryEditing)):null;
   if(galleryEditing&&!original)throw Error('No se encontró el registro para editar.');
   if(file){
    path=crypto.randomUUID()+(file.type==='image/png'?'.png':file.type==='image/webp'?'.webp':'.jpg');
@@ -1396,7 +1396,7 @@ async function gallerySave(){
   const op=original?await sbAuth.from('gallery_items').update(payload).eq('id',original.id).select('id').single():await sbAuth.from('gallery_items').insert({...payload,created_by:(await sbAuth.auth.getUser()).data.user.id}).select('id').single();
   if(op.error)throw op.error;
   if(path&&original){const cleanup=await sbAuth.storage.from('frente-galeria').remove([original.image_path]);if(cleanup.error)console.warn('Old gallery image cleanup failed',cleanup.error)}
-  const publicada=payload.is_published;galleryClear();await galleryLoadAdmin();status.textContent=publicada?'Fotografía guardada y PUBLICADA. El público puede verla en la sección Galería.':'Fotografía guardada como OCULTA. Solo Administración puede verla hasta que pulse Publicar.';
+  const publicada=payload.is_published;galleryClear();await galleryLoadAdmin();status.textContent=publicada?'Fotografía guardada y PUBLICADA. El público puede verla en la sección Galería.':'Fotografía guardada como OCULTA. Solo Administración y las Coordinaciones autorizadas pueden verla hasta que se publique.';
  }catch(e){
   if(path){await sbAuth.storage.from('frente-galeria').remove([path])}
   status.textContent='No se pudo guardar: '+(e.message||'Error desconocido');
@@ -1404,20 +1404,20 @@ async function gallerySave(){
 }
 async function galleryToggle(id){
  if(!(await galleryCanAdmin()))return;
- const r=galleryRows.find(x=>x.id===id);if(!r)return;
+ const r=galleryRows.find(x=>String(x.id)===String(id));if(!r)return;
  const {error}=await sbAuth.from('gallery_items').update({is_published:!r.is_published}).eq('id',id);
  if(error){alert('No se pudo cambiar publicación: '+error.message);return}
  await galleryLoadAdmin();alert(r.is_published?'La fotografía quedó OCULTA y ya no se muestra al público.':'La fotografía quedó PUBLICADA y ya puede verse en la sección pública Galería.');
 }
 async function galleryDelete(id){
  if(!(await galleryCanAdmin()))return;
- const r=galleryRows.find(x=>x.id===id);
+ const r=galleryRows.find(x=>String(x.id)===String(id));
  if(!r||!confirm('¿Eliminar definitivamente esta fotografía y sus datos?'))return;
  const {error}=await sbAuth.from('gallery_items').delete().eq('id',id);
  if(error){alert('No se pudo eliminar: '+error.message);return}
  const cleanup=await sbAuth.storage.from('frente-galeria').remove([r.image_path]);
  if(cleanup.error)console.warn('Gallery image cleanup failed',cleanup.error);
- if(galleryEditing===id)galleryClear();
+ if(String(galleryEditing)===String(id))galleryClear();
  await galleryLoadAdmin();alert('Fotografía eliminada definitivamente de la Galería.');
 }
 </script>
