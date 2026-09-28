@@ -1438,6 +1438,7 @@ function contactPill(status){
   return '<span class="pill '+cls+'">'+esc(s)+'</span>';
 }
 let adminMailData={received:[],sent:[]};
+let adminMailOpenMessage=null;
 async function adminCorreoInstitucional(tab='entrada'){
   if(!requireAdmin())return;
   const c=$('admincontent');
@@ -1488,6 +1489,7 @@ async function abrirCorreoRecibido(id){
     const {data,error}=await sbAuth.functions.invoke('admin-mail',{body:{action:'get_received',id}});
     if(error)throw error;if(!data?.ok)throw Error(data?.error||'No fue posible abrir el mensaje.');
     const m=data.email||{};
+    adminMailOpenMessage={...m,id};
     const from=adminMailAddr(m.from),body=m.text||m.html||'';
     h.innerHTML='<button class="btn soft" onclick="renderAdminMailInbox()">← Volver</button><br><br>'+
       '<div class="card"><h2 style="margin-top:0">'+esc(m.subject||'Sin asunto')+'</h2>'+
@@ -1496,24 +1498,36 @@ async function abrirCorreoRecibido(id){
       '<div style="white-space:pre-wrap;line-height:1.6;border-top:1px solid var(--line);padding-top:14px">'+esc(String(body).replace(/<[^>]*>/g,' '))+'</div>'+
       '<hr style="border:0;border-top:1px solid var(--line);margin:22px 0">'+
       '<label>Responder</label><textarea id="adminMailReply" rows="6" placeholder="Escriba su respuesta…"></textarea>'+
-      '<button class="btn primary" style="margin-top:10px" onclick="responderCorreoRecibido(\''+String(id).replace(/'/g,"\\'")+'\',\''+String(from).replace(/'/g,"\\'")+'\',\''+String(m.subject||'').replace(/'/g,"\\'")+'\')">Enviar respuesta</button>'+
+      '<button id="adminMailReplyBtn" class="btn primary" style="margin-top:10px" onclick="responderCorreoRecibido()">Enviar respuesta</button>'+
       '<div id="adminMailReplyStatus" class="statusbar"></div></div>';
   }catch(err){console.error(err);h.innerHTML='<div class="notice">No fue posible abrir este correo.</div>'}
 }
 function extractEmailAddress(v){
   const s=String(v||'');const m=s.match(/<([^>]+@[^>]+)>/);return (m?m[1]:s).trim();
 }
-async function responderCorreoRecibido(id,from,subject){
-  const message=$('adminMailReply')?.value.trim()||'',status=$('adminMailReplyStatus');
-  const to=extractEmailAddress(from);
+async function responderCorreoRecibido(){
+  const message=$('adminMailReply')?.value.trim()||'',status=$('adminMailReplyStatus'),btn=$('adminMailReplyBtn');
+  const m=adminMailOpenMessage||{},to=extractEmailAddress(adminMailAddr(m.from)),subject=String(m.subject||'Consulta');
   if(!message||!to.includes('@')){if(status)status.textContent='Escriba una respuesta válida.';return}
-  if(status)status.textContent='Enviando…';
+  if(btn)btn.disabled=true;
+  if(status)status.textContent='Enviando y verificando entrega al servidor de correo…';
   try{
-    const {data,error}=await sbAuth.functions.invoke('admin-mail',{body:{action:'send',to,subject:(/^re:/i.test(subject)?subject:'Re: '+(subject||'Consulta')),message}});
-    if(error)throw error;if(!data?.ok)throw Error(data?.error||'No fue posible enviar.');
-    if(status)status.textContent='Respuesta enviada correctamente desde contacto@profesionalesohiggins.cl.';
+    const {data,error}=await sbAuth.functions.invoke('admin-mail',{body:{action:'send',to,subject:(/^re:/i.test(subject)?subject:'Re: '+subject),message}});
+    if(error)throw error;if(!data?.ok||!data?.id)throw Error(data?.error||'El servidor no confirmó el envío.');
+    const sentId=String(data.id);
+    await new Promise(r=>setTimeout(r,800));
+    const check=await sbAuth.functions.invoke('admin-mail',{body:{action:'list'}});
+    if(check.error)throw check.error;
+    const sent=(check.data?.sent||[]).some(x=>String(x.id)===sentId);
+    if(!sent)throw Error('El correo no quedó registrado como enviado.');
+    if(status)status.textContent='Respuesta enviada y registrada correctamente desde contacto@profesionalesohiggins.cl.';
     $('adminMailReply').value='';
-  }catch(err){console.error(err);if(status)status.textContent='No fue posible enviar la respuesta.'}
+    adminMailData={received:check.data?.received||adminMailData.received,sent:check.data?.sent||[]};
+  }catch(err){
+    console.error(err);
+    if(status)status.textContent='La respuesta no quedó confirmada como enviada. No vuelva a pulsar varias veces; intente nuevamente una sola vez.';
+    if(btn)btn.disabled=false;
+  }
 }
 function renderAdminMailCompose(){
   const h=$('adminMailBody');if(!h)return;
