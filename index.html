@@ -376,7 +376,7 @@ function renderAdminShell(){
  '<button onclick="adminMesas()">🧩 Mesas Técnicas</button>'+
  '<button onclick="adminPublicaciones()">📚 Revisión y publicaciones</button>'+
  '<button onclick="adminSolicitudes()">✉️ Solicitudes documentos en biblioteca</button>'+
- '<button onclick="adminContactos()">💬 Mensajes de contacto</button>'+
+ '<button onclick="adminCorreoInstitucional()">📧 Correo institucional</button>'+
  '<button onclick="adminRepresentantes()">🏛️ Directorio</button>'+
  '<button onclick="abrirGestionGaleria()">🖼️ Gestión de Galería</button>'+
  '<button onclick="adminBloqueos()">🔒 Bloqueos de edición</button>'+
@@ -1425,7 +1425,115 @@ function contactPill(status){
   const cls=s==='Respondido'?'green':(s==='En revisión'?'amber':'');
   return '<span class="pill '+cls+'">'+esc(s)+'</span>';
 }
-async function adminContactos(){
+async 
+let adminMailData={received:[],sent:[]};
+async function adminCorreoInstitucional(tab='entrada'){
+  if(!requireAdmin())return;
+  const c=$('admincontent');
+  c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Correo institucional</h1>'+
+    '<div class="notice"><b>Cuenta:</b> contacto@profesionalesohiggins.cl · Desde aquí Administración puede revisar mensajes recibidos y enviar correos institucionales.</div><br>'+
+    '<div class="tabs" style="margin-bottom:16px">'+
+      '<button class="'+(tab==='entrada'?'active':'')+'" onclick="adminCorreoInstitucional(\'entrada\')">📥 Recibidos</button>'+
+      '<button class="'+(tab==='redactar'?'active':'')+'" onclick="adminCorreoInstitucional(\'redactar\')">✍️ Redactar</button>'+
+      '<button class="'+(tab==='enviados'?'active':'')+'" onclick="adminCorreoInstitucional(\'enviados\')">📤 Enviados</button>'+
+      '<button onclick="adminContactos()">💬 Mensajes del sitio</button>'+
+    '</div><div id="adminMailBody"><div class="muted">Cargando correo…</div></div>';
+  if(tab==='redactar'){renderAdminMailCompose();return}
+  try{
+    const {data,error}=await sbAuth.functions.invoke('admin-mail',{body:{action:'list'}});
+    if(error)throw error;
+    if(!data?.ok)throw Error(data?.error||'No fue posible consultar el correo.');
+    adminMailData={received:data.received||[],sent:data.sent||[]};
+    if(tab==='entrada')renderAdminMailInbox();
+    else renderAdminMailSent();
+  }catch(err){
+    console.error(err);
+    $('adminMailBody').innerHTML='<div class="notice">No fue posible cargar el correo institucional. Si la recepción del dominio aún está en configuración, el envío seguirá disponible desde “Redactar”.</div>';
+  }
+}
+function adminMailDate(v){
+  try{return new Date(v).toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'})}catch{return String(v||'')}
+}
+function adminMailAddr(v){
+  if(Array.isArray(v))return v.join(', ');
+  return String(v||'');
+}
+function renderAdminMailInbox(){
+  const h=$('adminMailBody');if(!h)return;
+  const items=adminMailData.received||[];
+  if(!items.length){
+    h.innerHTML='<div class="card"><h3>Bandeja de entrada</h3><p class="muted">No hay correos recibidos todavía.</p><div class="mini-note">Los mensajes enviados al correo institucional aparecerán aquí una vez que la recepción del dominio quede completamente verificada.</div></div>';
+    return;
+  }
+  h.innerHTML='<div class="card"><h3>Bandeja de entrada</h3><p class="muted">Seleccione un mensaje para leerlo y responder.</p></div><br>'+
+    items.map(x=>'<button class="card" style="width:100%;text-align:left;margin-bottom:10px;cursor:pointer" onclick="abrirCorreoRecibido(\''+String(x.id).replace(/'/g,"\\'")+'\')">'+
+      '<b>'+esc(x.subject||'Sin asunto')+'</b><br><small>'+esc(adminMailAddr(x.from))+' · '+esc(adminMailDate(x.created_at||x.received_at))+'</small>'+
+    '</button>').join('');
+}
+async function abrirCorreoRecibido(id){
+  const h=$('adminMailBody');if(!h)return;
+  h.innerHTML='<div class="muted">Abriendo correo…</div>';
+  try{
+    const {data,error}=await sbAuth.functions.invoke('admin-mail',{body:{action:'get_received',id}});
+    if(error)throw error;if(!data?.ok)throw Error(data?.error||'No fue posible abrir el mensaje.');
+    const m=data.email||{};
+    const from=adminMailAddr(m.from),body=m.text||m.html||'';
+    h.innerHTML='<button class="btn soft" onclick="renderAdminMailInbox()">← Volver</button><br><br>'+
+      '<div class="card"><h2 style="margin-top:0">'+esc(m.subject||'Sin asunto')+'</h2>'+
+      '<p><b>De:</b> '+esc(from)+'</p><p><b>Para:</b> '+esc(adminMailAddr(m.to))+'</p>'+
+      '<p><small>'+esc(adminMailDate(m.created_at||m.received_at))+'</small></p>'+
+      '<div style="white-space:pre-wrap;line-height:1.6;border-top:1px solid var(--line);padding-top:14px">'+esc(String(body).replace(/<[^>]*>/g,' '))+'</div>'+
+      '<hr style="border:0;border-top:1px solid var(--line);margin:22px 0">'+
+      '<label>Responder</label><textarea id="adminMailReply" rows="6" placeholder="Escriba su respuesta…"></textarea>'+
+      '<button class="btn primary" style="margin-top:10px" onclick="responderCorreoRecibido(\''+String(id).replace(/'/g,"\\'")+'\',\''+String(from).replace(/'/g,"\\'")+'\',\''+String(m.subject||'').replace(/'/g,"\\'")+'\')">Enviar respuesta</button>'+
+      '<div id="adminMailReplyStatus" class="statusbar"></div></div>';
+  }catch(err){console.error(err);h.innerHTML='<div class="notice">No fue posible abrir este correo.</div>'}
+}
+function extractEmailAddress(v){
+  const s=String(v||'');const m=s.match(/<([^>]+@[^>]+)>/);return (m?m[1]:s).trim();
+}
+async function responderCorreoRecibido(id,from,subject){
+  const message=$('adminMailReply')?.value.trim()||'',status=$('adminMailReplyStatus');
+  const to=extractEmailAddress(from);
+  if(!message||!to.includes('@')){if(status)status.textContent='Escriba una respuesta válida.';return}
+  if(status)status.textContent='Enviando…';
+  try{
+    const {data,error}=await sbAuth.functions.invoke('admin-mail',{body:{action:'send',to,subject:(/^re:/i.test(subject)?subject:'Re: '+(subject||'Consulta')),message}});
+    if(error)throw error;if(!data?.ok)throw Error(data?.error||'No fue posible enviar.');
+    if(status)status.textContent='Respuesta enviada correctamente desde contacto@profesionalesohiggins.cl.';
+    $('adminMailReply').value='';
+  }catch(err){console.error(err);if(status)status.textContent='No fue posible enviar la respuesta.'}
+}
+function renderAdminMailCompose(){
+  const h=$('adminMailBody');if(!h)return;
+  h.innerHTML='<div class="card form"><h3>Nuevo correo</h3>'+
+    '<label>De</label><input value="contacto@profesionalesohiggins.cl" disabled>'+
+    '<label>Para</label><input id="adminMailTo" type="email" placeholder="correo@ejemplo.cl">'+
+    '<label>Asunto</label><input id="adminMailSubject" placeholder="Asunto">'+
+    '<label>Mensaje</label><textarea id="adminMailMessage" rows="10" placeholder="Escriba el mensaje…"></textarea>'+
+    '<button class="btn primary" onclick="enviarCorreoInstitucional()">Enviar correo</button>'+
+    '<div id="adminMailComposeStatus" class="statusbar"></div></div>';
+}
+async function enviarCorreoInstitucional(){
+  const to=$('adminMailTo')?.value.trim()||'',subject=$('adminMailSubject')?.value.trim()||'',message=$('adminMailMessage')?.value.trim()||'',status=$('adminMailComposeStatus');
+  if(!to.includes('@')||!subject||!message){if(status)status.textContent='Complete destinatario, asunto y mensaje.';return}
+  if(status)status.textContent='Enviando…';
+  try{
+    const {data,error}=await sbAuth.functions.invoke('admin-mail',{body:{action:'send',to,subject,message}});
+    if(error)throw error;if(!data?.ok)throw Error(data?.error||'No fue posible enviar el correo.');
+    if(status)status.textContent='Correo enviado correctamente desde contacto@profesionalesohiggins.cl.';
+    $('adminMailTo').value='';$('adminMailSubject').value='';$('adminMailMessage').value='';
+  }catch(err){console.error(err);if(status)status.textContent='No fue posible enviar el correo. Intente nuevamente.'}
+}
+function renderAdminMailSent(){
+  const h=$('adminMailBody');if(!h)return;
+  const items=adminMailData.sent||[];
+  if(!items.length){h.innerHTML='<div class="card muted">No hay correos enviados registrados.</div>';return}
+  h.innerHTML='<div class="card"><h3>Enviados</h3><p class="muted">Últimos correos enviados por la plataforma.</p></div><br>'+
+    items.map(x=>'<div class="card" style="margin-bottom:10px"><b>'+esc(x.subject||'Sin asunto')+'</b><br><small>Para: '+esc(adminMailAddr(x.to))+' · '+esc(adminMailDate(x.created_at))+'</small><br><span class="pill">'+esc(x.last_event||'enviado')+'</span></div>').join('');
+}
+
+function adminContactos(){
   if(!requireAdmin())return;
   const c=$('admincontent');
   c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Mensajes de contacto</h1>'+
