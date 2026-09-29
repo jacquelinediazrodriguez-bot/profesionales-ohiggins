@@ -1606,7 +1606,6 @@
  window.adminInvitaciones=async function(){
    const c=document.getElementById('admincontent');if(!c)return;
    if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){c.innerHTML='<div class="notice">Se requiere una cuenta administrativa.</div>';return}
-   try{await sbAuth.functions.invoke('member-invitation',{body:{action:'check_delivery'}})}catch(e){console.warn('No se pudo actualizar estado de entrega',e)}
    const [{data:rows,error},{data:profiles}]=await Promise.all([
      sbAuth.from('member_invitation_requests')
        .select('id,full_name,email,profession,phone,technical_table_id,proposed_role,status,requested_by,requested_at,reviewed_at,invitation_sent_at,rejection_reason,email_provider_id,email_delivery_status,delivered_at,registered_at,technical_tables(name)')
@@ -1643,7 +1642,11 @@
      const parts=[];
      if(Number(data.updated||0)>0)parts.push(data.updated+' correo(s) actualizado(s)');
      if(Number(data.registered_updated||0)>0)parts.push(data.registered_updated+' registro(s) completado(s)');
-     window._inviteRefreshMessage=parts.length?'Actualizado: '+parts.join(' · '):'Revisión completada. No hay cambios nuevos.';
+     const hora=new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+     const checked=Number(data.checked||0);
+     window._inviteRefreshMessage=parts.length
+       ?'Actualizado '+hora+': '+parts.join(' · ')
+       :'Actualización completada '+hora+'. '+checked+' correo(s) revisado(s); sin cambios nuevos.';
      if(msg)msg.textContent=window._inviteRefreshMessage;
      await window.adminInvitaciones();
    }catch(e){
