@@ -1021,7 +1021,7 @@
      }});
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible enviar.');
      await refreshSharedAdmin();
-     alert('Correo enviado correctamente con '+(data.attachments?.length||selected.length)+' PDF oficial adjunto(s).');
+     alert('Correo enviado correctamente con '+(data.attachments?.length||requestIds.length)+' PDF oficial adjunto(s).');
      await window.adminSolicitudes();
    }catch(e){
      console.error(e);alert('No fue posible enviar el PDF oficial. La solicitud no se marcó como enviada.');
