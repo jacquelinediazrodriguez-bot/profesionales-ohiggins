@@ -1651,7 +1651,7 @@
  window.adminInvitacionDirecta=async function(){
    const email=prompt('Correo electrónico:');if(email===null)return;
    const clean=email.trim().toLowerCase();
-   if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(clean))return alert('Ingrese un correo electrónico válido.');
+   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean))return alert('Ingrese un correo electrónico válido.');
    try{
      const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'direct_invite',email:clean}});
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible enviar la invitación.');
