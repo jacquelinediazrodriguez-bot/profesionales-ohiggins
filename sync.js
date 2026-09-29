@@ -1184,13 +1184,18 @@
  }
  async function cargarMesasRevisionAportes(){
    if(Array.isArray(STATE.reviewTables))return STATE.reviewTables;
-   const {data,error}=await sbAuth.from('technical_tables').select('id,name,is_active').eq('is_active',true).order('name');
-   if(error){console.error(error);STATE.reviewTables=[];return []}
-   STATE.reviewTables=data||[];return STATE.reviewTables;
+   const [{data:tables,error},{data:coords,error:coordError}]=await Promise.all([
+     sbAuth.from('technical_tables').select('id,name,is_active').eq('is_active',true).order('name'),
+     sbAuth.from('table_memberships').select('technical_table_id').eq('is_coordinator',true)
+   ]);
+   if(error||coordError){console.error(error||coordError);STATE.reviewTables=[];return []}
+   const withCoordinator=new Set((coords||[]).map(x=>String(x.technical_table_id)));
+   STATE.reviewTables=(tables||[]).filter(t=>withCoordinator.has(String(t.id)));
+   return STATE.reviewTables;
  }
  async function resumenRevisionAporte(contributionId){
    const {data:reqs,error}=await sbAuth.from('individual_review_requests')
-     .select('id,technical_table_id,status,version,requested_at,closed_at,coordinator_observation,technical_tables(name)')
+     .select('id,technical_table_id,requested_by,status,version,requested_at,closed_at,coordinator_observation,technical_tables(name)')
      .eq('contribution_id',contributionId).order('requested_at',{ascending:false}).limit(1);
    if(error||!reqs?.length)return null;
    const r=reqs[0];
@@ -1234,10 +1239,11 @@
      (x.review_observation?'<div class="notice" style="margin-top:12px"><b>Observación de Coordinación:</b> '+esc(x.review_observation)+'</div>':'')+
      (x.admin_observation?'<div class="notice" style="margin-top:12px"><b>Observación de Administración:</b> '+esc(x.admin_observation)+'</div>':'')+
      resumenRevisionAporteHTML(review)+
-     (!locked&&!editing?'<div class="form-row" style="margin-top:14px"><div><label>Mesa Técnica que revisará este aporte</label><select id="aporteMesaRevision">'+tables.map(t=>'<option value="'+t.id+'" '+(t.name===x.topic?'selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select></div></div>':'')+
+     (!locked&&!editing?(tables.length?'<div class="form-row" style="margin-top:14px"><div><label>Mesa Técnica que revisará este aporte</label><select id="aporteMesaRevision">'+tables.map(t=>'<option value="'+t.id+'" '+(t.name===x.topic?'selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select><div class="mini-note" style="margin-top:6px">Solo aparecen Mesas activas que tienen Coordinador/a asignado/a.</div></div></div>':'<div class="notice" style="margin-top:14px">No hay una Mesa Técnica activa con Coordinador/a disponible para revisar este aporte. Administración debe asignar una Coordinación antes de enviarlo.</div>'):'')+
      '<div class="toolbar-row" style="margin-top:14px">'+
        (editing?'<button class="btn primary" onclick="finalizarEdicionAporte('+x.id+')">Finalizar edición</button> <button class="btn soft" onclick="guardarAporteIndividual('+x.id+',false)">Guardar borrador</button> <button class="btn success" onclick="guardarAporteIndividual('+x.id+',true)">Guardar versión</button>':'')+
-       (!locked&&!editing?'<button class="btn primary" onclick="iniciarEdicionAporte('+x.id+')">Editar</button> <button class="btn success" onclick="solicitarRevisionAporte('+x.id+')">Solicitar revisión</button>':'')+
+       (!locked&&!editing?'<button class="btn primary" onclick="iniciarEdicionAporte('+x.id+')">Editar</button> '+(tables.length?'<button class="btn success" onclick="solicitarRevisionAporte('+x.id+')">Solicitar revisión</button>':''):'')+
+       (review&&review.status==='En revisión'&&review.requested_by===STATE.uid?' <button class="btn danger" onclick="cancelarRevisionAporte('+review.id+')">Cancelar revisión y volver a editar</button>':'')+
        '<button class="btn soft" onclick="vistaPreviaAporte('+x.id+')">Vista del documento</button> <button class="btn soft" onclick="exportarAporteWord('+x.id+')">Exportar Word</button> <button class="btn soft" onclick="exportarAportePDF('+x.id+')">Exportar PDF</button>'+
      '</div>'+
      '<h3 style="margin-top:18px">Historial de versiones</h3>'+aporteHistorialHTML(x)+
@@ -1275,9 +1281,10 @@
      summary:v.summary||'',body:v.body||'',updated_at:new Date().toISOString()
    }).eq('id',id);
    if(error){console.error(error);return alert('No se pudo recuperar la versión.')}
-   STATE.editingContribution=null;
-   await cargarMisAportes();await editarAporteIndividual(id);
-   alert('Versión '+n+' recuperada como borrador. Guarde una nueva versión cuando termine de revisarla.');
+   await cargarMisAportes();
+   STATE.editingContribution=id;
+   await editarAporteIndividual(id);
+   alert('Versión '+n+' recuperada como borrador y abierta para edición. Guarde una nueva versión cuando termine de revisarla.');
  };
  function datosAporteExportacion(id){
    const x=aporteActual(id);if(!x)return null;
@@ -1326,6 +1333,17 @@
    STATE.editingContribution=null;
    await renderAportes(document.getElementById('privatecontent'));
    alert('Solicitud enviada a la Mesa Técnica. Los integrantes podrán dar visto bueno o dejar mensajes. La Coordinación deberá validar la revisión antes de enviarla a Administración.');
+ };
+ window.cancelarRevisionAporte=async function(reviewId){
+   if(!isReal())return;
+   if(!confirm('¿Cancelar esta revisión y volver el aporte a En elaboración? Los vistos buenos o mensajes ya registrados quedarán en el historial de la revisión cancelada.'))return;
+   try{
+     const {error}=await sbAuth.rpc('cancel_individual_review',{p_review_request_id:Number(reviewId)});
+     if(error)throw error;
+     STATE.editingContribution=null;
+     await renderAportes(document.getElementById('privatecontent'));
+     alert('Revisión cancelada. El aporte volvió a En elaboración y puede editarlo nuevamente.');
+   }catch(e){console.error(e);alert('No se pudo cancelar la revisión. Inténtelo nuevamente.');}
  };
  window.solicitarPublicacionAporte=window.solicitarRevisionAporte;
  window.reabrirAporteIndividual=async function(id){
