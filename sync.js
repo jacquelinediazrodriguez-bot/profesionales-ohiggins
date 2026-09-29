@@ -2002,3 +2002,35 @@
  // Hacer que las solicitudes y los documentos públicos tengan el mismo origen en todos los dispositivos.
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>window.loadPublicLibrary());else window.loadPublicLibrary();
 })();
+
+/* mi-trabajo-mesas-roles-v1 */
+(function(){
+  window.abrirMesaTrabajo=function(m){
+    const mesa=decodeURIComponent(m);
+    if(!getAssignedMesas().includes(mesa))return;
+    currentDocMesa=mesa;
+    privateTab('espacio');
+  };
+  window.renderPanel=function(c){
+    const ass=getAssignedMesas();
+    const cards=ass.map(m=>{
+      const d=getWork(m),role=getRoleForMesa(m),version=d.versiones.length?d.versiones[d.versiones.length-1].numero:'—';
+      return '<div class="card" style="margin-bottom:14px">'+
+        '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
+          '<div><small>Mesa Técnica</small><h3 style="margin:4px 0 2px">'+esc(m)+'</h3><span class="pill">'+esc(role)+'</span></div>'+
+          '<button class="btn primary" onclick="abrirMesaTrabajo(\''+encodeURIComponent(m)+'\')">Abrir Mesa</button>'+
+        '</div>'+
+        '<div class="summary-card" style="margin-top:14px">'+
+          '<div><small>Documento actual</small><br><b>'+esc(d.titulo||'Sin título')+'</b></div>'+
+          '<div><small>Estado</small><br><span class="pill">'+esc(d.estado)+'</span></div>'+
+          '<div><small>Versión</small><br><b>'+version+'</b></div>'+
+          '<div><small>Última actualización</small><br><b>'+esc(d.ultima||'Sin registro')+'</b></div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+    c.innerHTML='<div class="kicker">Área privada</div><h1 class="section-title">Mi Trabajo</h1>'+
+      '<div class="notice"><b>'+esc(currentUser.nombre)+'</b><br>Estas son todas sus Mesas Técnicas y el rol asignado en cada una.</div><br>'+
+      (cards||'<div class="notice">No tiene Mesas Técnicas asignadas.</div>')+
+      '<button class="btn soft" onclick="privateTab(\'aprobados\')">Ver documentos aprobados</button>';
+  };
+})();
