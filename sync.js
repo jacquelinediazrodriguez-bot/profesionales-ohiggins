@@ -1650,8 +1650,10 @@
  };
  window.adminInvitacionDirecta=async function(){
    const email=prompt('Correo electrónico:');if(email===null)return;
-   const clean=email.trim().toLowerCase();
-   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean))return alert('Ingrese un correo electrónico válido.');
+   const clean=String(email).normalize('NFKC').replace(/[\s\u200B-\u200D\uFEFF]+/g,'').toLowerCase();
+   const parts=clean.split('@');
+   const valid=parts.length===2&&parts[0].length>0&&/^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(parts[0])&&/^[A-Z0-9-]+(?:\.[A-Z0-9-]+)+$/i.test(parts[1]);
+   if(!valid)return alert('Ingrese un correo electrónico válido.');
    try{
      const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'direct_invite',email:clean}});
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible enviar la invitación.');
