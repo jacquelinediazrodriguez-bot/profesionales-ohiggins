@@ -803,19 +803,34 @@
  function solicitudEstadoLabel(s){
    return s==='Entregado'?'Entregado':s==='Enviada'?'Enviado':s||'Pendiente';
  }
- window.revisarSolicitudDocumento=function(id){
+ window.revisarSolicitudDocumento=async function(id){
    if(!isReal())return;
    const group=solicitudGrupo(id);if(!group.length)return alert('No se encontró la solicitud.');
-   const first=group[0],c=document.getElementById('admincontent');if(!c)return;
+   const first=group[0],host=document.getElementById('admincontent');if(!host)return;
+   host.innerHTML='<div class="muted">Cargando documento solicitado…</div>';
+   if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
+   const pubs=getPublicaciones();
    const uniqueDocs=solicitudDocumentosUnicos(group);
-   const docs=uniqueDocs.map(x=>'<div class="row" style="align-items:flex-start"><div><input type="checkbox" checked disabled style="margin-right:8px"> <b>'+esc(x.titulo)+'</b><br><small>ID Biblioteca: '+esc(String(x.libraryId||''))+'</small></div><span class="pill">'+esc(solicitudEstadoLabel(x.estado))+'</span></div>').join('');
-   c.innerHTML='<div class="kicker">Revisión de solicitud</div><h1 class="section-title">Enviar documentos de Biblioteca</h1>'+
+   const docs=uniqueDocs.map(x=>{
+     const libraryId=String(x.libraryId||x.library_id||'');
+     const pub=pubs.find(p=>String(p.id)===libraryId);
+     const requestId=x.id;
+     const fileName=pub?.finalPdfName||'PDF oficial no disponible';
+     const ready=!!pub?.finalPdfPath;
+     return '<div class="card" style="margin:10px 0;padding:12px"><div class="row" style="align-items:flex-start">'+
+       '<div style="display:flex;gap:10px;align-items:flex-start"><input class="library-request-doc" type="checkbox" value="'+esc(String(requestId))+'" data-library-id="'+esc(libraryId)+'" '+(ready?'checked':'disabled')+' style="margin-top:5px">'+
+       '<div><b>'+esc(x.titulo)+'</b><br><small>Archivo: '+esc(fileName)+'</small><br><small>ID Biblioteca: '+esc(libraryId)+'</small></div></div>'+
+       '<div><span class="pill '+(ready?'green':'amber')+'">'+(ready?'PDF DISPONIBLE':'SIN PDF')+'</span> '+
+       (ready?'<button class="btn soft" type="button" onclick="verDocumentoFinalPDF('+Number(libraryId)+',false)">Ver PDF</button>':'')+
+       '</div></div></div>';
+   }).join('');
+   host.innerHTML='<div class="kicker">Revisión de solicitud</div><h1 class="section-title">Enviar documentos de Biblioteca</h1>'+
     '<div class="card"><h3>Solicitante</h3><p><b>'+esc(first.nombre)+'</b><br>'+esc(first.correo)+(first.institucion?'<br>'+esc(first.institucion):'')+'</p>'+
     (first.motivo?'<p><b>Motivo / interés:</b><br>'+esc(first.motivo)+'</p>':'')+'</div>'+
-    '<div class="card" style="margin-top:12px"><h3>Documentos que se adjuntarán</h3>'+docs+'</div>'+
+    '<div class="card" style="margin-top:12px"><h3>Documentos solicitados</h3><div class="mini-note">Confirme los PDF que desea adjuntar. Puede abrir cada archivo antes de enviarlo.</div>'+docs+'</div>'+
     '<div class="card" style="margin-top:12px"><label><b>Mensaje al solicitante</b></label><textarea id="libraryReplyMessage" rows="6" placeholder="Escriba aquí el mensaje que acompañará los documentos.">'+esc(first.adminMessage||'Adjuntamos los documentos solicitados desde nuestra Biblioteca. Saludos cordiales.')+'</textarea>'+
-    '<p class="mini-note">Se enviará una copia del correo a la cuenta administrativa que realiza el envío.</p>'+
-    '<div style="margin-top:12px"><button id="sendLibraryDocsBtn" class="btn primary" onclick="enviarDocumentosSolicitud('+id+')">Enviar documentos</button> <button class="btn soft" onclick="adminSolicitudes()">Volver</button></div></div>';
+    '<p class="mini-note">El correo se enviará con los PDF marcados y una copia a la cuenta administrativa que realiza el envío.</p>'+
+    '<div style="margin-top:12px"><button id="sendLibraryDocsBtn" class="btn primary" onclick="enviarDocumentosSolicitud('+id+')">Enviar documentos seleccionados</button> <button class="btn soft" onclick="adminSolicitudes()">Volver</button></div></div>';
  }
  async function generarAdjuntoPDFFinalBiblioteca(pub){
    const jsPDF=window.jspdf?.jsPDF;
@@ -981,25 +996,28 @@
    if(!isReal())return;
    const group=solicitudGrupo(id);if(!group.length)return alert('No se encontró la solicitud.');
    const btn=document.getElementById('sendLibraryDocsBtn'),message=(document.getElementById('libraryReplyMessage')?.value||'').trim();
+   const requestIds=[...document.querySelectorAll('.library-request-doc:checked')].map(x=>Number(x.value)).filter(Number.isFinite);
+   if(!requestIds.length)return alert('Seleccione al menos un documento para adjuntar al correo.');
    if(btn){btn.disabled=true;btn.textContent='Enviando PDF oficial…';}
    try{
      if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
      const pubs=getPublicaciones();
-     const libraryIds=[...new Set(group.map(x=>String(x.libraryId||'')).filter(Boolean))];
+     const chosen=group.filter(x=>requestIds.includes(Number(x.id)));
+     const libraryIds=[...new Set(chosen.map(x=>String(x.libraryId||x.library_id||'')).filter(Boolean))];
      const selected=libraryIds.map(libraryId=>pubs.find(p=>String(p.id)===libraryId)).filter(Boolean);
-     if(selected.length!==libraryIds.length)throw new Error('No fue posible recuperar todos los documentos publicados.');
-     if(selected.some(p=>!p.finalPdfPath))throw new Error('Uno de los documentos aún no tiene su PDF final oficial guardado.');
+     if(selected.length!==libraryIds.length)throw new Error('No fue posible recuperar todos los documentos seleccionados.');
+     if(selected.some(p=>!p.finalPdfPath))throw new Error('Uno de los documentos seleccionados no tiene su PDF final oficial guardado.');
      const {data,error}=await sbAuth.functions.invoke('send-library-copy',{body:{
-       request_ids:group.map(x=>x.id),
+       request_ids:requestIds,
        message
      }});
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible enviar.');
      await refreshSharedAdmin();
-     alert('Correo enviado correctamente con '+(data.attachments?.length||selected.length)+' PDF oficial adjunto(s). Se utilizó exactamente el archivo guardado en Biblioteca.');
+     alert('Correo enviado correctamente con '+(data.attachments?.length||selected.length)+' PDF oficial adjunto(s).');
      await window.adminSolicitudes();
    }catch(e){
      console.error(e);alert('No fue posible enviar el PDF oficial. La solicitud no se marcó como enviada.');
-     if(btn){btn.disabled=false;btn.textContent='Enviar documentos';}
+     if(btn){btn.disabled=false;btn.textContent='Enviar documentos seleccionados';}
    }
  };
  async function guardarPdfFinalLegacy(pub){
