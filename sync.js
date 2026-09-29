@@ -1396,7 +1396,7 @@
    const assigned=getAssignedMesas();
    const visibles=rows.filter(r=>assigned.includes(r.technical_tables?.name)||r.requested_by===STATE.uid);
    c.innerHTML='<div class="kicker">Revisión colaborativa</div><h1 class="section-title">Revisión de aportes</h1>'+
-     '<div class="notice">Los aportes individuales llegan primero a una Mesa Técnica. Sus integrantes pueden <b>dar visto bueno</b> o <b>dejar un mensaje</b>. Solo la Coordinación de esa Mesa puede cerrar la revisión y enviar el aporte a Administración.</div><br>'+
+     '<div class="notice"><b>Privacidad por Mesa:</b> cada revisión solo puede ser vista por los integrantes de la Mesa Técnica revisora, por el autor de ese aporte y por Administración. Los integrantes de otras Mesas no tienen acceso. Dentro de la Mesa revisora, sus integrantes pueden <b>dar visto bueno</b> o <b>dejar un mensaje</b>. Solo la Coordinación de esa Mesa puede cerrar la revisión y enviarla a Administración.</div><br>'+
      (visibles.length?visibles.map(r=>{
        const mesa=r.technical_tables?.name||'';
        const vistos=(r.feedback||[]).filter(x=>x.feedback_type==='Visto bueno');
@@ -1416,6 +1416,10 @@
  };
  window.verRevisionAporte=function(id){
    const r=(STATE.reviewContributionRows||[]).find(x=>x.id===id);if(!r)return;
+   const mesa=r.technical_tables?.name||'';
+   const admin=['Administrador General','Administrador de Plataforma'].includes(currentUser?.rol);
+   const allowed=admin||r.requested_by===STATE.uid||getAssignedMesas().includes(mesa);
+   if(!allowed)return alert('No tiene permiso para ver este aporte. La revisión pertenece a otra Mesa Técnica.');
    const s=r.snapshot||{},w=window.open('','_blank');if(!w)return alert('El navegador bloqueó la vista.');
    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(s.title||'Aporte')+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;line-height:1.7}.meta{background:#f4f7fb;padding:14px;border-radius:10px}h1,h2,h3{color:#123b67}</style></head><body><h1>'+esc(s.title||'Aporte individual')+'</h1><div class="meta"><b>Autor:</b> '+esc(s.author_name||'')+(s.author_profession?' · '+esc(s.author_profession):'')+' · <b>Mesa revisora:</b> '+esc(r.technical_tables?.name||'')+' · <b>Versión:</b> '+r.version+'</div>'+(s.summary?'<h2>Resumen</h2><p>'+esc(s.summary)+'</p>':'')+'<hr><div>'+safeRichHTML(s.body||'')+'</div></body></html>');
    w.document.close();
