@@ -1755,6 +1755,19 @@
  }
  window.mostrarClaveInvitacion=async function(){
    if(!sbAuth||new URLSearchParams(location.search).get('invite')!=='1')return;
+   const qs=new URLSearchParams(location.search);
+   const tokenHash=qs.get('token_hash');
+   if(tokenHash){
+     const {error}=await sbAuth.auth.verifyOtp({token_hash:tokenHash,type:'invite'});
+     if(error){
+       console.error('Error al validar invitación',error);
+       alert('El enlace de invitación no pudo validarse o ya expiró. Solicite a Administración una nueva invitación.');
+       return;
+     }
+     qs.delete('token_hash');qs.delete('type');
+     const clean=location.pathname+(qs.toString()?'?'+qs.toString():'')+location.hash;
+     history.replaceState({},document.title,clean);
+   }
    const {data}=await sbAuth.auth.getSession();if(!data?.session)return;
    invitationModal().classList.add('open');
  };
