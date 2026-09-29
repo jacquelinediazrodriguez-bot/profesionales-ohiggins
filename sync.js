@@ -1606,21 +1606,29 @@
  window.adminInvitaciones=async function(){
    const c=document.getElementById('admincontent');if(!c)return;
    if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){c.innerHTML='<div class="notice">Se requiere una cuenta administrativa.</div>';return}
+   try{await sbAuth.functions.invoke('member-invitation',{body:{action:'check_delivery'}})}catch(e){console.warn('No se pudo actualizar estado de entrega',e)}
    const [{data:rows,error},{data:profiles}]=await Promise.all([
      sbAuth.from('member_invitation_requests')
-       .select('id,full_name,email,profession,phone,technical_table_id,proposed_role,status,requested_by,requested_at,reviewed_at,invitation_sent_at,rejection_reason,technical_tables(name)')
+       .select('id,full_name,email,profession,phone,technical_table_id,proposed_role,status,requested_by,requested_at,reviewed_at,invitation_sent_at,rejection_reason,email_provider_id,email_delivery_status,registered_at,technical_tables(name)')
        .order('requested_at',{ascending:false}),
      sbAuth.from('profiles').select('id,full_name,email')
    ]);
-   if(error){console.error(error);c.innerHTML='<div class="notice">No fue posible consultar las solicitudes de incorporación.</div>';return}
+   if(error){console.error(error);c.innerHTML='<div class="notice">No fue posible consultar las invitaciones.</div>';return}
    const who=id=>(profiles||[]).find(p=>String(p.id)===String(id));
+   const sent=(rows||[]).filter(x=>!x.technical_table_id&&x.invitation_sent_at);
+   const requests=(rows||[]).filter(x=>x.technical_table_id);
+   const fmt=d=>d?new Date(d).toLocaleString('es-CL'):'—';
    c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Invitaciones de integrantes</h1>'+
-    '<div class="notice">Administración autoriza las incorporaciones. Al aprobar, la plataforma envía la invitación y asigna la Mesa y el rol aprobados.</div><br>'+
+    '<div class="notice">Administración envía primero la invitación al correo. La persona completa su registro y, posteriormente, Administración asigna Mesa Técnica y rol según la constitución de la Mesa.</div><br>'+
     '<button class="btn primary" onclick="adminInvitacionDirecta()">＋ Invitar directamente</button>'+
+    '<h2 class="section-sub">Registro de invitaciones enviadas</h2>'+
+    (sent.length?'<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden"><thead><tr style="text-align:left;background:#f7f9fc"><th style="padding:10px">Fecha y hora</th><th style="padding:10px">Correo</th><th style="padding:10px">Estado correo</th><th style="padding:10px">Registro</th></tr></thead><tbody>'+
+      sent.map(x=>'<tr style="border-top:1px solid var(--line)"><td style="padding:10px">'+esc(fmt(x.invitation_sent_at||x.requested_at))+'</td><td style="padding:10px"><b>'+esc(x.email)+'</b></td><td style="padding:10px"><span class="pill '+(x.email_delivery_status==='Entregado'?'green':/Fallido|Rebotado|Reclamado/.test(x.email_delivery_status||'')?'amber':'')+'">'+esc(x.email_delivery_status||'Enviado')+'</span></td><td style="padding:10px"><span class="pill '+(x.registered_at?'green':'')+'">'+(x.registered_at?'Registro completado':'Pendiente')+'</span></td></tr>').join('')+
+      '</tbody></table></div>':'<div class="card"><p>No hay invitaciones enviadas todavía.</p></div>')+
     '<h2 class="section-sub">Solicitudes recibidas</h2>'+
-    ((rows||[]).length?(rows||[]).map(x=>{
+    (requests.length?requests.map(x=>{
       const r=who(x.requested_by),pending=x.status==='Pendiente';
-      return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.full_name)+'</b> · '+esc(x.email)+'<br><small>'+esc(x.profession||'Profesión no indicada')+(x.phone?' · '+esc(x.phone):'')+' · '+esc(x.technical_tables?.name||'Mesa')+' · '+esc(x.proposed_role)+'</small><br><small>Solicitado por: '+esc(r?.full_name||'Administración')+' · '+new Date(x.requested_at).toLocaleString('es-CL')+'</small>'+(x.rejection_reason?'<p class="muted"><b>Motivo:</b> '+esc(x.rejection_reason)+'</p>':'')+'</div><div><span class="pill '+(x.status==='Cuenta activada'?'green':x.status==='Rechazada'?'amber':'')+'">'+esc(x.status)+'</span>'+(pending?'<br><button class="btn primary" style="margin-top:8px" onclick="aprobarInvitacionIntegrante('+x.id+')">Aprobar y enviar invitación</button> <button class="btn soft" style="margin-top:8px" onclick="rechazarInvitacionIntegrante('+x.id+')">Rechazar</button>':'')+'</div></div></div>';
+      return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.full_name||x.email)+'</b> · '+esc(x.email)+'<br><small>'+esc(x.profession||'Profesión no indicada')+(x.phone?' · '+esc(x.phone):'')+' · '+esc(x.technical_tables?.name||'Mesa')+' · '+esc(x.proposed_role||'Rol por definir')+'</small><br><small>Solicitado por: '+esc(r?.full_name||'Administración')+' · '+fmt(x.requested_at)+'</small>'+(x.rejection_reason?'<p class="muted"><b>Motivo:</b> '+esc(x.rejection_reason)+'</p>':'')+'</div><div><span class="pill '+(x.status==='Registro completado'?'green':x.status==='Rechazada'?'amber':'')+'">'+esc(x.status)+'</span>'+(pending?'<br><button class="btn primary" style="margin-top:8px" onclick="aprobarInvitacionIntegrante('+x.id+')">Aprobar y enviar invitación</button> <button class="btn soft" style="margin-top:8px" onclick="rechazarInvitacionIntegrante('+x.id+')">Rechazar</button>':'')+'</div></div></div>';
     }).join(''):'<div class="card"><p>No hay solicitudes de incorporación.</p></div>');
  };
  window.aprobarInvitacionIntegrante=async function(id){
@@ -1641,19 +1649,13 @@
    }catch(e){console.error(e);alert(e?.message||'No fue posible rechazar la solicitud.');}
  };
  window.adminInvitacionDirecta=async function(){
-   const name=prompt('Nombre completo del profesional:');if(name===null||!name.trim())return;
-   const email=prompt('Correo electrónico:');if(email===null||!email.trim())return;
-   const profession=prompt('Profesión:','')??'';
-   const active=Object.entries(STATE.ids).filter(([m])=>getMesaMeta(m).estado!=='Inactiva');
-   if(!active.length)return alert('No hay Mesas activas.');
-   const names=active.map(([m])=>m);const picked=prompt('Mesa Técnica:\n\n'+names.join('\n'),names[0]);if(picked===null)return;
-   const found=active.find(([m])=>m.toLowerCase()===picked.trim().toLowerCase());if(!found)return alert('Escriba exactamente una de las Mesas mostradas.');
-   const role=prompt('Rol: Integrante de Mesa o Secretario Técnico','Integrante de Mesa');if(role===null)return;
-   const proposed_role=/secretario/i.test(role)?'Secretario Técnico':'Integrante de Mesa';
+   const email=prompt('Correo electrónico:');if(email===null)return;
+   const clean=email.trim().toLowerCase();
+   if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(clean))return alert('Ingrese un correo electrónico válido.');
    try{
-     const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'submit',full_name:name.trim(),email:email.trim().toLowerCase(),profession:profession.trim(),technical_table_id:found[1],proposed_role,send_now:true}});
+     const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'direct_invite',email:clean}});
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible enviar la invitación.');
-     alert(data.status==='Cuenta activada'?'La persona ya tenía cuenta y fue incorporada a la Mesa.':'Invitación enviada correctamente.');
+     alert(data.status==='Registro completado'?'Este correo ya tiene el registro completado.':'Invitación enviada correctamente. El correo quedó registrado en la lista de invitaciones.');
      await window.adminInvitaciones();
    }catch(e){console.error(e);alert(e?.message||'No fue posible enviar la invitación.');}
  };
