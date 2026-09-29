@@ -1834,7 +1834,7 @@
    if(!sbAuth){status.textContent='El servicio de registro no está disponible. Recargue la página y vuelva a intentar.';return;}
    if(button)button.disabled=true;status.style.color='#405064';status.textContent='Creando la cuenta. Espere unos segundos…';
    try{
-     const {data,error}=await sbAuth.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:location.origin+location.pathname}});
+     const {data,error}=await sbAuth.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:'https://profesionalesohiggins.cl/'}});
      if(error)throw error;
      if(!data?.user)throw Error('El servicio no confirmó la creación de la cuenta.');
      status.style.color='#2e7d62';
