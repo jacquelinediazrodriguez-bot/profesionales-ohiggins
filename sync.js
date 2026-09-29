@@ -434,7 +434,10 @@
    try{
      clearTimeout(STATE.timers[m]);
      let d=syncWorkFromUI(true);
-     if(snapshotChanged(d))d=saveVersionCore(false);
+     if(snapshotChanged(d)){
+       d=await saveVersionCore(false);
+       if(!d)throw new Error('No se pudo consolidar la versión antes del envío.');
+     }
      const fullPatch={
        titulo:d.titulo||'',
        estado:'En elaboración',
@@ -475,6 +478,9 @@
      if(/already pending/i.test(msg)){
        if(btn){btn.textContent='✓ Documento enviado';btn.classList.remove('success');btn.classList.add('soft');btn.disabled=true;}
        alert('Documento enviado.');
+     }else if(/Another member is editing/i.test(msg)){
+       if(btn){btn.textContent='Solicitar publicación al Administrador';btn.disabled=false;}
+       alert('No se puede enviar mientras otro integrante esté editando una sección. Espere a que finalice su edición y vuelva a intentarlo.');
      }else{
        if(btn){btn.textContent='Solicitar publicación al Administrador';btn.disabled=false;}
        alert('No se pudo enviar el documento. Inténtelo nuevamente.');
