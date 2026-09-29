@@ -832,10 +832,10 @@
      const requestId=x.id;
      const fileName=pub?.finalPdfName||'PDF oficial no disponible';
      const ready=!!pub?.finalPdfPath;
-     return '<div class="card" style="margin:10px 0;padding:12px"><div class="row" style="align-items:flex-start">'+
-       '<div style="display:flex;gap:10px;align-items:flex-start"><input class="library-request-doc" type="checkbox" value="'+esc(String(requestId))+'" data-library-id="'+esc(libraryId)+'" '+(ready?'checked':'disabled')+' style="margin-top:5px">'+
-       '<div><b>'+esc(x.titulo)+'</b><br><small>Archivo: '+esc(fileName)+'</small><br><small>ID Biblioteca: '+esc(libraryId)+'</small></div></div>'+
-       '<div><span class="pill '+(ready?'green':'amber')+'">'+(ready?'PDF DISPONIBLE':'SIN PDF')+'</span> '+
+     return '<div class="card library-send-doc-card"><div class="row library-send-doc-row">'+
+       '<div class="library-send-doc-main"><input class="library-request-doc" type="checkbox" value="'+esc(String(requestId))+'" data-library-id="'+esc(libraryId)+'" '+(ready?'checked':'disabled')+'>'+
+       '<div class="library-send-doc-text"><b>'+esc(x.titulo)+'</b><br><small>Archivo: '+esc(fileName)+'</small><br><small>ID Biblioteca: '+esc(libraryId)+'</small></div></div>'+
+       '<div class="library-send-doc-actions"><span class="pill '+(ready?'green':'amber')+'">'+(ready?'PDF DISPONIBLE':'SIN PDF')+'</span>'+
        (ready?'<button class="btn soft" type="button" onclick="verDocumentoFinalPDF('+Number(libraryId)+',false)">Ver PDF</button>':'')+
        '</div></div></div>';
    }).join('');
