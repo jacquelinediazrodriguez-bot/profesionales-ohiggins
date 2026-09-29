@@ -746,13 +746,27 @@
    if(!isReal())return original.guardarIntegrante();
    const name=document.getElementById('admNombre').value.trim(),email=document.getElementById('admCorreo').value.trim().toLowerCase(),
      m=document.getElementById('admMesa').value,rol=document.getElementById('admRol').value,
-     status=document.getElementById('admInviteStatus');
-   if(!name||!email.includes('@')||!mesaId(m))return status.textContent='Complete nombre, correo y Mesa.';
+     status=document.getElementById('admInviteStatus'),targetTableId=mesaId(m);
+   if(!name||!email.includes('@')||!targetTableId)return status.textContent='Complete nombre, correo y Mesa.';
    const {data:p,error:pe}=await sbAuth.from('profiles').select('id').eq('email',email).maybeSingle();
    if(pe){console.error(pe);return status.textContent='No se pudo consultar la cuenta.'}
    if(!p)return status.textContent='El profesional debe registrarse y confirmar su correo antes de recibir una Mesa.';
+   const {data:memberships,error:me}=await sbAuth.from('table_memberships')
+     .select('technical_table_id,member_role,is_coordinator,technical_tables(name)')
+     .eq('profile_id',p.id);
+   if(me){console.error(me);return status.textContent='No se pudieron validar los roles actuales del integrante.'}
+   const repeated=(memberships||[]).find(x=>{
+     if(Number(x.technical_table_id)===Number(targetTableId))return false;
+     const existingRole=x.is_coordinator?'Coordinador/a de Mesa':x.member_role;
+     return existingRole===rol;
+   });
+   if(repeated){
+     const otherMesa=repeated.technical_tables?.name||'otra Mesa Técnica';
+     status.textContent='Este integrante ya tiene asignado el rol de '+rol+' en la Mesa '+otherMesa+'. Seleccione un rol diferente.';
+     return;
+   }
    const {error}=await sbAuth.from('table_memberships').upsert({
-      profile_id:p.id,technical_table_id:mesaId(m),member_role:rol,is_coordinator:/Coordinador/.test(rol)
+      profile_id:p.id,technical_table_id:targetTableId,member_role:rol,is_coordinator:/Coordinador/.test(rol)
    },{onConflict:'profile_id,technical_table_id'});
    if(error){console.error(error);return status.textContent='No se pudo guardar la asignación en la nube.'}
    await refreshSharedAdmin();status.textContent='Asignación registrada en la nube ✓';renderIntegrantes();
