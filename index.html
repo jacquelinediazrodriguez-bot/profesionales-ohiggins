@@ -139,7 +139,7 @@ footer{text-align:center;color:var(--muted);padding:24px}
 <main>
 <section id="inicio" class="page active"><div class="hero"><div class="kicker">Versión 1 · Estructura revisada</div><h1>Plataforma Digital Frente PT O’Higgins</h1><div class="tag">Conocimiento · Participación · Colaboración · Propuestas</div><p>Un espacio para organizar el trabajo profesional, desarrollar conocimiento técnico y transformar ese trabajo en propuestas concretas para la Región de O’Higgins.</p><button class="btn primary" onclick="go('mesas')">Conocer Mesas Técnicas</button> <button class="btn soft" onclick="go('biblioteca')">Ver Biblioteca</button></div><div class="grid"><div class="card" onclick="go('quienes')" style="cursor:pointer"><div class="kicker">Institucional</div><h3>Quiénes Somos</h3><p>Propósito, organización y forma de trabajo del Frente.</p></div><div class="card" onclick="go('mesas')" style="cursor:pointer"><div class="kicker">Trabajo técnico</div><h3>Mesas Técnicas</h3><p>Espacios de análisis y elaboración de propuestas. Desde aquí ingresan los profesionales autorizados.</p></div><div class="card" onclick="go('biblioteca')" style="cursor:pointer"><div class="kicker">Conocimiento público</div><h3>Biblioteca</h3><p>Documentos aprobados y autorizados para consulta pública.</p></div><div class="card" onclick="go('contacto')" style="cursor:pointer"><div class="kicker">Vinculación</div><h3>Contacto</h3><p>Consultas y solicitudes de información.</p></div></div><div id="presidencyPublic" class="presidency-section"></div></section>
 <section id="quienes" class="page"><div class="kicker">Área pública</div><h1 class="section-title">Quiénes Somos</h1><div class="grid2"><div class="card"><h3>Quiénes Somos</h3><p>Somos una organización interna de la Democracia Cristiana que reúne a profesionales y técnicos de distintas disciplinas, comprometidos con aportar sus conocimientos, experiencia y vocación de servicio al análisis de los desafíos de la Región de O’Higgins y del país.</p><p>Constituimos un espacio de participación, reflexión y trabajo colaborativo, abierto al estudio y análisis de materias de interés social, político, económico, cultural, territorial y ciudadano.</p></div><div class="card"><h3>Nuestro propósito</h3><p>Convocar y articular las capacidades, conocimientos y experiencia de profesionales y técnicos para analizar los principales desafíos de la Región de O’Higgins y transformarlos en propuestas concretas que contribuyan al desarrollo regional y al trabajo político y programático de la Democracia Cristiana.</p><p>Nuestro trabajo se sustenta en la participación, el conocimiento técnico, la escucha territorial y los principios humanistas cristianos.</p></div><div class="card"><h3>Cómo cumplimos nuestro propósito</h3><p>Trabajamos principalmente mediante Mesas Técnicas y equipos temáticos, integrados por profesionales y técnicos de distintas disciplinas.</p><p>Actualmente el trabajo se inicia en Salud, Educación, Economía, Trabajo y Agricultura, pudiendo incorporarse nuevas áreas según las necesidades regionales.</p></div><div class="card"><h3>Cómo trabajamos</h3><p>Las Mesas analizan antecedentes, escuchan a los actores del territorio, identifican problemas, estudian alternativas y desarrollan propuestas técnicamente fundamentadas.</p></div></div></section>
-<section id="mesas" class="page"><div class="kicker">Acceso privado</div><h1 class="section-title">Mesas Técnicas</h1><div class="notice"><b>Ingreso de integrantes.</b> Para acceder al trabajo de las Mesas Técnicas, primero debe validarse con el correo electrónico y la contraseña asociados a su cuenta. Una vez validado, la plataforma reconocerá automáticamente la Mesa o Mesas asignadas y el rol correspondiente en cada una.</div><br><div class="card" style="max-width:580px"><div class="form"><label>Correo electrónico</label><input id="loginEmail" type="email" placeholder="correo@ejemplo.cl" autocomplete="email"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password"><button class="btn primary" onclick="login()">Validar e ingresar</button><button class="btn soft" type="button" onclick="abrirRecuperacion()">¿Olvidó su contraseña?</button>
+<section id="mesas" class="page"><div class="kicker">Acceso privado</div><h1 class="section-title">Mesas Técnicas</h1><div class="notice"><b>Ingreso de integrantes.</b> Para acceder al trabajo de las Mesas Técnicas, primero debe validarse con el correo electrónico y la contraseña asociados a su cuenta. Una vez validado, la plataforma reconocerá automáticamente la Mesa o Mesas asignadas y el rol correspondiente en cada una.</div><br><div class="card" style="max-width:580px"><div class="form"><label>Correo electrónico</label><input id="loginEmail" type="email" placeholder="correo@ejemplo.cl" autocomplete="email"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password"><button class="btn primary" id="loginSubmit" onclick="login()">Validar e ingresar</button><button class="btn soft" type="button" onclick="abrirRecuperacion()">¿Olvidó su contraseña?</button>
   <div class="mini-note"><b>¿Ya tiene una cuenta?</b> No vuelva a registrarse. Use la recuperación de contraseña para conservar su perfil, sus Mesas de trabajo y los roles asignados.</div>
   <p id="loginMsg" class="muted"></p></div></div>
 <div class="card" style="max-width:580px;margin-top:16px"><h3>Acceso por invitación</h3><p>El acceso privado a las Mesas Técnicas es solo por invitación. Un Coordinador puede proponer la incorporación de un profesional y Administración debe aprobarla antes de enviar la invitación.</p><div class="mini-note"><b>Si recibió una invitación:</b> abra el enlace enviado a su correo, defina su contraseña y luego ingrese desde esta misma sección.</div></div>
@@ -192,7 +192,7 @@ footer{text-align:center;color:var(--muted);padding:24px}
   <p class="muted">Ingrese el correo asociado a su cuenta. Recibirá un enlace seguro para crear una nueva contraseña.</p>
   <div class="notice"><b>Importante:</b> si ya tiene una cuenta registrada, no debe volver a registrarse. Al recuperar su contraseña conservará su perfil, sus Mesas de trabajo y los roles que tiene asignados.</div><br>
   <div class="form"><label>Correo electrónico</label><input id="recoveryEmail" type="email" placeholder="correo@ejemplo.cl">
-  <div><button class="btn primary" onclick="solicitarRecuperacionClave()">Enviar enlace de recuperación</button> <button class="btn soft" onclick="cerrarRecuperacion()">Cancelar</button></div>
+  <div><button class="btn primary" id="recoverySubmit" onclick="solicitarRecuperacionClave()">Enviar enlace de recuperación</button> <button class="btn soft" onclick="cerrarRecuperacion()">Cancelar</button></div>
   <p id="recoveryStatus" class="muted"></p></div>
 </div>
 <div id="recoveryNewPassword" style="display:none">
@@ -294,17 +294,22 @@ function abrirRecuperacion(){
 }
 function cerrarRecuperacion(){ $('recoveryModal').classList.remove('open'); }
 async function solicitarRecuperacionClave(){
-  const e=$('recoveryEmail').value.trim().toLowerCase(),s=$('recoveryStatus');
-  if(!e||!e.includes('@')){s.textContent='Ingrese un correo electrónico válido.';return}
+  const e=$('recoveryEmail').value.trim().toLowerCase(),s=$('recoveryStatus'),btn=$('recoverySubmit');
+  if(!e||!e.match(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/)){s.textContent='Ingrese un correo electrónico válido.';return}
   if(!sbAuth){s.textContent='El servicio de recuperación no está disponible en este momento.';return}
+  if(btn){btn.disabled=true;btn.textContent='Enviando…'}
   s.textContent='Enviando enlace de recuperación…';
   try{
-    const {error}=await sbAuth.auth.resetPasswordForEmail(e,{redirectTo:'https://profesionalesohiggins.cl/'});
+    const redirectTo=location.origin+location.pathname;
+    const {error}=await sbAuth.auth.resetPasswordForEmail(e,{redirectTo});
     if(error)throw error;
-    s.textContent='Si el correo está registrado, recibirá un enlace para crear una nueva contraseña. No vuelva a registrarse: conservará su perfil, sus Mesas y sus roles. Revise también Spam o No deseado.';
+    s.textContent='Enlace solicitado. Si el correo pertenece a una cuenta registrada, recibirá un mensaje para crear una nueva contraseña. Revise también Spam o No deseado.';
   }catch(err){
     console.error(err);
-    s.textContent='No fue posible enviar el enlace. Inténtelo nuevamente en unos minutos.';
+    const msg=String(err?.message||'');
+    s.textContent=/rate limit|too many/i.test(msg)?'Se alcanzó temporalmente el límite de envíos. Espere unos minutos y vuelva a intentarlo.':'No fue posible enviar el enlace. Inténtelo nuevamente en unos minutos.';
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Enviar enlace de recuperación'}
   }
 }
 async function guardarNuevaClave(){
@@ -312,16 +317,21 @@ async function guardarNuevaClave(){
   if(p.length<8){s.textContent='La contraseña debe tener al menos 8 caracteres.';return}
   if(p!==p2){s.textContent='Las contraseñas no coinciden.';return}
   if(!sbAuth){s.textContent='El servicio de recuperación no está disponible.';return}
+  s.textContent='Guardando nueva contraseña…';
   try{
+    const {data:{user}}=await sbAuth.auth.getUser();
+    if(!user)throw Error('Recovery session not found');
     const {error}=await sbAuth.auth.updateUser({password:p});
     if(error)throw error;
     $('newRecoveryPass').value='';
     $('newRecoveryPass2').value='';
     s.textContent='Contraseña actualizada correctamente. Ya puede ingresar con su nueva clave.';
-    setTimeout(()=>{cerrarRecuperacion();go('mesas')},1200);
+    await sbAuth.auth.signOut();
+    history.replaceState({},document.title,location.pathname);
+    setTimeout(()=>{cerrarRecuperacion();go('mesas');$('loginEmail')?.focus()},900);
   }catch(err){
     console.error(err);
-    s.textContent='No fue posible actualizar la contraseña. Abra nuevamente el enlace recibido por correo.';
+    s.textContent='El enlace de recuperación no es válido o ya venció. Solicite un nuevo enlace desde «¿Olvidó su contraseña?».';
   }
 }
 if(sbAuth){
@@ -336,13 +346,18 @@ if(sbAuth){
   });
 }
 async function login(){
- const e=$('loginEmail').value.trim().toLowerCase(),p=$('loginPass').value,msg=$('loginMsg');
+ const e=$('loginEmail').value.trim().toLowerCase(),p=$('loginPass').value,msg=$('loginMsg'),btn=$('loginSubmit');
  msg.textContent='';
  if(!e||!p){msg.textContent='Ingrese correo y contraseña.';return}
  if(!sbAuth){msg.textContent='Servicio de acceso no disponible. Intente más tarde.';return}
+ if(btn){btn.disabled=true;btn.textContent='Validando…'}
  try{
   const {data,error}=await sbAuth.auth.signInWithPassword({email:e,password:p});
-  if(error||!data?.user){msg.textContent='Correo o contraseña incorrectos, o cuenta no habilitada.';return}
+  if(error||!data?.user){
+    const detail=String(error?.message||'');
+    msg.textContent=/email not confirmed/i.test(detail)?'Su correo todavía no ha sido confirmado. Abra el mensaje de validación recibido antes de ingresar.':/invalid login credentials/i.test(detail)?'Correo o contraseña incorrectos. Si no recuerda la clave, use «¿Olvidó su contraseña?».':'No fue posible validar la cuenta. Revise sus datos o intente nuevamente.';
+    return;
+  }
   const {data:profile,error:pe}=await sbAuth.from('profiles').select('id,full_name,email,role,is_active').eq('id',data.user.id).maybeSingle();
   if(pe||!profile?.is_active){msg.textContent='Cuenta autenticada, pero falta habilitar el perfil. Contacte a Administración.';await sbAuth.auth.signOut();return}
   const {data:membership,error:me}=await sbAuth.from('table_memberships').select('member_role,is_coordinator,technical_tables(name)').eq('profile_id',profile.id);
@@ -357,6 +372,7 @@ async function login(){
   if(!cloudOk){currentUser=null;sessionStorage.removeItem('frentePT_user');msg.textContent='No se pudo conectar con los datos compartidos. Sus documentos anteriores no han sido modificados. Intente nuevamente.';return}
   if(isAdmin){go('adminarea');renderAdminShell();adminHome()}else{currentDocMesa=all[0].mesa;go('mifrente');privateTab('panel')}
  }catch(err){console.error(err);msg.textContent='No se completó la validación. Revise su conexión.'}
+ finally{if(btn){btn.disabled=false;btn.textContent='Validar e ingresar'}}
 }
 function logout(){if($('wsTitulo'))syncWorkFromUI(true);if(currentUser?.supabaseId&&sbAuth)sbAuth.auth.signOut();currentUser=null;sessionStorage.removeItem('frentePT_user');go('inicio')}
 function restoreSession(){try{currentUser=JSON.parse(sessionStorage.getItem('frentePT_user')||'null');if(currentUser&&!currentUser.systemRole){if(currentUser.rol==='Administrador General')currentUser.systemRole='administrador_general';if(currentUser.rol==='Administrador de Plataforma')currentUser.systemRole='administrador_plataforma'}}catch(e){currentUser=null}}
