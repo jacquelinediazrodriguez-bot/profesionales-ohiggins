@@ -1783,7 +1783,8 @@
    const qs=new URLSearchParams(location.search);
    const tokenHash=qs.get('token_hash');
    if(tokenHash){
-     const {error}=await sbAuth.auth.verifyOtp({token_hash:tokenHash,type:'invite'});
+     const otpType=qs.get('type')==='email'?'email':'invite';
+     const {error}=await sbAuth.auth.verifyOtp({token_hash:tokenHash,type:otpType});
      if(error){
        console.error('Error al validar invitación',error);
        alert('El enlace de invitación no pudo validarse o ya expiró. Solicite a Administración una nueva invitación.');
