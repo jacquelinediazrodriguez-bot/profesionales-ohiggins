@@ -478,8 +478,41 @@ function syncWorkFromUI(persist=true){
 function cambiarMesaTrabajo(m){syncWorkFromUI(true);releaseMyLocks();currentDocMesa=m;renderEspacio($('privatecontent'))}
 function getCoordinator(m){return getIntegrantes().find(x=>x.mesa===m&&/Coordinador/.test(x.rol))?.nombre||'Sin asignar'}
 function snapshotChanged(d){const v=d.versiones.at(-1);if(!v)return true;return JSON.stringify({titulo:d.titulo,contenido:d.contenido,referencias:d.referencias})!==JSON.stringify({titulo:v.titulo,contenido:v.contenido,referencias:v.referencias||[]})}
-function saveVersionCore(showAlert=true){let d=syncWorkFromUI(false);d.estado=normalizeEstado(d.estado);d.ultima=new Date().toLocaleString('es-CL');const n=(d.versiones.at(-1)?.numero||0)+1;d.versiones.push({numero:n,fecha:d.ultima,autor:currentUser.nombre,estado:d.estado,titulo:d.titulo,contenido:structuredClone(d.contenido),referencias:structuredClone(d.referencias)});setWork(currentDocMesa,d);clearDraft(currentDocMesa);releaseMyLocks();if(showAlert)alert('Versión '+n+' guardada.');return d}
-function guardarVersion(){saveVersionCore(true);renderEspacio($('privatecontent'))}
+async function saveVersionCore(showAlert=true){
+  let d=syncWorkFromUI(true);
+  d.estado=normalizeEstado(d.estado);
+  if(currentUser?.supabaseId&&sbAuth){
+    if(!puedeTrabajarMesa(currentDocMesa))return alert('No tiene permiso para guardar versiones de esta Mesa.'),null;
+    const id=typeof mesaId==='function'?mesaId(currentDocMesa):null;
+    if(!id)return alert('La Mesa no está disponible en la nube.'),null;
+    try{
+      if(typeof waitForWorkspaceSync==='function'){
+        const ok=await waitForWorkspaceSync(currentDocMesa,20000);
+        if(!ok)throw new Error('No se logró confirmar el guardado previo.');
+      }
+      const {data,error}=await sbAuth.rpc('create_workspace_version',{p_technical_table_id:id});
+      if(error)throw error;
+      if(data?.data){
+        const remote={...defaultWork(currentDocMesa),...data.data,contenido:migrateContenido(data.data.contenido||{})};
+        setWork(currentDocMesa,remote);
+        clearDraft(currentDocMesa);
+        d=remote;
+      }
+      releaseMyLocks();
+      if(showAlert)alert('Versión '+(data?.numero||d.versiones?.at(-1)?.numero||'')+' guardada desde el documento consolidado de la Mesa.');
+      return d;
+    }catch(e){
+      console.error(e);
+      alert('No se pudo guardar la versión en la nube. Verifique la conexión y vuelva a intentarlo.');
+      return null;
+    }
+  }
+  d.ultima=new Date().toLocaleString('es-CL');
+  const n=(d.versiones.at(-1)?.numero||0)+1;
+  d.versiones.push({numero:n,fecha:d.ultima,autor:currentUser.nombre,estado:d.estado,titulo:d.titulo,contenido:structuredClone(d.contenido),referencias:structuredClone(d.referencias)});
+  setWork(currentDocMesa,d);clearDraft(currentDocMesa);releaseMyLocks();if(showAlert)alert('Versión '+n+' guardada.');return d
+}
+async function guardarVersion(){const d=await saveVersionCore(true);if(d)renderEspacio($('privatecontent'))}
 
 function pubReqKey(){return 'frentePT_solicitudes_publicacion'}
 function getPubRequests(){try{return JSON.parse(localStorage.getItem(pubReqKey())||'[]')}catch(e){return[]}}
@@ -503,7 +536,35 @@ function renderHistory(d){
  const canRestore=puedeGestionarMesa(currentDocMesa);
  return d.versiones.length?d.versiones.slice().reverse().map(v=>`<div class="history-item"><div><b>Versión ${v.numero}</b><br><small>${esc(v.fecha)} · ${esc(v.autor)} · ${esc(normalizeEstado(v.estado))}</small></div>${canRestore?`<button class="btn soft" onclick="restaurarVersion(${v.numero})">Restaurar para editar</button>`:''}</div>`).join(''):'<div class="muted">Aún no hay versiones guardadas.</div>'
 }
-function restaurarVersion(n){const d=getWork(currentDocMesa);if(['Solicitud de publicación','Publicado','Retirado de publicación'].includes(normalizeEstado(d.estado)))return alert('Este documento está bloqueado para edición en su estado actual.');const v=d.versiones.find(x=>x.numero===n);if(!v)return;if(!confirm('¿Restaurar esta versión en el editor? Se sustituirá el borrador actual, pero las versiones guardadas seguirán disponibles.'))return;d.titulo=v.titulo;d.contenido=structuredClone(v.contenido);d.referencias=structuredClone(v.referencias||[]);d.ultima=new Date().toLocaleString('es-CL');try{setWork(currentDocMesa,d);clearDraft(currentDocMesa)}catch(e){console.error(e);return alert('No se pudo conservar la restauración. Revise el espacio disponible en el navegador.')}releaseMyLocks();renderEspacio($('privatecontent'));alert('Versión '+n+' restaurada y guardada como borrador en este navegador. Pulse Guardar versión para registrar formalmente el avance.')}
+async function restaurarVersion(n){
+ const d=getWork(currentDocMesa);
+ if(!puedeGestionarMesa(currentDocMesa))return alert('Solo Coordinación, Secretaría Técnica o Administración pueden restaurar versiones.');
+ if(['Solicitud de publicación','Publicado','Retirado de publicación'].includes(normalizeEstado(d.estado)))return alert('Este documento está bloqueado para edición en su estado actual.');
+ const v=d.versiones.find(x=>Number(x.numero)===Number(n));if(!v)return;
+ if(!confirm('¿Restaurar la versión '+n+'? Se recuperarán título, contenido y referencias. Las tareas, comentarios, vistos buenos y el historial de versiones se conservarán.'))return;
+ if(currentUser?.supabaseId&&sbAuth){
+   const id=typeof mesaId==='function'?mesaId(currentDocMesa):null;if(!id)return alert('La Mesa no está disponible en la nube.');
+   try{
+     const {data,error}=await sbAuth.rpc('restore_workspace_version',{p_technical_table_id:id,p_version:Number(n)});
+     if(error)throw error;
+     if(data?.data){
+       const remote={...defaultWork(currentDocMesa),...data.data,contenido:migrateContenido(data.data.contenido||{})};
+       setWork(currentDocMesa,remote);clearDraft(currentDocMesa);
+     }
+     releaseMyLocks();renderEspacio($('privatecontent'));
+     alert('Versión '+n+' restaurada. Tareas, comentarios y revisiones actuales se mantuvieron.');
+   }catch(e){
+     console.error(e);
+     const msg=String(e?.message||'');
+     if(/Another member is editing/i.test(msg))return alert('No se puede restaurar mientras otro integrante esté editando una sección. Espere a que finalice su edición.');
+     alert('No se pudo restaurar la versión. Inténtelo nuevamente.');
+   }
+   return;
+ }
+ d.titulo=v.titulo;d.contenido=structuredClone(v.contenido);d.referencias=structuredClone(v.referencias||[]);d.ultima=new Date().toLocaleString('es-CL');
+ try{setWork(currentDocMesa,d);clearDraft(currentDocMesa)}catch(e){console.error(e);return alert('No se pudo conservar la restauración.')}
+ releaseMyLocks();renderEspacio($('privatecontent'));alert('Versión '+n+' restaurada como borrador.')
+}
 function getMesaMembers(m){return getIntegrantes().filter(x=>x.mesa===m&&x.estado!=='Inactivo').map(x=>x.nombre).filter(Boolean)}
 function puedeGestionarMesa(m=currentDocMesa){const rol=getRoleForMesa(m);return isAnyAdmin()||/Coordinador|Secretario/i.test(rol)}
 function puedeTrabajarMesa(m=currentDocMesa){return isAnyAdmin()||getAssignedMesas().includes(m)}
