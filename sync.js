@@ -2034,3 +2034,77 @@
       '<button class="btn soft" onclick="privateTab(\'aprobados\')">Ver documentos aprobados</button>';
   };
 })();
+
+
+/* crear-nuevo-documento-v1 */
+(function(){
+  const previousRenderPanel=window.renderPanel;
+
+  window.crearNuevoDocumentoMesa=async function(encodedMesa){
+    const mesa=decodeURIComponent(encodedMesa);
+    if(!getAssignedMesas().includes(mesa))return alert('No tiene acceso a esta Mesa Técnica.');
+
+    const role=getRoleForMesa(mesa);
+    if(!/^Coordinador/i.test(role||'')){
+      return alert('Solo el Coordinador o Coordinadora de la Mesa puede iniciar un nuevo documento.');
+    }
+
+    const actual=getWork(mesa);
+    if(!['Publicado','Retirado de publicación'].includes(actual.estado)){
+      return alert('Para crear un nuevo documento, el documento actual debe estar publicado o retirado de publicación.');
+    }
+
+    const ok=confirm('¿Crear un nuevo documento para la Mesa '+mesa+'?\n\nEl documento publicado se conservará en la Biblioteca y se abrirá un documento nuevo en blanco, comenzando nuevamente en estado En elaboración.');
+    if(!ok)return;
+
+    try{
+      const {data:table,error:tableError}=await sbAuth.from('technical_tables')
+        .select('id').eq('name',mesa).maybeSingle();
+      if(tableError||!table?.id)throw tableError||new Error('Mesa no encontrada');
+
+      const {data,error}=await sbAuth.rpc('start_new_workspace_document',{
+        p_technical_table_id:table.id
+      });
+      if(error)throw error;
+
+      alert('Nuevo documento creado para la Mesa '+mesa+'. El documento anterior permanece en la Biblioteca.');
+      currentDocMesa=mesa;
+      location.reload();
+    }catch(err){
+      console.error(err);
+      const msg=String(err?.message||'');
+      if(/Only the table coordinator/i.test(msg))alert('Solo el Coordinador o Coordinadora de la Mesa puede iniciar un nuevo documento.');
+      else if(/only be started after/i.test(msg))alert('El documento actual todavía no está cerrado. Debe estar publicado o retirado antes de iniciar otro.');
+      else if(/Published copy not found/i.test(msg))alert('No se encontró la copia publicada en Biblioteca. No se modificó el documento actual.');
+      else alert('No fue posible crear el nuevo documento. El documento actual no fue modificado.');
+    }
+  };
+
+  window.renderPanel=function(c){
+    const ass=getAssignedMesas();
+    const cards=ass.map(m=>{
+      const d=getWork(m),role=getRoleForMesa(m),version=d.versiones.length?d.versiones[d.versiones.length-1].numero:'—';
+      const closed=['Publicado','Retirado de publicación'].includes(d.estado);
+      const canCreate=closed&&/^Coordinador/i.test(role||'');
+      return '<div class="card" style="margin-bottom:14px">'+
+        '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
+          '<div><small>Mesa Técnica</small><h3 style="margin:4px 0 2px">'+esc(m)+'</h3><span class="pill">'+esc(role)+'</span></div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+            '<button class="btn primary" onclick="abrirMesaTrabajo(\''+encodeURIComponent(m)+'\')">Abrir Mesa</button>'+
+            (canCreate?'<button class="btn soft" onclick="crearNuevoDocumentoMesa(\''+encodeURIComponent(m)+'\')">Crear nuevo documento</button>':'')+
+          '</div>'+
+        '</div>'+
+        '<div class="summary-card" style="margin-top:14px">'+
+          '<div><small>Documento actual</small><br><b>'+esc(d.titulo||'Sin título')+'</b></div>'+
+          '<div><small>Estado</small><br><span class="pill">'+esc(d.estado)+'</span></div>'+
+          '<div><small>Versión</small><br><b>'+version+'</b></div>'+
+          '<div><small>Última actualización</small><br><b>'+esc(d.ultima||'Sin registro')+'</b></div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+    c.innerHTML='<div class="kicker">Área privada</div><h1 class="section-title">Mi Trabajo</h1>'+
+      '<div class="notice"><b>'+esc(currentUser.nombre)+'</b><br>Estas son todas sus Mesas Técnicas y el rol asignado en cada una.</div><br>'+
+      (cards||'<div class="notice">No tiene Mesas Técnicas asignadas.</div>')+
+      '<button class="btn soft" onclick="privateTab(\'aprobados\')">Ver documentos aprobados</button>';
+  };
+})();
