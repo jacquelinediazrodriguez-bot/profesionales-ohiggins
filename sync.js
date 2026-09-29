@@ -1617,12 +1617,29 @@
    const sent=(rows||[]).filter(x=>!x.technical_table_id&&x.invitation_sent_at);
    const requests=(rows||[]).filter(x=>x.technical_table_id);
    const fmt=d=>d?new Date(d).toLocaleString('es-CL'):'—';
+   // Para cada correo, solo la invitación más reciente asociada al registro
+   // puede mostrarse como “Registro completado”. Las anteriores conservan su
+   // valor histórico y se identifican como “Invitación anterior”.
+   const completedRowByEmail=new Map();
+   for(const x of sent){
+     if(!x.registered_at)continue;
+     const key=String(x.email||'').trim().toLowerCase();
+     const current=completedRowByEmail.get(key);
+     if(!current||new Date(x.invitation_sent_at||0)>new Date(current.invitation_sent_at||0))completedRowByEmail.set(key,x);
+   }
+   const regView=x=>{
+     const key=String(x.email||'').trim().toLowerCase();
+     const selected=completedRowByEmail.get(key);
+     if(x.registered_at&&selected&&String(selected.id)===String(x.id))return {label:'Registro completado',date:x.registered_at,green:true};
+     if(selected&&new Date(x.invitation_sent_at||0)<new Date(selected.invitation_sent_at||0))return {label:'Invitación anterior',date:null,green:false};
+     return {label:'Pendiente de registro',date:null,green:false};
+   };
    c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Invitaciones de integrantes</h1>'+
     '<div class="notice"><b>Seguimiento de la invitación:</b> “Estado del correo” indica únicamente si el mensaje fue enviado, entregado o tuvo un problema de entrega. “Estado del registro” cambia a “Registro completado” solo cuando la persona entra a la plataforma y finaliza la creación de su acceso. Posteriormente, Administración asigna Mesa Técnica y rol según la constitución de la Mesa.</div><br>'+
     '<button class="btn primary" onclick="adminInvitacionDirecta()">＋ Invitar directamente</button> <button id="btnActualizarInvitaciones" class="btn soft" onclick="actualizarEstadosInvitaciones()">↻ Actualizar estados</button> <span id="estadoActualizacionInvitaciones" class="muted" style="margin-left:8px">'+esc(window._inviteRefreshMessage||'')+'</span>'+
     '<h2 class="section-sub">Registro de invitaciones enviadas</h2>'+
     (sent.length?'<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden"><thead><tr style="text-align:left;background:#f7f9fc"><th style="padding:10px">Fecha invitación</th><th style="padding:10px">Correo</th><th style="padding:10px">Estado del correo</th><th style="padding:10px">Estado del registro</th><th style="padding:10px">Fecha de registro</th></tr></thead><tbody>'+
-      sent.map(x=>'<tr style="border-top:1px solid var(--line)"><td style="padding:10px">'+esc(fmt(x.invitation_sent_at||x.requested_at))+'</td><td style="padding:10px"><b>'+esc(x.email)+'</b></td><td style="padding:10px"><span class="pill '+(x.email_delivery_status==='Entregado'?'green':/Fallido|Rebotado|Reclamado|Suprimido/.test(x.email_delivery_status||'')?'amber':'')+'">'+esc(x.email_delivery_status||'Enviado')+'</span></td><td style="padding:10px"><span class="pill '+(x.registered_at?'green':'')+'">'+(x.registered_at?'Registro completado':'Pendiente de registro')+'</span></td><td style="padding:10px">'+esc(x.registered_at?fmt(x.registered_at):'—')+'</td></tr>').join('')+
+      sent.map(x=>{const rv=regView(x);return '<tr style="border-top:1px solid var(--line)"><td style="padding:10px">'+esc(fmt(x.invitation_sent_at||x.requested_at))+'</td><td style="padding:10px"><b>'+esc(x.email)+'</b></td><td style="padding:10px"><span class="pill '+(x.email_delivery_status==='Entregado'?'green':/Fallido|Rebotado|Reclamado|Suprimido/.test(x.email_delivery_status||'')?'amber':'')+'">'+esc(x.email_delivery_status||'Enviado')+'</span></td><td style="padding:10px"><span class="pill '+(rv.green?'green':'')+'">'+esc(rv.label)+'</span></td><td style="padding:10px">'+esc(rv.date?fmt(rv.date):'—')+'</td></tr>'}).join('')+
       '</tbody></table></div>':'<div class="card"><p>No hay invitaciones enviadas todavía.</p></div>')+
     '<h2 class="section-sub">Solicitudes recibidas</h2>'+
     (requests.length?requests.map(x=>{
