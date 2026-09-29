@@ -1609,7 +1609,7 @@
    try{await sbAuth.functions.invoke('member-invitation',{body:{action:'check_delivery'}})}catch(e){console.warn('No se pudo actualizar estado de entrega',e)}
    const [{data:rows,error},{data:profiles}]=await Promise.all([
      sbAuth.from('member_invitation_requests')
-       .select('id,full_name,email,profession,phone,technical_table_id,proposed_role,status,requested_by,requested_at,reviewed_at,invitation_sent_at,rejection_reason,email_provider_id,email_delivery_status,registered_at,technical_tables(name)')
+       .select('id,full_name,email,profession,phone,technical_table_id,proposed_role,status,requested_by,requested_at,reviewed_at,invitation_sent_at,rejection_reason,email_provider_id,email_delivery_status,delivered_at,registered_at,technical_tables(name)')
        .order('requested_at',{ascending:false}),
      sbAuth.from('profiles').select('id,full_name,email')
    ]);
@@ -1620,10 +1620,10 @@
    const fmt=d=>d?new Date(d).toLocaleString('es-CL'):'—';
    c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Invitaciones de integrantes</h1>'+
     '<div class="notice">Administración envía primero la invitación al correo. La persona completa su registro y, posteriormente, Administración asigna Mesa Técnica y rol según la constitución de la Mesa.</div><br>'+
-    '<button class="btn primary" onclick="adminInvitacionDirecta()">＋ Invitar directamente</button>'+
+    '<button class="btn primary" onclick="adminInvitacionDirecta()">＋ Invitar directamente</button> <button class="btn soft" onclick="adminInvitaciones()">↻ Actualizar estados</button>'+
     '<h2 class="section-sub">Registro de invitaciones enviadas</h2>'+
-    (sent.length?'<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden"><thead><tr style="text-align:left;background:#f7f9fc"><th style="padding:10px">Fecha y hora</th><th style="padding:10px">Correo</th><th style="padding:10px">Estado correo</th><th style="padding:10px">Registro</th></tr></thead><tbody>'+
-      sent.map(x=>'<tr style="border-top:1px solid var(--line)"><td style="padding:10px">'+esc(fmt(x.invitation_sent_at||x.requested_at))+'</td><td style="padding:10px"><b>'+esc(x.email)+'</b></td><td style="padding:10px"><span class="pill '+(x.email_delivery_status==='Entregado'?'green':/Fallido|Rebotado|Reclamado/.test(x.email_delivery_status||'')?'amber':'')+'">'+esc(x.email_delivery_status||'Enviado')+'</span></td><td style="padding:10px"><span class="pill '+(x.registered_at?'green':'')+'">'+(x.registered_at?'Registro completado':'Pendiente')+'</span></td></tr>').join('')+
+    (sent.length?'<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden"><thead><tr style="text-align:left;background:#f7f9fc"><th style="padding:10px">Fecha y hora</th><th style="padding:10px">Correo</th><th style="padding:10px">Estado correo</th><th style="padding:10px">Entrega</th><th style="padding:10px">Registro</th></tr></thead><tbody>'+
+      sent.map(x=>'<tr style="border-top:1px solid var(--line)"><td style="padding:10px">'+esc(fmt(x.invitation_sent_at||x.requested_at))+'</td><td style="padding:10px"><b>'+esc(x.email)+'</b></td><td style="padding:10px"><span class="pill '+(x.email_delivery_status==='Entregado'?'green':/Fallido|Rebotado|Reclamado|Suprimido/.test(x.email_delivery_status||'')?'amber':'')+'">'+esc(x.email_delivery_status||'Enviado')+'</span></td><td style="padding:10px">'+esc(x.delivered_at?fmt(x.delivered_at):'—')+'</td><td style="padding:10px"><span class="pill '+(x.registered_at?'green':'')+'">'+(x.registered_at?'Registro completado':'Pendiente')+'</span>'+(x.registered_at?'<br><small>'+esc(fmt(x.registered_at))+'</small>':'')+'</td></tr>').join('')+
       '</tbody></table></div>':'<div class="card"><p>No hay invitaciones enviadas todavía.</p></div>')+
     '<h2 class="section-sub">Solicitudes recibidas</h2>'+
     (requests.length?requests.map(x=>{
