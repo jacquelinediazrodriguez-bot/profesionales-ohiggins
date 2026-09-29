@@ -1620,7 +1620,7 @@
    const fmt=d=>d?new Date(d).toLocaleString('es-CL'):'—';
    c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Invitaciones de integrantes</h1>'+
     '<div class="notice">Administración envía primero la invitación al correo. La persona completa su registro y, posteriormente, Administración asigna Mesa Técnica y rol según la constitución de la Mesa.</div><br>'+
-    '<button class="btn primary" onclick="adminInvitacionDirecta()">＋ Invitar directamente</button> <button id="btnActualizarInvitaciones" class="btn soft" onclick="actualizarEstadosInvitaciones()">↻ Actualizar estados</button> <span id="estadoActualizacionInvitaciones" class="muted" style="margin-left:8px"></span>'+
+    '<button class="btn primary" onclick="adminInvitacionDirecta()">＋ Invitar directamente</button> <button id="btnActualizarInvitaciones" class="btn soft" onclick="actualizarEstadosInvitaciones()">↻ Actualizar estados</button> <span id="estadoActualizacionInvitaciones" class="muted" style="margin-left:8px">'+esc(window._inviteRefreshMessage||'')+'</span>'+
     '<h2 class="section-sub">Registro de invitaciones enviadas</h2>'+
     (sent.length?'<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden"><thead><tr style="text-align:left;background:#f7f9fc"><th style="padding:10px">Fecha y hora</th><th style="padding:10px">Correo</th><th style="padding:10px">Estado correo</th><th style="padding:10px">Entrega confirmada</th><th style="padding:10px">Registro</th></tr></thead><tbody>'+
       sent.map(x=>'<tr style="border-top:1px solid var(--line)"><td style="padding:10px">'+esc(fmt(x.invitation_sent_at||x.requested_at))+'</td><td style="padding:10px"><b>'+esc(x.email)+'</b></td><td style="padding:10px"><span class="pill '+(x.email_delivery_status==='Entregado'?'green':/Fallido|Rebotado|Reclamado|Suprimido/.test(x.email_delivery_status||'')?'amber':'')+'">'+esc(x.email_delivery_status||'Enviado')+'</span></td><td style="padding:10px">'+esc(x.delivered_at?fmt(x.delivered_at):'—')+'</td><td style="padding:10px"><span class="pill '+(x.registered_at?'green':'')+'">'+(x.registered_at?'Registro completado':'Pendiente')+'</span>'+(x.registered_at?'<br><small>'+esc(fmt(x.registered_at))+'</small>':'')+'</td></tr>').join('')+
@@ -1634,32 +1634,26 @@
  window.actualizarEstadosInvitaciones=async function(){
    const btn=document.getElementById('btnActualizarInvitaciones'),msg=document.getElementById('estadoActualizacionInvitaciones');
    if(btn){btn.disabled=true;btn.textContent='Actualizando…'}
-   if(msg)msg.textContent='Consultando estado real de correos y registros…';
+   window._inviteRefreshMessage='Consultando estado real de correos y registros…';
+   if(msg)msg.textContent=window._inviteRefreshMessage;
    try{
      const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'check_delivery'}});
      if(error)throw error;
      if(!data?.ok)throw new Error(data?.error||'No fue posible actualizar.');
-     if(msg){
-       const parts=[];
-       if(Number(data.updated||0)>0)parts.push(data.updated+' correo(s) actualizado(s)');
-       if(Number(data.registered_updated||0)>0)parts.push(data.registered_updated+' registro(s) completado(s)');
-       msg.textContent=parts.length?'Actualizado: '+parts.join(' · '):'Revisión completada. No hay cambios nuevos.';
-     }
-     const [{data:rows,error:rowsError},{data:profiles}]=await Promise.all([
-       sbAuth.from('member_invitation_requests')
-         .select('id,full_name,email,profession,phone,technical_table_id,proposed_role,status,requested_by,requested_at,reviewed_at,invitation_sent_at,rejection_reason,email_provider_id,email_delivery_status,delivered_at,registered_at,technical_tables(name)')
-         .order('requested_at',{ascending:false}),
-       sbAuth.from('profiles').select('id,full_name,email')
-     ]);
-     if(rowsError)throw rowsError;
-     // Reutilizar la vista completa después de una actualización efectiva.
-     setTimeout(()=>window.adminInvitaciones(),700);
+     const parts=[];
+     if(Number(data.updated||0)>0)parts.push(data.updated+' correo(s) actualizado(s)');
+     if(Number(data.registered_updated||0)>0)parts.push(data.registered_updated+' registro(s) completado(s)');
+     window._inviteRefreshMessage=parts.length?'Actualizado: '+parts.join(' · '):'Revisión completada. No hay cambios nuevos.';
+     if(msg)msg.textContent=window._inviteRefreshMessage;
+     await window.adminInvitaciones();
    }catch(e){
      console.error(e);
-     if(msg)msg.textContent='No fue posible actualizar los estados. Intente nuevamente.';
+     window._inviteRefreshMessage='No fue posible actualizar los estados. Intente nuevamente.';
+     if(msg)msg.textContent=window._inviteRefreshMessage;
      alert(e?.message||'No fue posible actualizar los estados.');
    }finally{
-     if(btn){btn.disabled=false;btn.textContent='↻ Actualizar estados'}
+     const b=document.getElementById('btnActualizarInvitaciones');
+     if(b){b.disabled=false;b.textContent='↻ Actualizar estados'}
    }
  };
  window.aprobarInvitacionIntegrante=async function(id){
