@@ -1007,7 +1007,7 @@
    const btn=document.getElementById('sendLibraryDocsBtn'),message=(document.getElementById('libraryReplyMessage')?.value||'').trim();
    const requestIds=[...document.querySelectorAll('.library-request-doc:checked')].map(x=>Number(x.value)).filter(Number.isFinite);
    const extraLibraryIds=[...document.querySelectorAll('.library-extra-doc:checked')].map(x=>Number(x.value)).filter(Number.isFinite);
-   if(!requestIds.length&&!extraLibraryIds.length)return alert('Seleccione al menos un documento para adjuntar al correo.');
+   if(!requestIds.length)return alert('Mantenga seleccionado al menos un documento solicitado. Puede agregar otros documentos de la Biblioteca de forma opcional.');
    if(btn){btn.disabled=true;btn.textContent='Enviando PDF oficial…';}
    try{
      if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
@@ -1019,7 +1019,7 @@
      if(selected.length!==libraryIds.length)throw new Error('No fue posible recuperar todos los documentos seleccionados.');
      if(selected.some(p=>!p.finalPdfPath))throw new Error('Uno de los documentos seleccionados no tiene su PDF final oficial guardado.');
      const {data,error}=await sbAuth.functions.invoke('send-library-copy',{body:{
-       request_ids:requestIds.length?requestIds:group.map(x=>Number(x.id)).filter(Number.isFinite),
+       request_ids:requestIds,
        library_ids:libraryIds,
        message
      }});
