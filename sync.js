@@ -387,6 +387,42 @@
    setWork(mesa,d);
    alert('Referencia incorporada en la Mesa '+mesa+'. El contenido original de la publicación no fue modificado.');
  };
+ window.guardarVersion=async function(){
+   if(!isReal())return original.guardarVersion();
+   if(!puedeTrabajarMesa(currentDocMesa))return alert('No tiene permiso para guardar versiones en esta Mesa.');
+   const m=currentDocMesa,id=mesaId(m);if(!id)return alert('La Mesa no está disponible en la nube.');
+   try{
+     if(document.getElementById('wsTitulo'))syncWorkFromUI(true);
+     clearTimeout(STATE.timers[m]);await flush(m);
+     for(let i=0;i<10&&STATE.busy[m];i++)await new Promise(ok=>setTimeout(ok,180));
+     const {data,error}=await sbAuth.rpc('save_workspace_version',{p_technical_table_id:id});
+     if(error)throw error;
+     const remote=copy({...defaultWork(m),...(data?.data||{}),contenido:migrateContenido(data?.data?.contenido||{})});
+     STATE.snapshots[m]=remote;original.setWork(m,remote);
+     localStorage.setItem(snapshotKey(m),JSON.stringify(remote));localStorage.removeItem(pendingKey(m));
+     await refreshSharedLocks();renderEspacio(document.getElementById('privatecontent'));
+     alert('Versión '+String(data?.version||'')+' guardada sobre el documento compartido más reciente.');
+   }catch(e){console.error(e);alert('No se pudo guardar la versión. Revise la conexión e inténtelo nuevamente.');}
+ };
+ window.restaurarVersion=async function(n){
+   if(!isReal())return original.restaurarVersion(n);
+   if(!puedeGestionarMesa(currentDocMesa))return alert('Solo Coordinación, Secretaría Técnica o Administración pueden restaurar una versión completa.');
+   const m=currentDocMesa,id=mesaId(m);if(!id)return alert('La Mesa no está disponible en la nube.');
+   if(!confirm('¿Restaurar la versión '+n+' sobre el documento compartido actual? Se reemplazarán título, secciones y referencias por esa versión. El historial se conservará.'))return;
+   try{
+     const {data,error}=await sbAuth.rpc('restore_workspace_version',{p_technical_table_id:id,p_version:Number(n)});
+     if(error)throw error;
+     const remote=copy({...defaultWork(m),...(data?.data||{}),contenido:migrateContenido(data?.data?.contenido||{})});
+     STATE.snapshots[m]=remote;original.setWork(m,remote);
+     localStorage.setItem(snapshotKey(m),JSON.stringify(remote));localStorage.removeItem(pendingKey(m));
+     releaseMyLocks();renderEspacio(document.getElementById('privatecontent'));
+     alert('Versión '+n+' restaurada sobre el documento compartido. El historial anterior se mantiene disponible.');
+   }catch(e){
+     console.error(e);
+     const msg=String(e?.message||'');
+     alert(/Only Coordination|permission/i.test(msg)?'Solo Coordinación, Secretaría Técnica o Administración pueden restaurar versiones.':'No se pudo restaurar la versión. Inténtelo nuevamente.');
+   }
+ };
  window.solicitarPublicacion=async function(){
    if(!isReal())return original.solicitarPublicacion();
    if(STATE.submittingPublication)return;
