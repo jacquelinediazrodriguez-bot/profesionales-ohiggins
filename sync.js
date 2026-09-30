@@ -51,7 +51,7 @@
    const ac=a.contenido||{},bc=b.contenido||{},sectionPatch={};
    Object.keys(bc).forEach(k=>{if(!same(ac[k],bc[k]))sectionPatch[k]=bc[k]});
    if(Object.keys(sectionPatch).length)patch.contenido=sectionPatch;
-   ['titulo','estado','referencias','tareas','comentarios','revisiones','versiones','ultima'].forEach(k=>{
+   ['titulo','referencias','tareas','comentarios','revisiones','ultima'].forEach(k=>{
      if(!same(a[k],b[k])&&b[k]!==undefined)patch[k]=b[k]
    });
    return patch;
@@ -440,13 +440,11 @@
      }
      const fullPatch={
        titulo:d.titulo||'',
-       estado:'En elaboración',
        contenido:copy(d.contenido||{}),
        referencias:copy(d.referencias||[]),
        tareas:copy(d.tareas||[]),
        comentarios:copy(d.comentarios||[]),
        revisiones:copy(d.revisiones||[]),
-       versiones:copy(d.versiones||[]),
        ultima:d.ultima||new Date().toLocaleString('es-CL')
      };
      const {data:saved,error:saveError}=await sbAuth.rpc('save_workspace_patch',{
