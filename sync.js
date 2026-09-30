@@ -389,10 +389,14 @@
    libraryRequestSubmitting=true;
    if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Enviando solicitud…';}
    try{
-     const rows=pubs.map(p=>({
-       library_id:p.cloud?p.id:null,title:p.titulo,name,email,institution,reason
-     }));
-     const {error}=await sbAuth.from('document_requests').insert(rows);
+     const libraryIds=pubs.map(p=>Number(p.id)).filter(Number.isFinite);
+     const {data:requestGroup,error}=await sbAuth.rpc('submit_library_request',{
+       p_library_ids:libraryIds,
+       p_name:name,
+       p_email:email,
+       p_institution:institution||null,
+       p_reason:reason||null
+     });
      if(error)throw error;
 
      let emailSent=false;
@@ -484,7 +488,7 @@
    const apa=autor+'. ('+ano+'). '+p.titulo+'. '+medio+'.';
    d.referencias=d.referencias||[];
    d.referencias.push({
-     id:Date.now(),tipo:'Publicación de Biblioteca',autor,ano,titulo:p.titulo,
+     id:Date.now(),tipo:'Sitio web',autor,ano,titulo:p.titulo,
      medio,url:'',apa,source_library_id:p.id,origen:p.origen||'Documento de Mesa'
    });
    setWork(mesa,d);
@@ -687,7 +691,8 @@
      respondidaEn:x.responded_at?new Date(x.responded_at).toLocaleString('es-CL'):'',respondidaPor:x.responded_by||null})),
    solicitudes:documents.map(x=>({id:x.id,libraryId:x.library_id,titulo:x.title,nombre:x.name,correo:x.email,institucion:x.institution,
      motivo:x.reason||'',fecha:new Date(x.created_at).toLocaleString('es-CL'),createdAt:x.created_at,estado:x.status,cloud:true,
-     sentAt:x.sent_at||null,adminMessage:x.admin_message||'',deliveryEmailId:x.delivery_email_id||null,copyEmail:x.copy_email||'',sentBy:x.sent_by||null}))};
+     requestGroupId:x.request_group_id||null,
+     sentAt:x.sent_at||null,deliveredAt:x.delivered_at||null,adminMessage:x.admin_message||'',deliveryEmailId:x.delivery_email_id||null,copyEmail:x.copy_email||'',sentBy:x.sent_by||null}))};
    STATE.contacts=contacts;
  }
  window.getAprobados=function(){
@@ -982,8 +987,13 @@
  };
  function solicitudGrupo(id){
    const all=getSolicitudes(),base=all.find(x=>String(x.id)===String(id));if(!base)return [];
+   if(base.requestGroupId){
+     return all.filter(x=>String(x.requestGroupId||'')===String(base.requestGroupId));
+   }
+   // Compatibilidad únicamente con solicitudes históricas anteriores al identificador de grupo.
    const t0=new Date(base.createdAt||0).getTime();
-   return all.filter(x=>String(x.correo||'').toLowerCase()===String(base.correo||'').toLowerCase()
+   return all.filter(x=>!x.requestGroupId
+     &&String(x.correo||'').toLowerCase()===String(base.correo||'').toLowerCase()
      &&String(x.nombre||'')===String(base.nombre||'')
      &&Math.abs(new Date(x.createdAt||0).getTime()-t0)<=10000);
  }
