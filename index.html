@@ -708,25 +708,35 @@ function agregarComentario(){
  d.comentarios.push({id:Date.now(),autor:currentUser.nombre,correo:currentUser.correo,fecha:new Date().toLocaleString('es-CL'),texto:tx,estado:$('newCommentState').value});
  setWork(currentDocMesa,d);renderEspacio($('privatecontent'))
 }
+function esObservacionAdministracion(c){return c?.tipo==='Devolución de publicación'}
 function puedeGestionarComentario(c){
  if(isAnyAdmin()||puedeGestionarMesa())return true;
  return !!c?.correo&&String(c.correo).toLowerCase()===String(currentUser?.correo||'').toLowerCase()
 }
+function puedeResolverComentario(c){
+ if(esObservacionAdministracion(c))return isAnyAdmin()||puedeGestionarMesa();
+ return puedeGestionarComentario(c)
+}
+function puedeEliminarComentario(c){
+ if(esObservacionAdministracion(c))return false;
+ return puedeGestionarComentario(c)
+}
 function renderComments(d){
  return d.comentarios.length?d.comentarios.slice().reverse().map(c=>{
-   const manage=puedeGestionarComentario(c);
-   return `<div class="comment-item"><b>${esc(c.autor)}</b> <span class="pill ${c.estado==='Resuelto'?'green':'amber'}">${esc(c.estado)}</span><br><small>${esc(c.fecha)}</small><p>${esc(c.texto)}</p><div class="toolbar-row">${c.estado!=='Resuelto'&&manage?`<button class="btn soft" onclick="resolverComentario(${c.id})">Marcar resuelto</button>`:''}${manage?` <button class="btn danger" onclick="eliminarComentario(${c.id})">Eliminar</button>`:''}</div></div>`
+   const canResolve=puedeResolverComentario(c),canDelete=puedeEliminarComentario(c),formal=esObservacionAdministracion(c);
+   return `<div class="comment-item">${formal?'<span class="pill amber">OBSERVACIÓN DE ADMINISTRACIÓN</span><br>':''}<b>${esc(c.autor)}</b> <span class="pill ${c.estado==='Resuelto'?'green':'amber'}">${esc(c.estado)}</span><br><small>${esc(c.fecha)}</small><p>${esc(c.texto)}</p><div class="toolbar-row">${c.estado!=='Resuelto'&&canResolve?`<button class="btn soft" onclick="resolverComentario(${c.id})">Marcar resuelto</button>`:''}${canDelete?` <button class="btn danger" onclick="eliminarComentario(${c.id})">Eliminar</button>`:''}${formal?'<small class="muted">Esta observación forma parte del historial de devolución y no puede eliminarse.</small>':''}</div></div>`
  }).join(''):'<div class="muted">No hay mensajes u observaciones registrados.</div>'
 }
 function resolverComentario(id){
  const d=getWork(currentDocMesa),x=d.comentarios.find(c=>c.id===id);if(!x)return;
- if(!puedeGestionarComentario(x))return alert('Solo el autor del comentario, Coordinación, Secretaría Técnica o Administración pueden marcarlo como resuelto.');
+ if(!puedeResolverComentario(x))return alert(esObservacionAdministracion(x)?'Solo Coordinación, Secretaría Técnica o Administración pueden resolver esta observación formal.':'Solo el autor del comentario, Coordinación, Secretaría Técnica o Administración pueden marcarlo como resuelto.');
  x.estado='Resuelto';setWork(currentDocMesa,d);renderEspacio($('privatecontent'))
 }
 function eliminarComentario(id){
  const d=getWork(currentDocMesa),x=d.comentarios.find(c=>c.id===id);if(!x)return;
- if(!puedeGestionarComentario(x))return alert('No tiene permiso para eliminar este comentario.');
- if(!confirm('¿Eliminar definitivamente este comentario?'))return;
+ if(esObservacionAdministracion(x))return alert('Las observaciones formales de Administración no pueden eliminarse porque forman parte del historial de revisión.');
+ if(!puedeEliminarComentario(x))return alert('No tiene permiso para eliminar este comentario.');
+ if(!confirm('¿Eliminar este comentario? Se retirará de la vista de trabajo, pero quedará archivado para trazabilidad.'))return;
  d.comentarios=d.comentarios.filter(c=>c.id!==id);setWork(currentDocMesa,d);renderEspacio($('privatecontent'))
 }
 let editingReferenceId=null;
