@@ -402,7 +402,15 @@
      localStorage.setItem(snapshotKey(m),JSON.stringify(remote));localStorage.removeItem(pendingKey(m));
      await refreshSharedLocks();renderEspacio(document.getElementById('privatecontent'));
      alert('Versión '+String(data?.version||'')+' guardada sobre el documento compartido más reciente.');
-   }catch(e){console.error(e);alert('No se pudo guardar la versión. Revise la conexión e inténtelo nuevamente.');}
+   }catch(e){
+     console.error(e);
+     const msg=String(e?.message||'');
+     if(/Another member is editing/i.test(msg)){
+       alert('No se puede guardar una versión mientras otro integrante esté editando una sección. Espere a que finalice su edición y vuelva a intentarlo.');
+     }else{
+       alert('No se pudo guardar la versión. Revise la conexión e inténtelo nuevamente.');
+     }
+   }
  };
  window.restaurarVersion=async function(n){
    if(!isReal())return original.restaurarVersion(n);
