@@ -518,24 +518,23 @@
    try{
      clearTimeout(STATE.timers[m]);
      let d=syncWorkFromUI(true);
+
+     // Antes de enviar a Administración, confirmar que absolutamente todos
+     // los cambios pendientes (secciones y colecciones compartidas) quedaron
+     // persistidos en Supabase.
+     const synced=await waitForWorkspaceSync(m,20000);
+     if(!synced)throw new Error('No se logró confirmar la sincronización completa antes del envío.');
+
+     d=getWork(m);
      if(snapshotChanged(d)){
        d=await saveVersionCore(false);
        if(!d)throw new Error('No se pudo consolidar la versión antes del envío.');
      }
-     const fullPatch={
-       titulo:d.titulo||'',
-       contenido:copy(d.contenido||{}),
-       ultima:d.ultima||new Date().toLocaleString('es-CL')
-     };
-     const {data:saved,error:saveError}=await sbAuth.rpc('save_workspace_patch',{
-       p_technical_table_id:id,p_patch:fullPatch
-     });
-     if(saveError||!saved?.data)throw saveError||new Error('El servidor no confirmó el guardado final.');
-     const syncedDoc=copy({...defaultWork(m),...saved.data,contenido:migrateContenido(saved.data.contenido||{})});
-     STATE.snapshots[m]=syncedDoc;
-     original.setWork(m,syncedDoc);
-     localStorage.setItem(snapshotKey(m),JSON.stringify(syncedDoc));
-     localStorage.removeItem(pendingKey(m));
+
+     // Volver a confirmar sincronización después de crear la versión final.
+     const versionSynced=await waitForWorkspaceSync(m,20000);
+     if(!versionSynced)throw new Error('No se logró confirmar la versión final antes del envío.');
+
      const {error}=await sbAuth.rpc('submit_publication_request',{p_technical_table_id:id});
      if(error)throw error;
      const {data:row,error:re}=await sbAuth.from('workspace_documents').select('data,state').eq('technical_table_id',id).single();
@@ -1198,21 +1197,30 @@
  };
  window.publicarSolicitud=async function(id){
    if(!isReal())return original.publicarSolicitud(id);
-   const x=getPubRequests().find(a=>a.id===id);if(!x)return;
-   const tema=prompt('Tema para clasificar en Biblioteca:',x.mesa);if(tema===null)return;
+   const cached=getPubRequests().find(a=>a.id===id);if(!cached)return;
+   const tema=prompt('Tema para clasificar en Biblioteca:',cached.mesa);if(tema===null)return;
    const description=prompt('Descripción pública:','Documento técnico autorizado por la Mesa.');if(description===null)return;
    let uploadedPath='';
    try{
+     // Leer la solicitud directamente desde Supabase justo antes de generar
+     // el PDF. Así Administración publica exactamente el snapshot inmutable
+     // que fue enviado por la Coordinación, no una copia antigua del navegador.
+     const {data:req,error:reqError}=await sbAuth.from('publication_requests')
+       .select('id,technical_table_id,title,version,snapshot,status,requested_at,requested_by')
+       .eq('id',id).single();
+     if(reqError)throw reqError;
+     if(req.status!=='Pendiente')throw new Error('La solicitud ya no está pendiente.');
+
+     const mesa=Object.keys(STATE.ids).find(m=>String(STATE.ids[m])===String(req.technical_table_id))||cached.mesa;
      const source={
-       ...copy(x.snapshot||{}),
-       ...copy(x),
+       ...copy(req.snapshot||{}),
        id:0,
-       mesa:x.mesa,
-       titulo:x.titulo,
-       version:x.version||x.snapshot?.version||1,
-       contenido:copy(x.snapshot?.contenido||x.contenido||{}),
-       referencias:copy(x.snapshot?.referencias||x.referencias||[]),
-       revisiones:copy(x.snapshot?.revisiones||x.revisiones||[]),
+       mesa,
+       titulo:req.title,
+       version:req.version||1,
+       contenido:copy(req.snapshot?.contenido||{}),
+       referencias:copy(req.snapshot?.referencias||[]),
+       revisiones:copy(req.snapshot?.revisiones||[]),
        fechaPublicacion:new Date().toLocaleDateString('es-CL'),
        estado:'Aprobado',
        borrador:false
