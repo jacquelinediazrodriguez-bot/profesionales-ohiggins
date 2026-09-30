@@ -79,7 +79,7 @@
        if(!oldItem){
          ops.push({collection,action:'upsert',item:copy(item),item_id:String(item.id??key)});
        }else if(!same(oldItem,item)){
-         const delta=changedFields(oldItem,item);
+         const delta=collection==='revisiones'?copy(item):changedFields(oldItem,item);
          ops.push({collection,action:'upsert',item:delta,item_id:String(item.id??key)});
        }
      }
