@@ -278,6 +278,33 @@
        saveMesas();
        (tables||[]).forEach(x=>setMesaMeta(x.name,{descripcion:x.description||'',estado:x.is_active?'Activa':'Inactiva'}));
      }
+
+     // Construir el directorio real de integrantes de las Mesas accesibles.
+     // Esto permite asignar tareas a cualquier integrante activo de la misma Mesa
+     // sin depender de datos locales antiguos.
+     const tableIds=[...new Set(Object.values(STATE.ids).map(Number).filter(Boolean))];
+     if(tableIds.length){
+       const {data:teamMemberships,error:teamErr}=await sbAuth.from('table_memberships')
+         .select('profile_id,technical_table_id,member_role,is_coordinator,profiles(id,full_name,email,is_active)')
+         .in('technical_table_id',tableIds);
+       if(teamErr)throw teamErr;
+       const roles=(teamMemberships||[])
+         .filter(x=>x.profiles?.is_active!==false)
+         .map(x=>{
+           const mesaName=Object.keys(STATE.ids).find(m=>String(STATE.ids[m])===String(x.technical_table_id))||'';
+           return {
+             profileId:x.profile_id,
+             technicalTableId:x.technical_table_id,
+             nombre:x.profiles?.full_name||'',
+             correo:x.profiles?.email||'',
+             mesa:mesaName,
+             rol:x.is_coordinator?'Coordinador/a de Mesa':(x.member_role||'Integrante de Mesa'),
+             estado:'Activo'
+           };
+         }).filter(x=>x.mesa&&x.nombre);
+       sessionStorage.setItem('frentePT_real_roles',JSON.stringify(roles));
+     }
+
      await pullWorkspaces();
      const {data:self,error:selfErr}=await sbAuth.from('profiles')
        .select('full_name,profession,specialty,professional_experience,interests').eq('id',STATE.uid).maybeSingle();
