@@ -427,8 +427,50 @@ function privateTab(tab){if($('wsTitulo'))syncWorkFromUI(true);document.querySel
 function renderAportes(c){c.innerHTML='<div class="notice">Ingrese con una cuenta real para gestionar sus aportes individuales.</div>'}
 function renderPanel(c){const ass=getAssignedMesas();const d=getWork(currentDocMesa);c.innerHTML=`<div class="kicker">Área privada</div><h1 class="section-title">Mi Trabajo</h1><div class="notice"><b>${esc(currentUser.nombre)}</b>${ass.length?' · '+ass.map(m=>esc(m)+' ('+esc(getRoleForMesa(m))+')').join(' · '):''}</div><br><div class="card summary-card"><div><small>Documento actual</small><br><b>${esc(d.titulo||'Sin título')}</b></div><div><small>Estado</small><br><span class="pill">${esc(d.estado)}</span></div><div><small>Versión</small><br><b>${d.versiones.length?d.versiones[d.versiones.length-1].numero:'—'}</b></div><div><small>Última actualización</small><br><b>${esc(d.ultima||'Sin registro')}</b></div></div><br><button class="btn primary" onclick="privateTab('espacio')">Continuar trabajando</button> <button class="btn soft" onclick="privateTab('aprobados')">Ver documentos aprobados</button>`}
 function getProfileKey(){return 'frentePT_perfil_'+(currentUser?.correo||'demo')}
-function renderPerfil(c){let p={};try{p=JSON.parse(localStorage.getItem(getProfileKey())||'{}')}catch(e){}const ass=getAssignedMesas();c.innerHTML=`<div class="kicker">Perfil profesional</div><h1 class="section-title">Mi Perfil</h1><div class="card form"><label>Nombre</label><input id="pfNombre" value="${esc(p.nombre||currentUser.nombre)}"><label>Correo</label><input value="${esc(currentUser.correo)}" disabled><label>Profesión</label><input id="pfProf" value="${esc(p.profesion||'')}" placeholder="Profesión"><label>Especialidad</label><input id="pfEsp" value="${esc(p.especialidad||'')}" placeholder="Especialidad"><label>Experiencia</label><textarea id="pfExp" rows="4">${esc(p.experiencia||'')}</textarea><label>Áreas de interés</label><input id="pfInteres" value="${esc(p.intereses||'')}" placeholder="Ej.: empleo, educación, desarrollo regional"><label>Mesa(s) asignada(s)</label><input value="${esc(ass.join(', ')||'Sin asignación')}" disabled><label>Rol(es) asignado(s)</label><textarea rows="3" disabled>${esc(ass.map(m=>m+' — '+getRoleForMesa(m)).join('\n'))}</textarea><div class="mini-note">La asignación de Mesa y los roles son definidos exclusivamente por Administración. Una persona puede participar en varias Mesas y tener un rol distinto en cada una.</div><button class="btn primary" onclick="guardarPerfil()">Guardar cambios</button><span id="pfStatus" class="muted"></span></div>`}
-function guardarPerfil(){const p={nombre:$('pfNombre').value.trim(),profesion:$('pfProf').value.trim(),especialidad:$('pfEsp').value.trim(),experiencia:$('pfExp').value.trim(),intereses:$('pfInteres').value.trim()};try{localStorage.setItem(getProfileKey(),JSON.stringify(p));const confirmado=JSON.parse(localStorage.getItem(getProfileKey())||'null');if(JSON.stringify(confirmado)!==JSON.stringify(p))throw Error('La comprobación del perfil no coincide');$('pfStatus').textContent='Perfil guardado y verificado en este navegador.'}catch(e){console.error(e);$('pfStatus').textContent='No fue posible guardar el perfil; copie su información antes de salir.'}}
+async function renderPerfil(c){
+ let local={};try{local=JSON.parse(localStorage.getItem(getProfileKey())||'{}')}catch(e){}
+ let p={...local};
+ if(sbAuth&&currentUser?.supabaseId){
+   const {data,error}=await sbAuth.from('profiles').select('full_name,email,profession,specialty,professional_experience,interests').eq('id',currentUser.supabaseId).maybeSingle();
+   if(!error&&data){
+     p={
+       nombre:data.full_name||local.nombre||currentUser.nombre||'',
+       profesion:data.profession??local.profesion??'',
+       especialidad:data.specialty??local.especialidad??'',
+       experiencia:data.professional_experience??local.experiencia??'',
+       intereses:data.interests??local.intereses??''
+     };
+     try{localStorage.setItem(getProfileKey(),JSON.stringify(p))}catch(e){}
+   }
+ }
+ const ass=getAssignedMesas();
+ c.innerHTML=`<div class="kicker">Perfil profesional</div><h1 class="section-title">Mi Perfil</h1><div class="card form"><label>Nombre</label><input id="pfNombre" value="${esc(p.nombre||currentUser.nombre)}"><label>Correo</label><input value="${esc(currentUser.correo)}" disabled><label>Profesión</label><input id="pfProf" value="${esc(p.profesion||'')}" placeholder="Profesión"><label>Especialidad</label><input id="pfEsp" value="${esc(p.especialidad||'')}" placeholder="Especialidad"><label>Experiencia</label><textarea id="pfExp" rows="4">${esc(p.experiencia||'')}</textarea><label>Áreas de interés</label><input id="pfInteres" value="${esc(p.intereses||'')}" placeholder="Ej.: empleo, educación, desarrollo regional"><label>Mesa(s) asignada(s)</label><input value="${esc(ass.join(', ')||'Sin asignación')}" disabled><label>Rol(es) asignado(s)</label><textarea rows="3" disabled>${esc(ass.map(m=>m+' — '+getRoleForMesa(m)).join('\n'))}</textarea><div class="mini-note">La asignación de Mesa y los roles son definidos exclusivamente por Administración. Una persona puede participar en varias Mesas y tener un rol distinto en cada una.</div><button class="btn primary" onclick="guardarPerfil()">Guardar cambios</button><span id="pfStatus" class="muted"></span></div>`;
+}
+async function guardarPerfil(){
+ const p={nombre:$('pfNombre').value.trim(),profesion:$('pfProf').value.trim(),especialidad:$('pfEsp').value.trim(),experiencia:$('pfExp').value.trim(),intereses:$('pfInteres').value.trim()};
+ const status=$('pfStatus');if(status)status.textContent='Guardando…';
+ try{
+   if(sbAuth&&currentUser?.supabaseId){
+     const {error}=await sbAuth.from('profiles').update({
+       full_name:p.nombre,
+       profession:p.profesion,
+       specialty:p.especialidad,
+       professional_experience:p.experiencia,
+       interests:p.intereses,
+       updated_at:new Date().toISOString()
+     }).eq('id',currentUser.supabaseId);
+     if(error)throw error;
+     currentUser.nombre=p.nombre||currentUser.nombre;
+     sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser));
+   }
+   localStorage.setItem(getProfileKey(),JSON.stringify(p));
+   if(status)status.textContent=sbAuth&&currentUser?.supabaseId?'Perfil guardado en la plataforma y verificado.':'Perfil guardado en este navegador.';
+ }catch(e){
+   console.error(e);
+   try{localStorage.setItem(getProfileKey(),JSON.stringify(p))}catch(_){}
+   if(status)status.textContent='No fue posible sincronizar el perfil con la plataforma. Los cambios quedaron guardados temporalmente en este navegador.';
+ }
+}
 function workKey(m){return 'frentePT_work_'+m}
 function defaultWork(m){const contenido={};STUDY_SECTION_NAMES.forEach(s=>contenido[s]='');return{mesa:m,titulo:'Documento de trabajo de la Mesa '+m,estado:'En elaboración',ultima:'',contenido,referencias:[],tareas:[],comentarios:[],revisiones:[],versiones:[]}}
 function getWork(m){
