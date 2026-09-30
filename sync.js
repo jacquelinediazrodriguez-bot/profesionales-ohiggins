@@ -597,6 +597,37 @@
      const versionSynced=await waitForWorkspaceSync(m,20000);
      if(!versionSynced)throw new Error('No se logró confirmar la versión final antes del envío.');
 
+     // Validación previa: solo los defectos estructurales impiden el envío.
+     // Los demás puntos se muestran como advertencias para que la Coordinación
+     // decida conscientemente si corresponde enviar a Administración.
+     const {data:preflight,error:preflightError}=await sbAuth.rpc('workspace_publication_preflight',{
+       p_technical_table_id:id
+     });
+     if(preflightError)throw preflightError;
+
+     const blockers=Array.isArray(preflight?.blockers)?preflight.blockers:[];
+     if(preflight?.can_submit===false||blockers.length){
+       if(btn){btn.textContent='Solicitar publicación al Administrador';btn.disabled=false;}
+       alert('Antes de enviar el documento debe corregir:\n\n• '+(blockers.length?blockers.join('\n• '):'El documento no cumple las condiciones mínimas de envío.'));
+       return;
+     }
+
+     const warnings=Array.isArray(preflight?.warnings)?preflight.warnings:[];
+     const emptySections=Array.isArray(preflight?.empty_sections)?preflight.empty_sections:[];
+     if(warnings.length){
+       let detail='Revisión previa a publicación:\n\n• '+warnings.join('\n• ');
+       if(emptySections.length)detail+='\n\nSecciones sin contenido:\n• '+emptySections.join('\n• ');
+       detail+='\n\nReferencias: '+Number(preflight?.references_count||0)+
+         ' · Vistos buenos vigentes: '+Number(preflight?.reviews_count||0)+
+         ' · Comentarios pendientes: '+Number(preflight?.pending_comments||0)+
+         ' · Tareas pendientes: '+Number(preflight?.pending_tasks||0);
+       detail+='\n\nEstas son advertencias de revisión, no una regla automática de aprobación. ¿Desea igualmente enviar esta versión a Administración?';
+       if(!confirm(detail)){
+         if(btn){btn.textContent='Solicitar publicación al Administrador';btn.disabled=false;}
+         return;
+       }
+     }
+
      const {error}=await sbAuth.rpc('submit_publication_request',{p_technical_table_id:id});
      if(error)throw error;
      const {data:row,error:re}=await sbAuth.from('workspace_documents').select('data,state').eq('technical_table_id',id).single();
