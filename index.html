@@ -373,9 +373,9 @@ async function login(){
   }
   const {data:profile,error:pe}=await sbAuth.from('profiles').select('id,full_name,email,role,is_active').eq('id',data.user.id).maybeSingle();
   if(pe||!profile?.is_active){msg.textContent='Cuenta autenticada, pero falta habilitar el perfil. Contacte a Administración.';await sbAuth.auth.signOut();return}
-  const {data:membership,error:me}=await sbAuth.from('table_memberships').select('member_role,is_coordinator,technical_tables(name)').eq('profile_id',profile.id);
+  const {data:membership,error:me}=await sbAuth.from('table_memberships').select('member_role,is_coordinator,technical_tables(name,is_active)').eq('profile_id',profile.id);
   if(me){msg.textContent='No se pudo consultar las Mesas asignadas.';await sbAuth.auth.signOut();return}
-  const all=(membership||[]).filter(x=>x.technical_tables?.name).map(x=>({nombre:profile.full_name,correo:e,mesa:x.technical_tables.name,rol:x.is_coordinator?'Coordinador/a de Mesa':x.member_role||'Integrante de Mesa',estado:'Activo'}));
+  const all=(membership||[]).filter(x=>x.technical_tables?.name&&x.technical_tables?.is_active!==false).map(x=>({nombre:profile.full_name,correo:e,mesa:x.technical_tables.name,rol:x.is_coordinator?'Coordinador/a de Mesa':x.member_role||'Integrante de Mesa',estado:'Activo'}));
   if(['administrador_general','administrador_plataforma'].includes(profile.role))all.push({nombre:profile.full_name,correo:e,mesa:'Administración',rol:profile.role==='administrador_general'?'Administrador General':'Administrador de Plataforma',systemRole:profile.role,estado:'Activo'});
   if(!all.length){msg.textContent='Su perfil todavía no tiene Mesas asignadas. Contacte a Administración.';await sbAuth.auth.signOut();return}
   sessionStorage.setItem('frentePT_real_roles',JSON.stringify(all));
