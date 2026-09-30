@@ -510,7 +510,7 @@
  window.solicitarPublicacion=async function(){
    if(!isReal())return original.solicitarPublicacion();
    if(STATE.submittingPublication)return;
-   if(!/Coordinador/.test(getRoleForMesa(currentDocMesa)))return alert('Solo la coordinación puede solicitar publicación.');
+   if(getRoleForMesa(currentDocMesa)!=='Coordinador/a de Mesa')return alert('Solo la coordinación puede solicitar publicación.');
    const m=currentDocMesa,id=mesaId(m);if(!id)return alert('La Mesa no está disponible en la nube.');
    const btn=document.getElementById('btnSolicitarPublicacion');
    if(btn){btn.disabled=true;btn.textContent='Enviando…';}
@@ -1670,7 +1670,7 @@
  };
 
  function coordinatorMesas(){
-   return getAssignedMesas().filter(m=>/Coordinador/i.test(getRoleForMesa(m)));
+   return getAssignedMesas().filter(m=>getRoleForMesa(m)==='Coordinador/a de Mesa');
  }
  window.renderInvitacionesIntegrantes=async function(container){
    const c=container||document.getElementById('privatecontent');if(!c)return;
@@ -2158,7 +2158,7 @@
     if(!getAssignedMesas().includes(mesa))return alert('No tiene acceso a esta Mesa Técnica.');
 
     const role=getRoleForMesa(mesa);
-    if(!/^Coordinador/i.test(role||'')){
+    if(role!=='Coordinador/a de Mesa'){
       return alert('Solo el Coordinador o Coordinadora de la Mesa puede iniciar un nuevo documento.');
     }
 
@@ -2198,7 +2198,7 @@
     const cards=ass.map(m=>{
       const d=getWork(m),role=getRoleForMesa(m),version=d.versiones.length?d.versiones[d.versiones.length-1].numero:'—';
       const closed=['Publicado','Retirado de publicación'].includes(d.estado);
-      const canCreate=closed&&/^Coordinador/i.test(role||'');
+      const canCreate=closed&&role==='Coordinador/a de Mesa';
       return '<div class="card" style="margin-bottom:14px">'+
         '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
           '<div><small>Mesa Técnica</small><h3 style="margin:4px 0 2px">'+esc(m)+'</h3><span class="pill">'+esc(role)+'</span></div>'+
