@@ -589,7 +589,9 @@
    STATE.adminData={integrantes:arr,requests:requests.map(x=>({id:x.id,mesa:Object.keys(STATE.ids).find(m=>String(STATE.ids[m])===String(x.technical_table_id))||'',
      titulo:x.title,fecha:new Date(x.requested_at).toLocaleString('es-CL'),version:x.version,contenido:x.snapshot?.contenido||{},
      referencias:x.snapshot?.referencias||[],solicitante:profiles.find(p=>p.id===x.requested_by)?.full_name||'Coordinación',
-     correo:profiles.find(p=>p.id===x.requested_by)?.email||'',estado:x.status,cloud:true,snapshot:x.snapshot})),
+     correo:profiles.find(p=>p.id===x.requested_by)?.email||'',estado:x.status,cloud:true,snapshot:x.snapshot,
+     ciclo:x.cycle||1,parentRequestId:x.parent_request_id||null,observacion:x.observation||'',
+     respondidaEn:x.responded_at?new Date(x.responded_at).toLocaleString('es-CL'):'',respondidaPor:x.responded_by||null})),
    solicitudes:documents.map(x=>({id:x.id,libraryId:x.library_id,titulo:x.title,nombre:x.name,correo:x.email,institucion:x.institution,
      motivo:x.reason||'',fecha:new Date(x.created_at).toLocaleString('es-CL'),createdAt:x.created_at,estado:x.status,cloud:true,
      sentAt:x.sent_at||null,adminMessage:x.admin_message||'',deliveryEmailId:x.delivery_email_id||null,copyEmail:x.copy_email||'',sentBy:x.sent_by||null}))};
@@ -1295,7 +1297,7 @@
    const body=STUDY_SECTION_NAMES.map(n=>'<h3>'+esc(studyLabel(n))+'</h3><div>'+(sections[n]||'<p class="muted">Sin contenido.</p>')+'</div>').join('');const revs=Array.isArray(s.revisiones)?s.revisiones:[];const reviewBlock='<h2>Revisión técnica</h2>'+(revs.length?'<ul>'+revs.map(r=>'<li><b>'+esc(r.nombre||'')+'</b> — '+esc(r.profesion||'Profesión no registrada')+' · '+esc(r.cargo||'Integrante de Mesa')+'</li>').join('')+'</ul>':'<p class="muted">Sin vistos buenos registrados.</p>');
    const w=window.open('','_blank');
    if(!w)return alert('El navegador bloqueó la vista. Habilite ventanas emergentes para revisar el documento.');
-   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(x.titulo)+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;line-height:1.6}h1,h2,h3{color:#123b67}.meta{background:#f4f7fb;padding:14px;border-radius:10px}</style></head><body><h1>'+esc(x.titulo)+'</h1><div class="meta"><b>Mesa:</b> '+esc(x.mesa)+' · <b>Versión:</b> '+esc(x.version)+' · <b>Solicitado por:</b> '+esc(x.solicitante||'Coordinación')+'</div>'+body+reviewBlock+'</body></html>');
+   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(x.titulo)+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;line-height:1.6}h1,h2,h3{color:#123b67}.meta{background:#f4f7fb;padding:14px;border-radius:10px}</style></head><body><h1>'+esc(x.titulo)+'</h1><div class="meta"><b>Mesa:</b> '+esc(x.mesa)+' · <b>Versión:</b> '+esc(x.version)+' · <b>Ciclo:</b> '+esc(x.ciclo||1)+' · <b>Estado:</b> '+esc(x.estado||'Pendiente')+' · <b>Solicitado por:</b> '+esc(x.solicitante||'Coordinación')+(x.observacion?'<br><b>Observación de devolución:</b> '+esc(x.observacion):'')+'</div>'+body+reviewBlock+'</body></html>');
    w.document.close();
  };
 
@@ -1637,12 +1639,16 @@
    if(ir.error||profiles.error||libs.error){console.error(ir.error||profiles.error||libs.error);c.textContent='No se pudo consultar el flujo de publicaciones.';return}
    STATE.individualRequests=ir.data||[];
    const people=profiles.data||[];
-   const reqs=getPubRequests().filter(x=>x.estado==='Pendiente');
+   const allMesaReqs=getPubRequests();
+   const reqs=allMesaReqs.filter(x=>x.estado==='Pendiente');
+   const returnedReqs=allMesaReqs.filter(x=>x.estado==='Devuelta');
    const individualPending=(ir.data||[]).filter(x=>x.status==='Pendiente');
    c.innerHTML='<div class="kicker">Difusión pública</div><h1 class="section-title">Solicitudes de publicación</h1>'+
-     '<div class="notice">La plataforma distingue entre <b>Documentos de Mesa Técnica</b> y <b>Aportes individuales</b>. Los aportes individuales solo llegan aquí después de la revisión y validación de su Mesa Técnica. Administración revisa la versión exacta validada antes de publicarla o devolverla.</div>'+
+     '<div class="notice">La plataforma distingue entre <b>Documentos de Mesa Técnica</b> y <b>Aportes individuales</b>. Administración revisa exactamente la versión enviada. Si un documento se devuelve, esa solicitud y su snapshot quedan conservados; el siguiente reenvío se registra como un nuevo ciclo y una nueva versión.</div>'+
      '<h2 class="section-sub">Documentos de Mesa pendientes</h2>'+
-     (reqs.length?reqs.map(x=>'<div class="row"><div><span class="pill green">Documento de Mesa</span> <b>'+esc(x.titulo)+'</b><br><small>Mesa '+esc(x.mesa)+' · Versión '+esc(x.version)+' · '+esc(x.solicitante||'Coordinación')+' · '+esc(x.fecha)+'</small></div><div><button class="btn soft" onclick="verSolicitudPublicacion('+x.id+')">Ver documento</button> <button class="btn primary" onclick="publicarSolicitud('+x.id+')">Publicar</button> <button class="btn soft" onclick="rechazarSolicitudPublicacion('+x.id+')">Devolver</button></div></div>').join(''):'<div class="card"><p>No hay documentos de Mesa pendientes.</p></div>')+
+     (reqs.length?reqs.map(x=>'<div class="row"><div><span class="pill green">Documento de Mesa</span> <b>'+esc(x.titulo)+'</b><br><small>Mesa '+esc(x.mesa)+' · Versión '+esc(x.version)+' · Ciclo '+esc(x.ciclo||1)+' · '+esc(x.solicitante||'Coordinación')+' · '+esc(x.fecha)+'</small></div><div><button class="btn soft" onclick="verSolicitudPublicacion('+x.id+')">Ver documento</button> <button class="btn primary" onclick="publicarSolicitud('+x.id+')">Publicar</button> <button class="btn soft" onclick="rechazarSolicitudPublicacion('+x.id+')">Devolver</button></div></div>').join(''):'<div class="card"><p>No hay documentos de Mesa pendientes.</p></div>')+
+     '<h2 class="section-sub">Solicitudes devueltas para corrección</h2>'+
+     (returnedReqs.length?returnedReqs.map(x=>'<div class="row"><div><span class="pill amber">Devuelta</span> <b>'+esc(x.titulo)+'</b><br><small>Mesa '+esc(x.mesa)+' · Versión '+esc(x.version)+' · Ciclo '+esc(x.ciclo||1)+' · '+esc(x.fecha)+(x.respondidaEn?' · Devuelta '+esc(x.respondidaEn):'')+'</small>'+(x.observacion?'<p class="muted"><b>Observación:</b> '+esc(x.observacion)+'</p>':'')+'</div><div><button class="btn soft" onclick="verSolicitudPublicacion('+x.id+')">Ver versión devuelta</button></div></div>').join(''):'<div class="card"><p>No hay solicitudes devueltas.</p></div>')+
      '<h2 class="section-sub">Aportes individuales pendientes</h2>'+
      (individualPending.length?individualPending.map(x=>{const a=people.find(p=>p.id===x.requested_by);return '<div class="row"><div><span class="pill amber">Aporte individual</span> <b>'+esc(x.title)+'</b><br><small>Autor: '+esc(a?.full_name||'Profesional')+(a?.profession?' · '+esc(a.profession):'')+' · '+esc(x.snapshot?.document_type||'')+' · '+esc(x.snapshot?.topic||'')+' · Versión '+x.version+' · '+((x.snapshot?.reviewers||[]).length)+' vistos buenos · '+new Date(x.requested_at).toLocaleString('es-CL')+'</small></div><div><button class="btn soft" onclick="verSolicitudAporteIndividual('+x.id+')">Ver aporte</button> <button class="btn primary" onclick="publicarAporteIndividual('+x.id+')">Publicar</button> <button class="btn soft" onclick="devolverAporteIndividual('+x.id+')">Devolver</button></div></div>'}).join(''):'<div class="card"><p>No hay aportes individuales pendientes.</p></div>')+
      '<h2 class="section-sub">Historial de Biblioteca</h2>'+
