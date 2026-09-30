@@ -560,7 +560,12 @@ async function saveVersionCore(showAlert=true){
       return d;
     }catch(e){
       console.error(e);
-      alert('No se pudo guardar la versión en la nube. Verifique la conexión y vuelva a intentarlo.');
+      const msg=String(e?.message||'');
+      if(/Another member is editing/i.test(msg)){
+        alert('No se puede guardar una versión mientras otro integrante esté editando una sección. Espere a que finalice su edición y vuelva a intentarlo.');
+      }else{
+        alert('No se pudo guardar la versión en la nube. Verifique la conexión y vuelva a intentarlo.');
+      }
       return null;
     }
   }
