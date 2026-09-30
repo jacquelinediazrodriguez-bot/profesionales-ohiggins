@@ -490,6 +490,41 @@
    setWork(mesa,d);
    alert('Referencia incorporada en la Mesa '+mesa+'. El contenido original de la publicación no fue modificado.');
  };
+ window.darVistoBueno=async function(){
+   if(!isReal())return original.darVistoBueno?original.darVistoBueno():undefined;
+   if(!puedeTrabajarMesa(currentDocMesa))return alert('No tiene permiso para revisar este documento.');
+   const m=currentDocMesa,id=mesaId(m);if(!id)return alert('La Mesa no está disponible en la nube.');
+   try{
+     if(document.getElementById('wsTitulo'))syncWorkFromUI(true);
+     const ok=await waitForWorkspaceSync(m,20000);
+     if(!ok)throw new Error('No se pudo confirmar el contenido antes de registrar el visto bueno.');
+     const {data,error}=await sbAuth.rpc('set_workspace_review',{p_technical_table_id:id,p_action:'approve'});
+     if(error)throw error;
+     const remote=copy({...defaultWork(m),...(data?.data||{}),contenido:migrateContenido(data?.data?.contenido||{})});
+     STATE.snapshots[m]=remote;original.setWork(m,remote);
+     localStorage.setItem(snapshotKey(m),JSON.stringify(remote));localStorage.removeItem(pendingKey(m));
+     renderEspacio(document.getElementById('privatecontent'));
+     alert('Visto bueno registrado para el contenido actual del documento.');
+   }catch(e){
+     console.error(e);alert('No se pudo registrar el visto bueno. Verifique la conexión e inténtelo nuevamente.');
+   }
+ };
+ window.retirarVistoBueno=async function(){
+   if(!isReal())return;
+   const m=currentDocMesa,id=mesaId(m);if(!id)return;
+   if(!confirm('¿Retirar su visto bueno de este documento?'))return;
+   try{
+     const {data,error}=await sbAuth.rpc('set_workspace_review',{p_technical_table_id:id,p_action:'withdraw'});
+     if(error)throw error;
+     const remote=copy({...defaultWork(m),...(data?.data||{}),contenido:migrateContenido(data?.data?.contenido||{})});
+     STATE.snapshots[m]=remote;original.setWork(m,remote);
+     localStorage.setItem(snapshotKey(m),JSON.stringify(remote));localStorage.removeItem(pendingKey(m));
+     renderEspacio(document.getElementById('privatecontent'));
+     alert('Su visto bueno fue retirado.');
+   }catch(e){
+     console.error(e);alert('No se pudo retirar el visto bueno.');
+   }
+ };
  window.guardarVersion=async function(){
    if(!isReal())return original.guardarVersion();
    if(!puedeTrabajarMesa(currentDocMesa))return alert('No tiene permiso para guardar versiones en esta Mesa.');
