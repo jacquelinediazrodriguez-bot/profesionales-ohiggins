@@ -1317,7 +1317,11 @@
       const estado=allDelivered?'Entregado':allSent?'Enviado':'Pendiente';
       const uniqueDocs=solicitudDocumentosUnicos(g);
       const names=uniqueDocs.map(y=>y.titulo).join(' · ');
-      return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.nombre)+'</b> · '+esc(x.correo)+'<br><small>'+esc(x.fecha)+(x.institucion?' · '+esc(x.institucion):'')+'</small><p style="margin:8px 0 0"><b>'+uniqueDocs.length+' documento(s):</b> '+esc(names)+'</p>'+(x.copyEmail?'<small>Copia administrativa: '+esc(x.copyEmail)+'</small>':'')+'</div><div><span class="pill '+(estado==='Entregado'?'green':estado==='Enviado'?'amber':'')+'">'+estado+'</span><br><button class="btn soft" style="margin-top:8px" onclick="revisarSolicitudDocumento('+x.id+')">'+(allSent?'Ver envío':'Revisar y enviar')+'</button></div></div></div>';
+      const sentTimes=g.map(y=>y.sentAt).filter(Boolean).sort();
+      const deliveredTimes=g.map(y=>y.deliveredAt).filter(Boolean).sort();
+      const sentLabel=sentTimes.length?' · Enviado '+new Date(sentTimes[sentTimes.length-1]).toLocaleString('es-CL'):'';
+      const deliveredLabel=deliveredTimes.length?' · Entregado '+new Date(deliveredTimes[deliveredTimes.length-1]).toLocaleString('es-CL'):'';
+      return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.nombre)+'</b> · '+esc(x.correo)+'<br><small>'+esc(x.fecha)+(x.institucion?' · '+esc(x.institucion):'')+sentLabel+deliveredLabel+'</small><p style="margin:8px 0 0"><b>'+uniqueDocs.length+' documento(s):</b> '+esc(names)+'</p>'+(x.copyEmail?'<small>Copia administrativa: '+esc(x.copyEmail)+'</small>':'')+'</div><div><span class="pill '+(estado==='Entregado'?'green':estado==='Enviado'?'amber':'')+'">'+estado+'</span><br><button class="btn soft" style="margin-top:8px" onclick="revisarSolicitudDocumento('+x.id+')">'+(allSent?'Ver envío':'Revisar y enviar')+'</button></div></div></div>';
     }).join(''):'<div class="card"><p>Aún no hay solicitudes registradas.</p></div>');
  };
  window.publicarSolicitud=async function(id){
