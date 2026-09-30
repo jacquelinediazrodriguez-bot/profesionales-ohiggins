@@ -947,7 +947,7 @@
      return;
    }
    const {error}=await sbAuth.from('table_memberships').upsert({
-      profile_id:p.id,technical_table_id:targetTableId,member_role:rol,is_coordinator:/Coordinador/.test(rol)
+      profile_id:p.id,technical_table_id:targetTableId,member_role:rol,is_coordinator:rol==='Coordinador/a de Mesa'
    },{onConflict:'profile_id,technical_table_id'});
    if(error){console.error(error);return status.textContent='No se pudo guardar la asignación en la nube.'}
    await refreshSharedAdmin();status.textContent='Asignación registrada en la nube ✓';renderIntegrantes();
@@ -1685,7 +1685,7 @@
        const vistos=(r.feedback||[]).filter(x=>x.feedback_type==='Visto bueno');
        const mensajes=(r.feedback||[]).filter(x=>x.feedback_type==='Mensaje');
        const mine=vistos.some(x=>x.profile_id===STATE.uid);
-       const coord=/Coordinador/.test(getRoleForMesa(mesa));
+       const coord=getRoleForMesa(mesa)==='Coordinador/a de Mesa';
        const open=r.status==='En revisión';
        return '<div class="card" style="margin-bottom:14px"><div class="row"><div><span class="pill amber">'+esc(mesa)+'</span> <b>'+esc(r.snapshot?.title||'Aporte individual')+'</b><br><small>Autor: '+esc(r.snapshot?.author_name||'Profesional')+(r.snapshot?.author_profession?' · '+esc(r.snapshot.author_profession):'')+' · '+esc(r.snapshot?.document_type||'')+' · Versión '+r.version+' · '+new Date(r.requested_at).toLocaleString('es-CL')+'</small><br><small><b>'+vistos.length+'</b> vistos buenos · <b>'+mensajes.length+'</b> mensajes · Estado: '+esc(r.status)+'</small></div></div>'+
        '<div class="toolbar-row" style="margin-top:12px"><button class="btn soft" onclick="verRevisionAporte('+r.id+')">Ver aporte</button>'+
