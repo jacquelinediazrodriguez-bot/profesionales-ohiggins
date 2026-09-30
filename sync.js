@@ -1025,7 +1025,7 @@
    pdf.text(titleLines,pageW/2,93,{align:'center'});
    let my=93+titleLines.length*9+16;
 
-   const coordinador=(typeof getCoordinator==='function'?getCoordinator(x.mesa):'')||'No registrado';
+   const coordinador=x.coordinador_nombre||(typeof getCoordinator==='function'?getCoordinator(x.mesa):'')||'No registrado';
    const fechaRaw=x.fechaPublicacion||x.fecha||new Date().toLocaleDateString('es-CL');
    const fecha=String(fechaRaw).split(',')[0];
    const tipo=x.tipoEstudio||x.tipo_estudio||'Estudio técnico';
@@ -1054,7 +1054,13 @@
    pdf.addPage();y=top;drawHeader();
    write('Equipo de elaboración',{size:15,bold:true,after:6,line:7});
    write('El presente informe fue desarrollado colaborativamente por los integrantes de la Mesa Técnica que se individualizan a continuación.',{size:10,after:5});
-   const team=typeof getTeamForMesa==='function'?getTeamForMesa(x.mesa):[];
+   const team=Array.isArray(x.equipo)&&x.equipo.length
+     ?x.equipo.map(p=>({
+        nombre:p.nombre||'',
+        titulo:[p.profesion||'',p.especialidad||''].filter(Boolean).join(' · ')||'Título profesional no registrado',
+        rol:p.rol||'Integrante de Mesa'
+      }))
+     :(typeof getTeamForMesa==='function'?getTeamForMesa(x.mesa):[]);
    if(team.length){
      team.forEach(p=>write((p.nombre||'')+' - '+(p.titulo||'Título profesional no registrado')+' - '+(p.rol||'Integrante'),{size:9,indent:3,after:2,line:4.5}));
    }else write('Sin integrantes registrados.',{size:9,italic:true});
