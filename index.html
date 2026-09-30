@@ -628,7 +628,7 @@ async function restaurarVersion(n){
  releaseMyLocks();renderEspacio($('privatecontent'));alert('Versión '+n+' restaurada como borrador.')
 }
 function getMesaMembers(m){return getIntegrantes().filter(x=>x.mesa===m&&x.estado!=='Inactivo').map(x=>x.nombre).filter(Boolean)}
-function puedeGestionarMesa(m=currentDocMesa){const rol=getRoleForMesa(m);return isAnyAdmin()||/Coordinador|Secretario/i.test(rol)}
+function puedeGestionarMesa(m=currentDocMesa){const rol=getRoleForMesa(m);return isAnyAdmin()||rol==='Coordinador/a de Mesa'||rol==='Secretario/a Técnico/a'}
 function puedeTrabajarMesa(m=currentDocMesa){return isAnyAdmin()||getAssignedMesas().includes(m)}
 function taskRow(t,i,m){
  const members=getMesaMembers(m),q=t.que==='Nueva tarea'?'':t.que,canDelete=puedeGestionarMesa(m);
