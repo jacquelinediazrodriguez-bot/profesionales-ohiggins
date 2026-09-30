@@ -267,9 +267,9 @@
    STATE.initializing=true;STATE.ready=false;STATE.uid=currentUser.supabaseId;STATE.ids={};STATE.adminData=null;
    try{
      const {data:memberships,error:merr}=await sbAuth.from('table_memberships')
-       .select('technical_table_id,technical_tables(name)').eq('profile_id',STATE.uid);
+       .select('technical_table_id,technical_tables(name,is_active)').eq('profile_id',STATE.uid);
      if(merr)throw merr;
-     (memberships||[]).forEach(x=>{if(x.technical_tables?.name)STATE.ids[x.technical_tables.name]=x.technical_table_id});
+     (memberships||[]).forEach(x=>{if(x.technical_tables?.name&&x.technical_tables?.is_active!==false)STATE.ids[x.technical_tables.name]=x.technical_table_id});
      const {data:tables,error:terr}=await sbAuth.from('technical_tables').select('id,name,description,is_active');
      if(terr)throw terr;
      if(['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){
