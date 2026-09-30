@@ -601,20 +601,29 @@
    if(!isReal())return original.getAprobados();
    const result=new Map();
    const assign=getAssignedMesas();
+   const pubs=window.getPublicaciones().filter(p=>assign.includes(p.mesa));
+
+   // Cada publicación de Biblioteca es un documento histórico independiente,
+   // aunque varios documentos de una misma Mesa tengan el mismo título.
+   for(const p of pubs){
+     result.set('library:'+p.id,{id:2000000+p.id,libraryId:p.id,mesa:p.mesa,titulo:p.titulo,
+       fecha:p.fechaPublicacion||'',version:p.version||1,contenido:copy(p.contenido||{}),
+       referencias:copy(p.referencias||[]),revisiones:copy(p.revisiones||[]),estado:'Aprobado',
+       documentGeneration:p.document_generation||p.documentGeneration||1});
+   }
+
+   // Mostrar el documento actual publicado sólo si todavía no existe su copia
+   // oficial en Biblioteca, evitando duplicarlo.
    for(const mesa of assign){
      const d=getWork(mesa);
-     if(['Aprobado','Publicado'].includes(d.estado)){
-       const id=1000000+(mesaId(mesa)||0);
-       result.set(mesa+'|'+d.titulo,{id,mesa,titulo:d.titulo,fecha:d.ultima||'',
-         version:d.versiones?.at(-1)?.numero||1,contenido:copy(d.contenido||{}),referencias:copy(d.referencias||[]),revisiones:copy(d.revisiones||[]),
-         estado:'Aprobado'});
-     }
-   }
-   for(const p of window.getPublicaciones()){
-     if(!assign.includes(p.mesa))continue;
-     result.set(p.mesa+'|'+p.titulo,{id:2000000+p.id,mesa:p.mesa,titulo:p.titulo,
-       fecha:p.fechaPublicacion||'',version:p.version||1,contenido:copy(p.contenido||{}),
-       referencias:copy(p.referencias||[]),revisiones:copy(p.revisiones||[]),estado:'Aprobado'});
+     if(!['Aprobado','Publicado'].includes(d.estado))continue;
+     const version=d.versiones?.at(-1)?.numero||1;
+     const alreadyInLibrary=pubs.some(p=>p.mesa===mesa&&String(p.titulo)===String(d.titulo)&&Number(p.version||1)===Number(version));
+     if(alreadyInLibrary)continue;
+     const id=1000000+(mesaId(mesa)||0);
+     result.set('workspace:'+mesa,{id,mesa,titulo:d.titulo,fecha:d.ultima||'',version,
+       contenido:copy(d.contenido||{}),referencias:copy(d.referencias||[]),revisiones:copy(d.revisiones||[]),
+       estado:'Aprobado'});
    }
    return [...result.values()];
  };
@@ -1166,7 +1175,12 @@
  };
  window.verDocumentoFinalMesaActual=async function(){
    if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
-   const p=getPublicaciones().find(x=>x.mesa===currentDocMesa&&x.titulo===getWork(currentDocMesa).titulo);
+   const d=getWork(currentDocMesa);
+   const version=d.versiones?.at(-1)?.numero||1;
+   const candidates=getPublicaciones()
+     .filter(x=>x.mesa===currentDocMesa&&x.titulo===d.titulo)
+     .sort((a,b)=>new Date(b.publishedAt||0)-new Date(a.publishedAt||0));
+   const p=candidates.find(x=>Number(x.version||1)===Number(version))||candidates[0];
    if(!p)return alert('No se encontró la publicación final de esta Mesa.');
    return window.verDocumentoFinalPDF(p.id,false);
  };
