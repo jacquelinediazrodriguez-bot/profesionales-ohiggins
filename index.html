@@ -744,7 +744,19 @@ function toggleReferencia(){const p=$('referencePanel');if(p)p.classList.toggle(
 function referenceForm(d){return `<div class="card"><h3 id="refFormTitle">Insertar fuente / referencia</h3><div class="mini-note">Las fuentes forman parte del documento interno de esta Mesa. Cualquier integrante de la Mesa puede agregar fuentes. El autor de la fuente, Coordinación, Secretaría Técnica o Administración pueden modificarla o eliminarla.</div><br><div class="form-row"><div><label>Tipo de fuente</label><select id="refTipo" onchange="previewAPA()"><option>Informe institucional</option><option>Libro</option><option>Artículo</option><option>Sitio web</option><option>Noticia</option><option>Ley / norma</option><option>Estadística</option><option>Entrevista</option></select></div><div><label>Autor o institución</label><input id="refAutor" oninput="previewAPA()" placeholder="Ej.: Instituto Nacional de Estadísticas"></div><div><label>Año</label><input id="refAno" oninput="previewAPA()" placeholder="2026"></div><div><label>Título</label><input id="refTitulo" oninput="previewAPA()" placeholder="Título de la fuente"></div><div><label>Medio / publicación</label><input id="refMedio" oninput="previewAPA()" placeholder="INE, Diario Financiero, revista, etc."></div><div><label>URL</label><input id="refUrl" oninput="previewAPA()" placeholder="https://..."></div></div><label>Referencia APA generada</label><div id="apaPreview" class="apa-preview">Complete autor, año y título para generar la referencia.</div><br><button class="btn primary" id="refSaveBtn" onclick="guardarReferencia()">Guardar fuente</button> <button class="btn soft" onclick="insertarCitaAPA()">Insertar cita en el texto</button> <button class="btn soft" id="refCancelEdit" style="display:none" onclick="cancelarEdicionReferencia()">Cancelar edición</button></div>`}
 function previewAPA(){const r=readRefForm();$('apaPreview').textContent=makeAPA(r)||'Complete autor, año y título para generar la referencia.'}
 function readRefForm(){return{tipo:$('refTipo')?.value||'',autor:$('refAutor')?.value.trim()||'',ano:$('refAno')?.value.trim()||'',titulo:$('refTitulo')?.value.trim()||'',medio:$('refMedio')?.value.trim()||'',url:$('refUrl')?.value.trim()||''}}
-function makeAPA(r){if(!r.autor||!r.ano||!r.titulo)return'';return `${r.autor}. (${r.ano}). ${r.titulo}.${r.medio?' '+r.medio+'.':''}${r.url?' '+r.url:''}`.trim()}
+function makeAPA(r){
+ if(!r.autor||!r.ano||!r.titulo)return'';
+ let out=`${r.autor}. (${r.ano}). ${r.titulo}.`;
+ if(r.medio)out+=' '+r.medio+'.';
+ if(r.url)out+=' '+r.url;
+ return out.trim()
+}
+function referenciaValida(r){
+ if(!r.autor||!r.titulo)return 'Complete Autor/Institución y Título.';
+ if(!/^(\\d{4}|s\\. ?f\\.)$/.test(r.ano||''))return 'El año debe tener cuatro dígitos (por ejemplo, 2026) o indicar s. f.';
+ if(r.url&&!/^https?:\\/\\/\\S+$/i.test(r.url))return 'La URL debe comenzar con http:// o https://';
+ return ''
+}
 function limpiarFormularioReferencia(){
  editingReferenceId=null;
  ['refAutor','refAno','refTitulo','refMedio','refUrl'].forEach(id=>{const e=$(id);if(e)e.value=''});
@@ -757,18 +769,21 @@ function limpiarFormularioReferencia(){
 function puedeGestionarReferencia(r){if(isAnyAdmin()||puedeGestionarMesa())return true;return !!r?.creadoCorreo&&String(r.creadoCorreo).toLowerCase()===String(currentUser?.correo||'').toLowerCase()}
 function guardarReferencia(){
  if(!puedeTrabajarMesa())return alert('No tiene permiso para agregar fuentes en esta Mesa.');
- const r=readRefForm(),apa=makeAPA(r);if(!apa)return alert('Complete al menos Autor/Institución, Año y Título.');
+ const r=readRefForm(),validation=referenciaValida(r);if(validation)return alert(validation);
+ const apa=makeAPA(r);
  const d=syncWorkFromUI(false);d.referencias=Array.isArray(d.referencias)?d.referencias:[];
  if(editingReferenceId!==null){
    const old=d.referencias.find(x=>String(x.id)===String(editingReferenceId));if(!old)return alert('No se encontró la referencia que intenta editar.');
    if(!puedeGestionarReferencia(old))return alert('No tiene permiso para modificar esta referencia.');
-   Object.assign(old,r,{apa,editadoPor:currentUser?.nombre||'',editadoCorreo:currentUser?.correo||'',editadoFecha:new Date().toISOString()});
+   const citaCambio=String(old.autor||'')!==String(r.autor||'')||String(old.ano||'')!==String(r.ano||'');
+   if(citaCambio&&!confirm('Cambió el autor o el año de esta referencia. Las citas ya insertadas en el texto podrían quedar desactualizadas. ¿Guardar igualmente?'))return;
+   Object.assign(old,r,{apa,citaRevisar:citaCambio||!!old.citaRevisar,editadoPor:currentUser?.nombre||'',editadoCorreo:currentUser?.correo||'',editadoFecha:new Date().toISOString()});
  }else{
    Object.assign(r,{id:Date.now(),apa,creadoPor:currentUser?.nombre||'',creadoCorreo:currentUser?.correo||'',creadoFecha:new Date().toISOString()});
    d.referencias.push(r);
  }
  try{setWork(currentDocMesa,d);clearDraft(currentDocMesa)}catch(e){console.error(e);return alert('No se pudo guardar la fuente. Copie sus datos y vuelva a intentarlo.')}
- const wasEdit=editingReferenceId!==null;limpiarFormularioReferencia();mostrarReferencias();alert(wasEdit?'Referencia actualizada.':'Fuente guardada y sincronizando con la Mesa.');
+ const wasEdit=editingReferenceId!==null;limpiarFormularioReferencia();mostrarReferencias();alert(wasEdit?'Referencia actualizada. Los vistos buenos vigentes se invalidarán si cambió la referencia.':'Fuente guardada y sincronizando con la Mesa.');
 }
 function seccionTomadaPorMi(){
  const l=getLock(currentDocMesa,currentSection);
@@ -799,8 +814,8 @@ function cancelarEdicionReferencia(){limpiarFormularioReferencia()}
 function borrarReferencia(id){
  const d=getWork(currentDocMesa),r=d.referencias.find(x=>String(x.id)===String(id));if(!r)return;
  if(!puedeGestionarReferencia(r))return alert('No tiene permiso para eliminar esta referencia.');
- if(!confirm('¿Eliminar esta referencia de la Mesa?'))return;
- d.referencias=d.referencias.filter(x=>String(x.id)!==String(id));setWork(currentDocMesa,d);mostrarReferencias()
+ if(!confirm('¿Eliminar esta referencia de la Mesa? Se retirará del documento, pero quedará archivada para trazabilidad.'))return;
+ d.referencias=d.referencias.filter(x=>String(x.id)!==String(id));setWork(currentDocMesa,d);mostrarReferencias();alert('Referencia retirada. Si existían vistos buenos vigentes, se invalidarán por el cambio en las fuentes.')
 }
 
 function repKey(){return 'frentePT_representantes_dc'}
