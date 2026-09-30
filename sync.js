@@ -46,6 +46,7 @@
  };
  const snapshotKey=m=>'frentePT_lastCloud_'+STATE.uid+'_'+m;
  const pendingKey=m=>'frentePT_syncPending_'+STATE.uid+'_'+m;
+ const COLLECTION_KEYS=['referencias','tareas','comentarios','revisiones'];
  function diff(before,now){
    const patch={},a=before||{},b=now||{};
    const ac=a.contenido||{},bc=b.contenido||{},sectionPatch={};
@@ -55,6 +56,56 @@
      if(!same(a[k],b[k])&&b[k]!==undefined)patch[k]=b[k]
    });
    return patch;
+ }
+ function collectionItemKey(collection,item){
+   if(collection==='revisiones')return String(item?.correo||item?.id||'').toLowerCase();
+   return String(item?.id??'');
+ }
+ function changedFields(oldItem,newItem){
+   const out={};
+   Object.keys(newItem||{}).forEach(k=>{if(!same(oldItem?.[k],newItem?.[k]))out[k]=newItem[k]});
+   if(newItem?.id!==undefined)out.id=newItem.id;
+   return out;
+ }
+ function buildCollectionOps(before,now){
+   const ops=[],a=before||{},b=now||{};
+   for(const collection of COLLECTION_KEYS){
+     const oldArr=Array.isArray(a[collection])?a[collection]:[];
+     const newArr=Array.isArray(b[collection])?b[collection]:[];
+     const oldMap=new Map(oldArr.map(x=>[collectionItemKey(collection,x),x]).filter(([k])=>k));
+     const newMap=new Map(newArr.map(x=>[collectionItemKey(collection,x),x]).filter(([k])=>k));
+     for(const [key,item] of newMap){
+       const oldItem=oldMap.get(key);
+       if(!oldItem){
+         ops.push({collection,action:'upsert',item:copy(item),item_id:String(item.id??key)});
+       }else if(!same(oldItem,item)){
+         const delta=changedFields(oldItem,item);
+         ops.push({collection,action:'upsert',item:delta,item_id:String(item.id??key)});
+       }
+     }
+     if(collection!=='revisiones'){
+       for(const [key,item] of oldMap){
+         if(!newMap.has(key))ops.push({collection,action:'delete',item:null,item_id:String(item.id??key)});
+       }
+     }
+   }
+   return ops;
+ }
+ function mergeCollectionChanges(base,local,remote,collection){
+   const baseArr=Array.isArray(base?.[collection])?base[collection]:[];
+   const localArr=Array.isArray(local?.[collection])?local[collection]:[];
+   const remoteArr=Array.isArray(remote?.[collection])?copy(remote[collection]):[];
+   const baseMap=new Map(baseArr.map(x=>[collectionItemKey(collection,x),x]).filter(([k])=>k));
+   const localMap=new Map(localArr.map(x=>[collectionItemKey(collection,x),x]).filter(([k])=>k));
+   const remoteMap=new Map(remoteArr.map(x=>[collectionItemKey(collection,x),x]).filter(([k])=>k));
+   for(const [key,item] of localMap){
+     const old=baseMap.get(key);
+     if(!old||!same(old,item))remoteMap.set(key,copy(item));
+   }
+   if(collection!=='revisiones'){
+     for(const [key] of baseMap){if(!localMap.has(key))remoteMap.delete(key)}
+   }
+   return [...remoteMap.values()];
  }
  function queue(m){
    if(!isReal()||!mesaId(m)||STATE.submittingPublication)return;
@@ -68,14 +119,36 @@
    try{
      const saved=STATE.snapshots[m]||defaultWork(m),local=getWork(m);
      let patch=diff(saved,local);
-     if(!Object.keys(patch).length){
+     const collectionOps=buildCollectionOps(saved,local);
+     COLLECTION_KEYS.forEach(k=>delete patch[k]);
+     if(!Object.keys(patch).length&&!collectionOps.length){
        localStorage.removeItem(pendingKey(m));label('Guardado en la nube ✓');return;
      }
      label('Guardando en la nube…');
-     const {data,error}=await sbAuth.rpc('save_workspace_patch',{p_technical_table_id:mesaId(m),p_patch:patch});
-     if(error)throw error;
-     if(!data||!data.data)throw Error('El servidor no confirmó el guardado');
-     STATE.snapshots[m]=copy({...defaultWork(m),...data.data,contenido:migrateContenido(data.data.contenido||{})});
+     let confirmed=copy(saved);
+     if(Object.keys(patch).length){
+       const {data,error}=await sbAuth.rpc('save_workspace_patch',{p_technical_table_id:mesaId(m),p_patch:patch});
+       if(error)throw error;
+       if(!data||!data.data)throw Error('El servidor no confirmó el guardado');
+       confirmed=copy(data.data);
+     }
+     for(const op of collectionOps){
+       const {data,error}=await sbAuth.rpc('mutate_workspace_collection',{
+         p_technical_table_id:mesaId(m),
+         p_collection:op.collection,
+         p_action:op.action,
+         p_item:op.item,
+         p_item_id:op.item_id
+       });
+       if(error)throw error;
+       if(!data||!data.data)throw Error('El servidor no confirmó la actualización compartida');
+       confirmed=copy(data.data);
+     }
+     STATE.snapshots[m]=copy({...defaultWork(m),...confirmed,contenido:migrateContenido(confirmed.contenido||{})});
+     const localAfter=getWork(m);
+     const reconciled={...localAfter};
+     COLLECTION_KEYS.forEach(k=>{reconciled[k]=copy(STATE.snapshots[m][k]||[])});
+     original.setWork(m,reconciled);
      localStorage.setItem(snapshotKey(m),JSON.stringify(STATE.snapshots[m]));
      if(!Object.keys(diff(STATE.snapshots[m],getWork(m))).length){
        localStorage.removeItem(pendingKey(m));label('Guardado y verificado en la nube ✓');
@@ -147,7 +220,10 @@
        backupLocal(m,localRaw);
        original.setWork(m,remote);
        if(Object.keys(changes).length){
-         const merged={...remote,...(changes||{}),contenido:{...(remote.contenido||{}),...(changes.contenido||{})}};
+         const safeChanges={...changes};
+         COLLECTION_KEYS.forEach(k=>delete safeChanges[k]);
+         const merged={...remote,...safeChanges,contenido:{...(remote.contenido||{}),...(safeChanges.contenido||{})}};
+         COLLECTION_KEYS.forEach(k=>{merged[k]=mergeCollectionChanges(oldCloud,local,remote,k)});
          original.setWork(m,merged);
          localStorage.setItem(pendingKey(m),'1');
          queue(m);
@@ -449,10 +525,6 @@
      const fullPatch={
        titulo:d.titulo||'',
        contenido:copy(d.contenido||{}),
-       referencias:copy(d.referencias||[]),
-       tareas:copy(d.tareas||[]),
-       comentarios:copy(d.comentarios||[]),
-       revisiones:copy(d.revisiones||[]),
        ultima:d.ultima||new Date().toLocaleString('es-CL')
      };
      const {data:saved,error:saveError}=await sbAuth.rpc('save_workspace_patch',{
@@ -1971,6 +2043,7 @@
      const remote={...defaultWork(m),...remoteRow.data,contenido:migrateContenido(remoteRow.data.contenido||{})};
      if(same(remote,STATE.snapshots[m]))continue;
      const local=getWork(m),unsaved=diff(STATE.snapshots[m]||defaultWork(m),local);
+     COLLECTION_KEYS.forEach(k=>delete unsaved[k]);
      const merged={...remote,...(unsaved||{}),contenido:{...(remote.contenido||{}),...(unsaved.contenido||{})}};
      STATE.snapshots[m]=copy(remote);
      localStorage.setItem(snapshotKey(m),JSON.stringify(remote));
