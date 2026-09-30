@@ -627,28 +627,61 @@ async function restaurarVersion(n){
  try{setWork(currentDocMesa,d);clearDraft(currentDocMesa)}catch(e){console.error(e);return alert('No se pudo conservar la restauración.')}
  releaseMyLocks();renderEspacio($('privatecontent'));alert('Versión '+n+' restaurada como borrador.')
 }
-function getMesaMembers(m){return getIntegrantes().filter(x=>x.mesa===m&&x.estado!=='Inactivo').map(x=>x.nombre).filter(Boolean)}
+function getMesaMemberRecords(m){
+ const seen=new Set();
+ return getIntegrantes().filter(x=>x.mesa===m&&x.estado!=='Inactivo'&&x.nombre).filter(x=>{
+   const k=String(x.profileId||x.correo||x.nombre);
+   if(seen.has(k))return false;seen.add(k);return true;
+ });
+}
+function getMesaMembers(m){return getMesaMemberRecords(m).map(x=>x.nombre)}
 function puedeGestionarMesa(m=currentDocMesa){const rol=getRoleForMesa(m);return isAnyAdmin()||rol==='Coordinador/a de Mesa'||rol==='Secretario/a Técnico/a'}
 function puedeTrabajarMesa(m=currentDocMesa){return isAnyAdmin()||getAssignedMesas().includes(m)}
 function taskRow(t,i,m){
- const members=getMesaMembers(m),q=t.que==='Nueva tarea'?'':t.que,canDelete=puedeGestionarMesa(m);
- return `<div class="task-row"><div class="task-field"><label>Describa cuál es la tarea</label><input value="${esc(q)}" placeholder="Escriba la tarea a realizar" oninput="updTask(${i},'que',this.value)"></div><div class="task-field"><label>Responsable de ejecutar la tarea</label><select onchange="updTask(${i},'quien',this.value)"><option value="">Seleccione responsable de ejecutar la tarea</option>${members.map(n=>`<option value="${esc(n)}" ${t.quien===n?'selected':''}>${esc(n)}</option>`).join('')}</select></div><div class="task-field"><label>Ingrese fecha</label><input type="date" value="${esc(t.cuando)}" onchange="updTask(${i},'cuando',this.value)"></div><div class="task-field"><label>Estado</label><select onchange="updTask(${i},'estado',this.value)"><option ${t.estado==='Pendiente'?'selected':''}>Pendiente</option><option ${t.estado==='Terminada'?'selected':''}>Terminada</option></select></div>${canDelete?'<button class="btn danger" onclick="delTask('+i+')">×</button>':'<span></span>'}</div>`
+ const members=getMesaMemberRecords(m),q=t.que==='Nueva tarea'?'':t.que,canDelete=puedeGestionarMesa(m);
+ const removed=!!t.quien&&t.responsableEstado==='Retirado de la Mesa';
+ const options=members.map(x=>{
+   const value=String(x.profileId||'');
+   const selected=(value&&String(t.quienId||'')===value)||(!t.quienId&&t.quien===x.nombre);
+   return `<option value="${esc(value)}" ${selected?'selected':''}>${esc(x.nombre)} — ${esc(x.rol||'Integrante de Mesa')}</option>`;
+ }).join('');
+ const removedOption=removed?`<option value="__removed__" selected disabled>${esc(t.quien)} — retirado/a de la Mesa</option>`:'';
+ return `<div class="task-row"><div class="task-field"><label>Describa cuál es la tarea</label><input value="${esc(q)}" placeholder="Escriba la tarea a realizar" oninput="updTask(${i},'que',this.value)"></div><div class="task-field"><label>Responsable de ejecutar la tarea</label><select onchange="updTaskResponsible(${i},this.value)"><option value="">Sin responsable asignado</option>${removedOption}${options}</select>${removed?'<small class="muted">El responsable original ya no pertenece a esta Mesa. La tarea se conserva y debe reasignarse.</small>':''}</div><div class="task-field"><label>Fecha límite</label><input type="date" value="${esc(t.cuando||'')}" onchange="updTask(${i},'cuando',this.value)"></div><div class="task-field"><label>Estado</label><select onchange="updTask(${i},'estado',this.value)"><option ${t.estado==='Pendiente'?'selected':''}>Pendiente</option><option ${t.estado==='Terminada'?'selected':''}>Terminada</option></select></div>${canDelete?'<button class="btn danger" onclick="delTask('+i+')">×</button>':'<span></span>'}</div>`
 }
 function renderTareas(c){
  const ass=getAssignedMesas();if(!ass.length&&!isAnyAdmin()){c.innerHTML='<div class="notice">No tiene una Mesa asignada.</div>';return}
  if(!ass.includes(currentDocMesa)&&!isAnyAdmin())currentDocMesa=ass[0];
  const d=getWork(currentDocMesa);
- c.innerHTML=`<div class="kicker">Organización del trabajo</div><h1 class="section-title">Tareas de la Mesa</h1><div class="notice"><b>Trabajo interno de la Mesa.</b> Los integrantes de esta Mesa pueden crear tareas, actualizar responsables, fechas y estados. Solo Coordinación, Secretaría Técnica o Administración pueden eliminar una tarea.</div><br><div class="form-row"><div><label>Mesa Técnica</label><select id="taskMesa" onchange="currentDocMesa=this.value;renderTareas($('privatecontent'))">${ass.map(m=>`<option ${m===currentDocMesa?'selected':''}>${esc(m)}</option>`).join('')}</select></div></div><br><div class="card"><div class="task-head"><span>TAREA</span><span>RESPONSABLE DE EJECUTAR LA TAREA</span><span>FECHA LÍMITE</span><span>ESTADO</span><span></span></div><div id="taskRows">${d.tareas.map((t,i)=>taskRow(t,i,currentDocMesa)).join('')}</div><button class="btn soft" onclick="agregarTarea()">＋ Agregar tarea</button></div>`
+ const pendientes=(d.tareas||[]).filter(t=>t.estado!=='Terminada').length;
+ const retirados=(d.tareas||[]).filter(t=>t.responsableEstado==='Retirado de la Mesa').length;
+ c.innerHTML=`<div class="kicker">Organización del trabajo</div><h1 class="section-title">Tareas de la Mesa</h1><div class="notice"><b>Trabajo interno de la Mesa.</b> Los integrantes pueden crear y actualizar tareas. El responsable debe ser un integrante activo de esta Mesa. Si una persona es retirada, sus tareas se conservan y quedan marcadas para reasignación. Solo Coordinación, Secretaría Técnica o Administración pueden eliminar una tarea.</div><br><div class="summary-card"><div><small>Total</small><br><b>${(d.tareas||[]).length}</b></div><div><small>Pendientes</small><br><b>${pendientes}</b></div><div><small>Responsable retirado</small><br><b>${retirados}</b></div></div><br><div class="form-row"><div><label>Mesa Técnica</label><select id="taskMesa" onchange="currentDocMesa=this.value;renderTareas($('privatecontent'))">${ass.map(m=>`<option ${m===currentDocMesa?'selected':''}>${esc(m)}</option>`).join('')}</select></div></div><br><div class="card"><div class="task-head"><span>TAREA</span><span>RESPONSABLE DE EJECUTAR LA TAREA</span><span>FECHA LÍMITE</span><span>ESTADO</span><span></span></div><div id="taskRows">${(d.tareas||[]).map((t,i)=>taskRow(t,i,currentDocMesa)).join('')}</div><button class="btn soft" onclick="agregarTarea()">＋ Agregar tarea</button></div>`
 }
 function agregarTarea(){
  if(!puedeTrabajarMesa())return alert('No tiene permiso para trabajar en esta Mesa.');
  const d=getWork(currentDocMesa);
- d.tareas.push({id:Date.now(),que:'',quien:'',cuando:'',estado:'Pendiente',creadoPor:currentUser?.nombre||'',creadoCorreo:currentUser?.correo||''});
+ d.tareas.push({id:Date.now(),que:'',quien:'',quienId:'',quienCorreo:'',responsableEstado:'Sin asignar',cuando:'',estado:'Pendiente',creadoPor:currentUser?.nombre||'',creadoCorreo:currentUser?.correo||''});
  setWork(currentDocMesa,d);renderTareas($('privatecontent'))
+}
+function updTaskResponsible(i,profileId){
+ if(!puedeTrabajarMesa())return alert('No tiene permiso para modificar tareas de esta Mesa.');
+ if(profileId==='__removed__')return;
+ const d=getWork(currentDocMesa),t=d.tareas[i];if(!t)return;
+ if(!profileId){
+   Object.assign(t,{quien:'',quienId:'',quienCorreo:'',responsableEstado:'Sin asignar'});
+   delete t.responsableRetiradoEn;
+ }else{
+   const x=getMesaMemberRecords(currentDocMesa).find(p=>String(p.profileId||'')===String(profileId));
+   if(!x)return alert('El responsable seleccionado ya no está disponible en esta Mesa.');
+   Object.assign(t,{quien:x.nombre,quienId:String(x.profileId),quienCorreo:x.correo||'',responsableEstado:'Activo'});
+   delete t.responsableRetiradoEn;
+ }
+ setWork(currentDocMesa,d)
 }
 function updTask(i,k,v){
  if(!puedeTrabajarMesa())return alert('No tiene permiso para modificar tareas de esta Mesa.');
- const d=getWork(currentDocMesa);if(d.tareas[i])d.tareas[i][k]=v;setWork(currentDocMesa,d)
+ const d=getWork(currentDocMesa);if(!d.tareas[i])return;
+ if(k==='estado'&&!['Pendiente','Terminada'].includes(v))return;
+ d.tareas[i][k]=v;setWork(currentDocMesa,d)
 }
 function delTask(i){
  if(!puedeGestionarMesa())return alert('Solo Coordinación, Secretaría Técnica o Administración pueden eliminar tareas.');
