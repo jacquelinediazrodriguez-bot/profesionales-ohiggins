@@ -951,10 +951,16 @@
      status.textContent='Este integrante ya tiene asignado el rol de '+rol+' en la Mesa '+otherMesa+'. Seleccione un rol diferente.';
      return;
    }
-   const {error}=await sbAuth.from('table_memberships').upsert({
-      profile_id:p.id,technical_table_id:targetTableId,member_role:rol,is_coordinator:rol==='Coordinador/a de Mesa'
-   },{onConflict:'profile_id,technical_table_id'});
-   if(error){console.error(error);return status.textContent='No se pudo guardar la asignación en la nube.'}
+   const {data:assigned,error}=await sbAuth.functions.invoke('admin-user',{body:{
+      action:'assign_membership',
+      profile_id:p.id,
+      technical_table_id:Number(targetTableId),
+      member_role:rol
+   }});
+   if(error||!assigned?.ok){
+     console.error(error||assigned);
+     return status.textContent=assigned?.error||'No se pudo guardar la asignación en la nube.';
+   }
    await refreshSharedAdmin();status.textContent='Asignación registrada en la nube ✓';renderIntegrantes();
  };
  window.guardarMesaTecnica=async function(){
@@ -1858,7 +1864,7 @@
     '<label>Profesión</label><input id="invProfession" autocomplete="organization-title">'+
     '<label>Teléfono <span class="muted">(opcional)</span></label><input id="invPhone" autocomplete="tel">'+
     '<label>Mesa Técnica</label><select id="invMesa">'+options+'</select>'+
-    '<label>Rol propuesto</label><select id="invRole"><option>Integrante de Mesa</option><option>Secretario Técnico</option></select>'+
+    '<label>Rol propuesto</label><select id="invRole"><option>Integrante de Mesa</option><option>Secretario/a Técnico/a</option></select>'+
     '<button id="invSubmitBtn" class="btn primary" onclick="solicitarNuevoIntegrante()">Enviar solicitud a Administración</button><p id="invStatus" class="muted"></p></div>'+
     '<h2 class="section-sub">Mis solicitudes</h2>'+
     ((data||[]).length?(data||[]).map(x=>'<div class="row"><div><b>'+esc(x.full_name)+'</b> · '+esc(x.email)+'<br><small>'+esc(x.technical_tables?.name||'Mesa')+' · '+esc(x.proposed_role)+' · '+new Date(x.requested_at).toLocaleString('es-CL')+(x.rejection_reason?' · '+esc(x.rejection_reason):'')+'</small></div><span class="pill '+(x.status==='Cuenta activada'?'green':x.status==='Rechazada'?'amber':'')+'">'+esc(x.status)+'</span></div>').join(''):'<div class="card"><p>Aún no ha enviado solicitudes de incorporación.</p></div>');
