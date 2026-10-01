@@ -1,0 +1,66 @@
+name: Corregir acceso desde Inicio
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-home-access.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-home-access:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Aplicar corrección
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('index.html')
+          text = p.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: se esperaba 1 coincidencia y se encontraron {count}')
+              text = text.replace(old, new, 1)
+
+          old_nav = '''<nav id="publicNav"><button onclick="go('inicio')">Inicio</button><button onclick="go('quienes')">Quiénes Somos</button><button onclick="go('mesas')">Mesas Técnicas</button><button onclick="go('biblioteca')">Biblioteca</button><button onclick="go('galeria')">Galería</button><button onclick="go('contacto')">Contacto</button></nav>'''
+          new_nav = '''<nav id="publicNav"><button onclick="go('inicio')">Inicio</button><button onclick="go('quienes')">Quiénes Somos</button><button onclick="go('mesas')">Mesas Técnicas</button><button onclick="go('biblioteca')">Biblioteca</button><button onclick="go('galeria')">Galería</button><button onclick="go('contacto')">Contacto</button><button class="btn primary" onclick="goAccess()">Acceso</button></nav>'''
+          replace_once(old_nav, new_nav, 'Navegación pública')
+
+          old_hero = '''<button class="btn primary" onclick="go('mesas')">Conocer Mesas Técnicas</button> <button class="btn soft" onclick="go('biblioteca')">Ver Biblioteca</button>'''
+          new_hero = '''<button class="btn primary" onclick="goAccess()">Ingresar a la plataforma</button> <button class="btn soft" onclick="go('mesas')">Conocer Mesas Técnicas</button> <button class="btn soft" onclick="go('biblioteca')">Ver Biblioteca</button>'''
+          replace_once(old_hero, new_hero, 'Botones de Inicio')
+
+          marker = '''function abrirRecuperacion(){'''
+          helper = '''function goAccess(){\n  if(currentUser){\n    if(isAnyAdmin()){\n      go('adminarea');\n      renderAdminShell();\n      adminHome();\n    }else{\n      go('mifrente');\n      privateTab('panel');\n    }\n    return;\n  }\n  go('mesas');\n  setTimeout(()=>{\n    const email=$('loginEmail');\n    if(email){email.focus();email.scrollIntoView({behavior:'smooth',block:'center'})}\n  },150);\n}\n'''
+          if 'function goAccess(){' in text:
+              raise SystemExit('La función goAccess ya existe; se detiene para evitar duplicados.')
+          replace_once(marker, helper + marker, 'Función de acceso')
+
+          p.write_text(text, encoding='utf-8')
+          PY
+
+          grep -q 'onclick="goAccess()">Acceso' index.html
+          grep -q 'Ingresar a la plataforma' index.html
+          grep -q 'function goAccess(){' index.html
+
+      - name: Publicar corrección
+        shell: bash
+        run: |
+          git config user.name "chatgpt-platform-maintenance"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-home-access.yml
+          git add index.html
+          git commit -m "Corregir acceso desde Inicio"
+          git push origin HEAD:main
