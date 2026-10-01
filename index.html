@@ -784,8 +784,8 @@ function makeAPA(r){
 }
 function referenciaValida(r){
  if(!r.autor||!r.titulo)return 'Complete Autor/Institución y Título.';
- if(!/^(\\d{4}|s\\. ?f\\.)$/.test(r.ano||''))return 'El año debe tener cuatro dígitos (por ejemplo, 2026) o indicar s. f.';
- if(r.url&&!/^https?:\\/\\/\\S+$/i.test(r.url))return 'La URL debe comenzar con http:// o https://';
+ if(!/^(\d{4}|s\. ?f\.)$/.test(r.ano||''))return 'El año debe tener cuatro dígitos (por ejemplo, 2026) o indicar s. f.';
+ if(r.url&&!/^https?:\/\/\S+$/i.test(r.url))return 'La URL debe comenzar con http:// o https://';
  return ''
 }
 function limpiarFormularioReferencia(){
