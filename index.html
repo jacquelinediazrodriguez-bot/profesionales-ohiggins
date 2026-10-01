@@ -1909,7 +1909,7 @@ function renderAdminMailSent(){
     items.map(x=>'<div class="card" style="margin-bottom:10px"><b>'+esc(x.subject||'Sin asunto')+'</b><br><small>Para: '+esc(adminMailAddr(x.to))+' · '+esc(adminMailDate(x.created_at))+'</small><br><span class="pill">'+esc(x.last_event||'enviado')+'</span></div>').join('');
 }
 
-function adminContactos(){
+async function adminContactos(){
   if(!requireAdmin())return;
   const c=$('admincontent');
   c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Mensajes de contacto</h1>'+
