@@ -1260,21 +1260,51 @@
    return pub;
  }
  window.verDocumentoFinalPDF=async function(id,descargar=false){
+   // Safari/iOS puede bloquear window.open si se ejecuta después de un await.
+   // Abrimos una pestaña vacía dentro del gesto del usuario y luego la dirigimos
+   // al enlace firmado, cerrándola si la validación falla.
+   const mobileSafari=/iP(ad|hone|od)/.test(navigator.userAgent)||(/Safari/i.test(navigator.userAgent)&&!/Chrome|CriOS|FxiOS|EdgiOS/i.test(navigator.userAgent));
+   const preopened=(!descargar||mobileSafari)?window.open('about:blank','_blank'):null;
    try{
-     if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
-     const p=getPublicaciones().find(x=>String(x.id)===String(id));
-     if(!p||!p.finalPdfPath)return alert('Este documento todavía no tiene un PDF final oficial disponible.');
-     const opts=descargar?{download:p.finalPdfName||'documento-final.pdf'}:undefined;
-     const signed=await sbAuth.storage.from('frente-documentos').createSignedUrl(p.finalPdfPath,300,opts);
+     if(preopened)preopened.document.title=descargar?'Preparando descarga…':'Abriendo PDF…';
+
+     // Verificar directamente en Supabase que la publicación siga vigente.
+     // Así un documento retirado no puede abrirse desde una copia local antigua.
+     const {data:live,error:liveError}=await sbAuth.from('public_library')
+       .select('id,title,is_public,final_pdf_path,final_pdf_name')
+       .eq('id',Number(id)).eq('is_public',true).maybeSingle();
+     if(liveError)throw liveError;
+     if(!live){
+       if(preopened)preopened.close();
+       if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
+       return alert('Este documento ya no se encuentra disponible en la Biblioteca pública.');
+     }
+     if(!live.final_pdf_path){
+       if(preopened)preopened.close();
+       return alert('Este documento todavía no tiene un PDF final oficial disponible.');
+     }
+
+     const filename=live.final_pdf_name||'documento-final.pdf';
+     const opts=descargar?{download:filename}:undefined;
+     const signed=await sbAuth.storage.from('frente-documentos').createSignedUrl(live.final_pdf_path,300,opts);
      if(signed.error||!signed.data?.signedUrl)throw signed.error||new Error('No se pudo crear el acceso al PDF.');
-     if(descargar){
-       const a=document.createElement('a');a.href=signed.data.signedUrl;a.download=p.finalPdfName||'documento-final.pdf';
+
+     if(preopened){
+       preopened.location.replace(signed.data.signedUrl);
+     }else if(descargar){
+       const a=document.createElement('a');
+       a.href=signed.data.signedUrl;
+       a.download=filename;
+       a.rel='noopener';
        document.body.appendChild(a);a.click();a.remove();
      }else{
-       const w=window.open(signed.data.signedUrl,'_blank','noopener,noreferrer');
-       if(!w)location.href=signed.data.signedUrl;
+       location.href=signed.data.signedUrl;
      }
-   }catch(e){console.error(e);alert('No fue posible abrir el documento final en PDF. Inténtelo nuevamente.')}
+   }catch(e){
+     if(preopened&&!preopened.closed)preopened.close();
+     console.error(e);
+     alert(descargar?'No fue posible descargar el PDF final. Inténtelo nuevamente.':'No fue posible abrir el documento final en PDF. Inténtelo nuevamente.');
+   }
  };
  window.verDocumentoFinalMesaActual=async function(){
    if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
