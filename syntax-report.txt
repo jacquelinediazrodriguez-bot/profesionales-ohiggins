@@ -1,0 +1,17 @@
+=== /tmp/inline-0.js ===
+=== /tmp/inline-1.js ===
+=== /tmp/inline-2.js ===
+=== /tmp/inline-3.js ===
+=== /tmp/inline-4.js ===
+=== /tmp/inline-5.js ===
+/tmp/inline-5.js:556
+ if(r.url&&!/^https?:\\/\\/\\S+$/i.test(r.url))return 'La URL debe comenzar con http:// o https://';
+            ^
+
+SyntaxError: Invalid regular expression flags
+    at wrapSafe (node:internal/modules/cjs/loader:1713:18)
+    at checkSyntax (node:internal/main/check_syntax:78:3)
+
+Node.js v22.23.3
+=== /tmp/inline-6.js ===
+=== sync.js ===
