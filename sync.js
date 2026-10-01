@@ -875,9 +875,12 @@
    if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return;
    if(!profileId||!technicalTableId)return alert('No se pudo identificar esta asignación.');
    if(!confirm('¿Quitar a '+nombre+' de la Mesa '+mesa+'?\n\nSe conservarán su cuenta, perfil y cualquier otra Mesa asignada.'))return;
-   const {error}=await sbAuth.from('table_memberships').delete()
-     .eq('profile_id',profileId).eq('technical_table_id',Number(technicalTableId));
-   if(error){console.error(error);return alert('No fue posible quitar al integrante de esta Mesa.')}
+   const {data,error}=await sbAuth.functions.invoke('admin-user',{body:{
+     action:'remove_membership',
+     profile_id:String(profileId),
+     technical_table_id:Number(technicalTableId)
+   }});
+   if(error||!data?.ok){console.error(error||data);return alert(data?.error||'No fue posible quitar al integrante de esta Mesa.')}
    await refreshSharedAdmin();renderIntegrantes();
    alert('El integrante fue quitado únicamente de la Mesa '+mesa+'. Su cuenta y las demás asignaciones permanecen.');
  };
