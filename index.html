@@ -65,16 +65,29 @@ footer{text-align:center;color:var(--muted);padding:24px}
 .library-send-doc-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex:0 0 auto}
 .library-send-doc-actions .pill{white-space:nowrap}
 @media(max-width:760px){
-  .library-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .library-table{min-width:720px}
-  .library-table th,.library-table td{padding:11px 10px}
-  .library-table .library-desc{min-width:280px}
-  .library-scroll-note{display:block}
-  .library-request-bar .btn{width:100%}
+  .library-scroll-note{display:none}
+  .library-table-wrap{overflow:visible;border:0;background:transparent}
+  .library-table{display:block;min-width:0;width:100%}
+  .library-table thead{display:none}
+  .library-table tbody{display:grid;gap:10px}
+  .library-table tr.library-row{display:block;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+  .library-table tr.library-row td{display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;width:100%;padding:10px 12px;border-bottom:1px solid var(--line);min-width:0}
+  .library-table tr.library-row td:last-child{border-bottom:0}
+  .library-table tr.library-row td::before{content:attr(data-label);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+  .library-table tr.library-row .library-select-cell{text-align:left!important;align-items:center}
+  .library-table tr.library-row .library-desc{min-width:0}
+  .library-table tr.library-group{display:block;margin-top:8px}
+  .library-table tr.library-group td{display:block;border:0!important;border-radius:10px;padding:9px 12px}
+  .library-inline-actions{gap:8px}
+  .library-inline-actions button{min-height:44px;padding:8px 2px;text-align:left}
+  .library-title button{min-height:44px}
+  .library-select-cell input[type="checkbox"],.library-select-all{width:24px;height:24px}
+  .library-request-bar{position:sticky;bottom:8px;z-index:4;box-shadow:0 8px 24px rgba(18,59,103,.14)}
+  .library-request-bar .btn{width:100%;min-height:44px}
   .library-send-doc-row{display:grid;grid-template-columns:1fr;gap:10px}
   .library-send-doc-main{width:100%}
   .library-send-doc-actions{justify-content:flex-start;padding-left:30px;flex-wrap:wrap}
-  .library-send-doc-actions .btn{padding:7px 10px}
+  .library-send-doc-actions .btn{padding:9px 10px;min-height:44px}
 }
 
 .edit-status{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:#f7fafc;border-bottom:1px solid var(--line);font-size:13px}.edit-status .who{color:var(--muted)}.edit-status .available{color:var(--green);font-weight:700}.edit-status .busy{color:var(--amber);font-weight:700}.doc-page[contenteditable="false"]{background:#fbfcfe;color:#33465a}.how-box{margin:12px 0}.how-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.how-step{padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}.how-step b{color:var(--blue)}.state-flow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}.state-flow span{padding:6px 10px;border-radius:999px;background:#edf3f8;color:var(--blue);font-weight:750;font-size:12px}.state-flow i{color:var(--muted)}@media(max-width:900px){.how-grid{grid-template-columns:1fr}}
@@ -1153,6 +1166,8 @@ function actualizarBibliotecaSeleccion(){
 function renderBiblioteca(){
   const b=$('bibliotecaLista');if(!b)return;
   let all=getPublicaciones();
+  const publicIds=new Set(all.map(x=>String(x.id)));
+  [...selectedLibraryIds].forEach(id=>{if(!publicIds.has(String(id)))selectedLibraryIds.delete(String(id))});
   syncBibliotecaMonthOptions(all);
   const filtro=$('bibFiltro')?.value||'Todos',mes=$('bibMes')?.value||'Todos',q=($('bibBuscar')?.value||'').toLowerCase();
   let a=all;
@@ -1185,7 +1200,7 @@ function renderBiblioteca(){
       return '<tr class="library-row tone-'+g.tone+'">'+
         '<td class="library-select-cell" data-label="Seleccionar"><input class="bib-select" data-id="'+esc(String(p.id))+'" type="checkbox" aria-label="Seleccionar '+esc(p.titulo)+'" onchange="toggleBibliotecaSeleccion(\''+String(p.id).replace(/'/g,"\\'")+'\',this.checked)"'+checked+'></td>'+
         '<td data-label="Mesa"><span class="pill">'+esc(mesa)+'</span></td>'+
-        '<td data-label="Título"><div class="library-title"><button type="button" onclick="leerBiblioteca('+p.id+')">'+esc(p.titulo)+'</button></div><div class="library-inline-actions"><button type="button" onclick="leerBiblioteca('+p.id+')">Ver documento</button>'+(p.finalPdfPath?'<button type="button" onclick="verDocumentoFinalPDF('+p.id+',false)">Ver documento final en PDF</button>':'')+'<button type="button" onclick="copiarCitaBiblioteca('+p.id+')">Copiar cita</button></div></td>'+
+        '<td data-label="Título"><div class="library-title"><button type="button" onclick="leerBiblioteca('+p.id+')">'+esc(p.titulo)+'</button></div><div class="library-inline-actions"><button type="button" onclick="leerBiblioteca('+p.id+')">Ver documento</button>'+(p.finalPdfPath?'<button type="button" onclick="verDocumentoFinalPDF('+p.id+',false)">Ver PDF final</button><button type="button" onclick="verDocumentoFinalPDF('+p.id+',true)">Descargar PDF</button>':'')+'<button type="button" onclick="copiarCitaBiblioteca('+p.id+')">Copiar cita</button></div></td>'+
         '<td data-label="Breve descripción" class="library-desc">'+esc(descripcion)+'</td>'+
       '</tr>';
     }).join('');
@@ -1197,7 +1212,7 @@ function renderBiblioteca(){
 }
 function leerBiblioteca(id){
   const p=getPublicaciones().find(x=>String(x.id)===String(id)),b=$('bibliotecaDetalle');if(!p||!b)return;
-  b.innerHTML=documentFinalHTML(p)+'<br>'+(p.finalPdfPath?'<button class="btn primary" onclick="verDocumentoFinalPDF('+p.id+',false)">Ver documento final en PDF</button> ':'')+(currentUser?'<button class="btn success" onclick="citarPublicacionEnMesa('+p.id+')">Citar en mi trabajo</button> ':'')+'<button class="btn soft" onclick="abrirSolicitud('+p.id+')">📩 Solicitar copia de este documento</button>';
+  b.innerHTML=documentFinalHTML(p)+'<br>'+(p.finalPdfPath?'<button class="btn primary" onclick="verDocumentoFinalPDF('+p.id+',false)">Ver documento final en PDF</button> <button class="btn soft" onclick="verDocumentoFinalPDF('+p.id+',true)">Descargar PDF</button> ':'')+(currentUser?'<button class="btn success" onclick="citarPublicacionEnMesa('+p.id+')">Citar en mi trabajo</button> ':'')+'<button class="btn soft" onclick="abrirSolicitud('+p.id+')">📩 Solicitar copia de este documento</button>';
   b.scrollIntoView({behavior:'smooth'});
 }
 function abrirSolicitud(id){
