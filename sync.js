@@ -1420,6 +1420,27 @@
    await refreshSharedAdmin();await window.adminPublicaciones();
    alert('Solicitud devuelta. El documento volvió a En elaboración y quedó habilitado para correcciones.');
  };
+ window.verPdfHistoricoAdmin=async function(id){
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return;
+   const w=window.open('about:blank','_blank');
+   try{
+     if(w)w.document.title='Abriendo PDF oficial…';
+     const {data,error}=await sbAuth.from('public_library')
+       .select('id,title,final_pdf_path,final_pdf_name')
+       .eq('id',Number(id)).maybeSingle();
+     if(error)throw error;
+     if(!data?.final_pdf_path){
+       if(w)w.close();
+       return alert('Este registro histórico no tiene un PDF oficial guardado.');
+     }
+     const signed=await sbAuth.storage.from('frente-documentos').createSignedUrl(data.final_pdf_path,300);
+     if(signed.error||!signed.data?.signedUrl)throw signed.error||new Error('No se pudo crear el acceso temporal.');
+     if(w)w.location.replace(signed.data.signedUrl);else location.href=signed.data.signedUrl;
+   }catch(e){
+     if(w&&!w.closed)w.close();
+     console.error(e);alert('No fue posible abrir el PDF oficial histórico.');
+   }
+ };
  window.retirarPublicacion=async function(id){
    if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return;
    const motivo=prompt('Indique el motivo del retiro de publicación:');if(motivo===null)return;
@@ -1780,12 +1801,12 @@
  };
  window.adminPublicaciones=async function(){
    const c=document.getElementById('admincontent');if(!c)return;
-   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){c.innerHTML='<div class="notice">Esta sección requiere Administración General.</div>';return}
+   if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){c.innerHTML='<div class="notice">Esta sección requiere Administración General o Administración de Plataforma.</div>';return}
    await refreshSharedAdmin();
    const [ir,profiles,libs]=await Promise.all([
      sbAuth.from('individual_publication_requests').select('*').order('requested_at',{ascending:false}),
      sbAuth.from('profiles').select('id,full_name,email,profession'),
-     sbAuth.from('public_library').select('id,title,topic,published_at,is_public,withdrawn_at,withdrawal_reason,publication_request_id,technical_table_id,origin_type,author_name,source_contribution_id').order('published_at',{ascending:false})
+     sbAuth.from('public_library').select('id,title,topic,description,snapshot,published_at,is_public,withdrawn_at,withdrawal_reason,withdrawn_by,publication_request_id,technical_table_id,origin_type,author_name,source_contribution_id,final_pdf_path,final_pdf_name,final_pdf_size_bytes,final_pdf_created_at').order('published_at',{ascending:false})
    ]);
    if(ir.error||profiles.error||libs.error){console.error(ir.error||profiles.error||libs.error);c.textContent='No se pudo consultar el flujo de publicaciones.';return}
    STATE.individualRequests=ir.data||[];
@@ -1803,7 +1824,17 @@
      '<h2 class="section-sub">Aportes individuales pendientes</h2>'+
      (individualPending.length?individualPending.map(x=>{const a=people.find(p=>p.id===x.requested_by);return '<div class="row"><div><span class="pill amber">Aporte individual</span> <b>'+esc(x.title)+'</b><br><small>Autor: '+esc(a?.full_name||'Profesional')+(a?.profession?' · '+esc(a.profession):'')+' · '+esc(x.snapshot?.document_type||'')+' · '+esc(x.snapshot?.topic||'')+' · Versión '+x.version+' · '+((x.snapshot?.reviewers||[]).length)+' vistos buenos · '+new Date(x.requested_at).toLocaleString('es-CL')+'</small></div><div><button class="btn soft" onclick="verSolicitudAporteIndividual('+x.id+')">Ver aporte</button> <button class="btn primary" onclick="publicarAporteIndividual('+x.id+')">Publicar</button> <button class="btn soft" onclick="devolverAporteIndividual('+x.id+')">Devolver</button></div></div>'}).join(''):'<div class="card"><p>No hay aportes individuales pendientes.</p></div>')+
      '<h2 class="section-sub">Historial de Biblioteca</h2>'+
-     ((libs.data||[]).length?(libs.data||[]).map(p=>'<div class="row"><div><span class="pill '+(p.origin_type==='Aporte individual'?'amber':'green')+'">'+esc(p.origin_type||'Documento de Mesa')+'</span> <b>'+esc(p.title)+'</b><br><small>'+esc(p.topic)+' · '+(p.author_name?'Autor: '+esc(p.author_name)+' · ':'')+new Date(p.published_at).toLocaleDateString('es-CL')+(p.withdrawn_at?' · Retirado '+new Date(p.withdrawn_at).toLocaleDateString('es-CL'):'')+(p.withdrawal_reason?' · '+esc(p.withdrawal_reason):'')+'</small></div><div><span class="pill '+(p.is_public?'green':'amber')+'">'+(p.is_public?'PUBLICADO':'RETIRADO DE PUBLICACIÓN')+'</span> '+(p.is_public?'<button class="btn danger" onclick="retirarPublicacion('+p.id+')">Retirar de publicación</button>':'')+'</div></div>').join(''):'<div class="card"><p>Aún no hay documentos en el historial de Biblioteca.</p></div>');
+     '<div class="mini-note"><b>Historial inmutable.</b> Un documento publicado no se elimina ni se reemplaza. Si corresponde, se retira de la Biblioteca pública dejando fecha y motivo; el PDF oficial histórico permanece disponible para Administración.</div>'+
+     ((libs.data||[]).length?(libs.data||[]).map(p=>{
+       const snap=p.snapshot||{},version=snap.version||1,cycle=snap.cycle||1,generation=snap.document_generation||1;
+       const published=new Date(p.published_at).toLocaleString('es-CL');
+       const withdrawn=p.withdrawn_at?new Date(p.withdrawn_at).toLocaleString('es-CL'):'';
+       const pdfMeta=p.final_pdf_path?(' · PDF '+(p.final_pdf_size_bytes?Math.max(1,Math.round(Number(p.final_pdf_size_bytes)/1024))+' KB':'disponible')):' · SIN PDF';
+       const reqAction=p.publication_request_id?'<button class="btn soft" onclick="verSolicitudPublicacion('+Number(p.publication_request_id)+')">Ver versión enviada</button> ':'';
+       const pdfAction=p.final_pdf_path?'<button class="btn soft" onclick="verPdfHistoricoAdmin('+p.id+')">Ver PDF oficial</button> ':'';
+       const withdrawAction=p.is_public?'<button class="btn danger" onclick="retirarPublicacion('+p.id+')">Retirar de publicación</button>':'';
+       return '<div class="row"><div><span class="pill '+(p.origin_type==='Aporte individual'?'amber':'green')+'">'+esc(p.origin_type||'Documento de Mesa')+'</span> <b>'+esc(p.title)+'</b><br><small>'+esc(p.topic)+' · '+(p.author_name?'Autor: '+esc(p.author_name)+' · ':'')+'Publicado '+esc(published)+(p.publication_request_id?' · Versión '+esc(version)+' · Ciclo '+esc(cycle)+' · Documento '+esc(generation):'')+pdfMeta+(withdrawn?' · Retirado '+esc(withdrawn):'')+'</small>'+(p.withdrawal_reason?'<p class="muted"><b>Motivo del retiro:</b> '+esc(p.withdrawal_reason)+'</p>':'')+'</div><div><span class="pill '+(p.is_public?'green':'amber')+'">'+(p.is_public?'PUBLICADO':'RETIRADO DE PUBLICACIÓN')+'</span><br><div class="toolbar-row" style="margin-top:8px">'+reqAction+pdfAction+withdrawAction+'</div></div></div>';
+     }).join(''):'<div class="card"><p>Aún no hay documentos en el historial de Biblioteca.</p></div>');
  };
 
  function coordinatorMesas(){
