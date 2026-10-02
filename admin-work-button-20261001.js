@@ -3,7 +3,7 @@
 'use strict';
 function ensureAdminWorkButton(){
   const side=document.querySelector('#adminShell .side');
-  if(!side||side.querySelector('[data-admin-my-work-fixed]'))return;
+  if(!side||side.querySelector('[data-admin-my-work-fixed]')||side.querySelector('[data-my-work]'))return;
   const b=document.createElement('button');
   b.type='button';
   b.dataset.adminMyWorkFixed='1';
