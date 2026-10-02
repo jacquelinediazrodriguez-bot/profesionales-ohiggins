@@ -75,6 +75,13 @@
  }
  function sync(){make();const ok=inMiTrabajo(),b=document.getElementById(BTN),p=document.getElementById(ID);if(b)b.style.display=ok?'block':'none';if(!ok&&p)p.classList.remove('open')}
  const obs=new MutationObserver(()=>setTimeout(sync,20));
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{sync();obs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style'])});
- else{sync();obs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style'])}
+ if(document.readyState==='loading'){
+   document.addEventListener('DOMContentLoaded',()=>{
+     sync();
+     obs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
+   });
+ }else{
+   sync();
+   obs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
+ }
 })();
