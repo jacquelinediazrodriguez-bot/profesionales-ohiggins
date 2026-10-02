@@ -1,5 +1,5 @@
-/* Corrección 2026-10-02: validación de correo para invitaciones directas.
-   Evita que secuencias escapadas incorrectamente eliminen letras válidas del correo. */
+/* Corrección 2026-10-02: validación robusta de correo sin perder el flujo completo de invitación.
+   Conserva nombre completo + correo + registro del envío. */
 (function(){
   'use strict';
 
@@ -19,9 +19,13 @@
   }
 
   window.adminInvitacionDirecta=async function(){
+    const name=prompt('Nombre completo de la persona:');
+    if(name===null) return;
+    const fullName=String(name).trim();
+    if(!fullName) return alert('Ingrese el nombre completo.');
+
     const email=prompt('Correo electrónico:');
     if(email===null) return;
-
     const clean=normalizeInviteEmail(email);
     if(!isValidInviteEmail(clean)){
       return alert('Ingrese un correo electrónico válido.');
@@ -29,7 +33,7 @@
 
     try{
       const {data,error}=await sbAuth.functions.invoke('member-invitation',{
-        body:{action:'direct_invite',email:clean}
+        body:{action:'direct_invite',email:clean,full_name:fullName}
       });
       if(error) throw error;
       if(!data?.ok) throw new Error(data?.error || 'No fue posible enviar la invitación.');
@@ -37,7 +41,7 @@
       alert(
         data.status==='Registro completado'
           ? 'Este correo ya tiene el registro completado.'
-          : 'Invitación enviada correctamente. El correo quedó registrado en la lista de invitaciones.'
+          : 'Invitación enviada correctamente a '+fullName+'. El correo quedó registrado en la lista de invitaciones.'
       );
       await window.adminInvitaciones();
     }catch(err){
