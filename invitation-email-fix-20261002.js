@@ -1,0 +1,48 @@
+/* Corrección 2026-10-02: validación de correo para invitaciones directas.
+   Evita que secuencias escapadas incorrectamente eliminen letras válidas del correo. */
+(function(){
+  'use strict';
+
+  function normalizeInviteEmail(value){
+    return String(value || '')
+      .normalize('NFKC')
+      .replace(/[\s\u200B-\u200D\uFEFF]+/g, '')
+      .toLowerCase();
+  }
+
+  function isValidInviteEmail(email){
+    const parts=email.split('@');
+    if(parts.length!==2 || !parts[0] || !parts[1]) return false;
+    const localOk=/^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(parts[0]);
+    const domainOk=/^[A-Z0-9-]+(?:\.[A-Z0-9-]+)+$/i.test(parts[1]);
+    return localOk && domainOk;
+  }
+
+  window.adminInvitacionDirecta=async function(){
+    const email=prompt('Correo electrónico:');
+    if(email===null) return;
+
+    const clean=normalizeInviteEmail(email);
+    if(!isValidInviteEmail(clean)){
+      return alert('Ingrese un correo electrónico válido.');
+    }
+
+    try{
+      const {data,error}=await sbAuth.functions.invoke('member-invitation',{
+        body:{action:'direct_invite',email:clean}
+      });
+      if(error) throw error;
+      if(!data?.ok) throw new Error(data?.error || 'No fue posible enviar la invitación.');
+
+      alert(
+        data.status==='Registro completado'
+          ? 'Este correo ya tiene el registro completado.'
+          : 'Invitación enviada correctamente. El correo quedó registrado en la lista de invitaciones.'
+      );
+      await window.adminInvitaciones();
+    }catch(err){
+      console.error('Error al enviar invitación:',err);
+      alert(err?.message || 'No fue posible enviar la invitación. Intente nuevamente.');
+    }
+  };
+})();
