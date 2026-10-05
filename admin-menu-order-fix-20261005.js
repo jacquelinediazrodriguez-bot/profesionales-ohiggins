@@ -44,10 +44,14 @@ function runItem(item){
 function rebuildSide(){
   const side=document.querySelector('#adminShell .side');
   if(!side)return;
+  const desired=availableItems();
+  const current=[...side.querySelectorAll('button')].map(b=>b.textContent||'');
+  const wanted=desired.map(x=>x.label);
+  if(current.length===wanted.length && current.every((x,i)=>x===wanted[i]))return;
   const title=side.querySelector('b')?.textContent|| (isGeneral()?'Administración General':'Administración de Plataforma');
   side.innerHTML='';
   const b=document.createElement('b');b.textContent=title;side.appendChild(b);
-  availableItems().forEach(item=>{
+  desired.forEach(item=>{
     const btn=document.createElement('button');
     btn.type='button';
     btn.textContent=item.label;
@@ -60,10 +64,11 @@ function rebuildSide(){
 function buildQuickAccess(){
   const c=document.getElementById('admincontent');
   if(!c)return;
-  const existingTitle=[...c.querySelectorAll('h2')].find(x=>/Pendientes y accesos rápidos/i.test(x.textContent||''));
+  const existingTitle=[...c.querySelectorAll('h2')].find(x=>/Pendientes y accesos rápidos|Accesos rápidos/i.test(x.textContent||''));
   const grid=existingTitle?.nextElementSibling;
   if(!existingTitle||!grid)return;
   existingTitle.textContent='Accesos rápidos';
+  if(grid.dataset.menuBuilt==='1')return;
   grid.innerHTML='';
   availableItems().filter(x=>!['adminHome','logout'].includes(x.fn)&&!x.call).forEach(item=>{
     const card=document.createElement('div');
@@ -88,6 +93,7 @@ function buildQuickAccess(){
     p.textContent=desc[item.fn]||'';
     card.append(h,p);grid.appendChild(card);
   });
+  grid.dataset.menuBuilt='1';
 }
 
 const baseRender=window.renderAdminShell;
@@ -103,17 +109,14 @@ if(typeof baseHome==='function'){
   window.adminHome=function(){
     const r=baseHome.apply(this,arguments);
     rebuildSide();
+    const grid=document.querySelector('#admincontent h2 + *');
+    if(grid)delete grid.dataset.menuBuilt;
     buildQuickAccess();
     return r;
   };
 }
 
-const obs=new MutationObserver(()=>{
-  if(document.querySelector('#adminShell .side'))rebuildSide();
-  if(document.getElementById('admincontent'))buildQuickAccess();
-});
-obs.observe(document.documentElement,{childList:true,subtree:true});
-
+/* No se usa MutationObserver global: podía entrar en un ciclo de mutaciones y bloquear la interfaz de acceso. */
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{rebuildSide();buildQuickAccess()});
 else{rebuildSide();buildQuickAccess()}
 })();
