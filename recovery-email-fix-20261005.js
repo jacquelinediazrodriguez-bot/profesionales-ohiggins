@@ -1,6 +1,7 @@
 // Recuperación de contraseña — producción — 2026-10-05
 (function(){
-  const PROD_URL = 'https://www.profesionalesohiggins.cl/';
+  // Dominio canónico de producción. Nunca usar localhost en enlaces de recuperación.
+  const PROD_URL = 'https://profesionalesohiggins.cl/';
 
   function setStatus(msg){
     const s = document.getElementById('recoveryStatus');
@@ -34,13 +35,11 @@
     setStatus('Enviando enlace de recuperación…');
 
     try{
-      // IMPORTANTE: nunca usar localhost en producción.
-      // La URL debe coincidir con una Redirect URL autorizada en Supabase.
       const { error } = await sbAuth.auth.resetPasswordForEmail(e, {
         redirectTo: PROD_URL
       });
       if(error) throw error;
-      setStatus('Enlace solicitado. Si el correo pertenece a una cuenta registrada, recibirá un mensaje para crear una nueva contraseña. Revise también Spam o No deseado.');
+      setStatus('Enlace solicitado. Si el correo pertenece a una cuenta registrada, recibirá un mensaje para crear una nueva contraseña. Use únicamente el último correo recibido y revise también Spam o No deseado.');
     }catch(err){
       console.error('Error recuperación de contraseña:', err);
       const msg = String((err && err.message) || '');
@@ -108,11 +107,13 @@
   }
 
   function detectarRecuperacionDesdeUrl(){
-    const h = new URLSearchParams((window.location.hash || '').replace(/^#/,''));
-    if(h.get('type') === 'recovery' && h.get('access_token')) abrirCambioClave();
+    const hash = new URLSearchParams((window.location.hash || '').replace(/^#/,''));
+    const query = new URLSearchParams(window.location.search || '');
+    const type = hash.get('type') || query.get('type');
+    const accessToken = hash.get('access_token') || query.get('access_token');
+    if(type === 'recovery' && accessToken) abrirCambioClave();
   }
 
-  // Supabase JS también emite PASSWORD_RECOVERY al procesar el enlace.
   function enlazarEventoRecuperacion(){
     if(typeof sbAuth === 'undefined' || !sbAuth || !sbAuth.auth || typeof sbAuth.auth.onAuthStateChange !== 'function') return;
     sbAuth.auth.onAuthStateChange(function(event){
