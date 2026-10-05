@@ -6,22 +6,60 @@
   const baseRenderAportes = window.renderAportes;
   if (typeof baseAdminPublicaciones !== 'function') return;
 
-  const safe = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const safe = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
   const fmtDate = value => { try{return new Date(value).toLocaleString('es-CL')}catch(e){return String(value||'')} };
 
-  function openReviewSnapshot(row){
-    const s=row?.snapshot||{};
-    const w=window.open('','_blank');
-    if(!w){alert('El navegador bloqueó la vista. Habilite ventanas emergentes para revisar el aporte.');return}
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+safe(s.title||'Aporte individual')+'</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;line-height:1.7}.meta{background:#f4f7fb;padding:14px;border-radius:10px}h1,h2,h3{color:#123b67}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#fff5df;color:#9a6800;font-size:12px;font-weight:bold}</style></head><body><h1>'+safe(s.title||'Aporte individual')+'</h1><div class="meta"><span class="pill">EN REVISIÓN DE MESA</span><br><br><b>Autor:</b> '+safe(s.author_name||'Profesional')+(s.author_profession?' · '+safe(s.author_profession):'')+'<br><b>Mesa revisora:</b> '+safe(row?.technical_tables?.name||'')+' · <b>Versión:</b> '+safe(row?.version||'')+' · <b>Enviado:</b> '+safe(fmtDate(row?.requested_at))+'</div>'+(s.summary?'<h2>Resumen</h2><p>'+safe(s.summary)+'</p>':'')+'<hr><div>'+(s.body||'')+'</div><hr><p><b>Estado del flujo:</b> este aporte todavía está siendo revisado por la Mesa Técnica. Administración puede verlo para seguimiento, pero solo podrá publicarlo o devolverlo después de que la Coordinación valide la revisión y genere la solicitud formal de publicación.</p></body></html>');
-    w.document.close();
+  async function resolveContribution(row){
+    const snapshot={...(row?.snapshot||{})};
+    if(typeof sbAuth==='undefined'||!sbAuth||!row?.contribution_id)return snapshot;
+    try{
+      const {data,error}=await sbAuth.from('individual_contributions')
+        .select('id,title,document_type,topic,summary,body,status,version,created_at,updated_at,profiles:author_id(full_name,profession)')
+        .eq('id',row.contribution_id)
+        .maybeSingle();
+      if(error||!data)return snapshot;
+      return {
+        ...data,
+        ...snapshot,
+        title:snapshot.title||data.title||'Aporte individual',
+        document_type:snapshot.document_type||data.document_type||'',
+        topic:snapshot.topic||data.topic||'',
+        summary:snapshot.summary||data.summary||'',
+        body:snapshot.body||data.body||'',
+        author_name:snapshot.author_name||data.profiles?.full_name||'Profesional',
+        author_profession:snapshot.author_profession||data.profiles?.profession||''
+      };
+    }catch(e){
+      console.warn('No fue posible completar el aporte desde su registro principal:',e);
+      return snapshot;
+    }
+  }
+
+  async function openReviewSnapshot(row){
+    const host=document.getElementById('individualReviewDetail');
+    if(!host||!row)return;
+    host.innerHTML='<div class="card"><p class="muted">Abriendo aporte…</p></div>';
+    host.scrollIntoView({behavior:'smooth',block:'start'});
+    const s=await resolveContribution(row);
+    const body=String(s.body||'').trim();
+    const summary=String(s.summary||'').trim();
+    host.innerHTML='<div class="card" style="margin-top:14px;border:2px solid #dbe7f2">'+
+      '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">'+
+      '<div><span class="pill amber">EN REVISIÓN DE MESA</span><h2 style="margin:10px 0 4px;color:#123b67">'+safe(s.title||'Aporte individual')+'</h2>'+ 
+      '<div class="muted"><b>Autor:</b> '+safe(s.author_name||'Profesional')+(s.author_profession?' · '+safe(s.author_profession):'')+'<br><b>Mesa revisora:</b> '+safe(row?.technical_tables?.name||'')+' · <b>Versión:</b> '+safe(row?.version||s.version||'')+' · <b>Enviado:</b> '+safe(fmtDate(row?.requested_at))+'</div></div>'+ 
+      '<button class="btn soft" type="button" onclick="document.getElementById(\'individualReviewDetail\').innerHTML=\'\'">Cerrar</button></div>'+ 
+      (summary?'<h3 style="color:#123b67;margin-bottom:6px">Resumen</h3><p style="white-space:pre-wrap">'+safe(summary)+'</p>':'')+
+      '<hr style="border:0;border-top:1px solid #dfe7ef;margin:18px 0">'+
+      (body?'<div style="line-height:1.7">'+body+'</div>':'<div class="notice"><b>Este aporte no tiene contenido visible en la copia de revisión.</b> Se consultó también el registro principal del aporte.</div>')+
+      '<hr style="border:0;border-top:1px solid #dfe7ef;margin:18px 0">'+
+      '<div class="mini-note"><b>Estado del flujo:</b> este aporte está siendo revisado por la Mesa Técnica. Administración puede verlo para seguimiento; Publicar o Devolver se habilita después de la validación de Coordinación.</div></div>';
   }
 
   async function renderReviewTracking(){
     const c=document.getElementById('admincontent');
     if(!c || typeof sbAuth==='undefined' || !sbAuth) return;
 
-    const publicationHeading=[...c.querySelectorAll('h2')].find(h=>h.textContent.trim()==='Aportes individuales pendientes');
+    const publicationHeading=[...c.querySelectorAll('h2')].find(h=>h.textContent.trim()==='Aportes individuales pendientes'||h.textContent.trim()==='Aportes individuales pendientes de publicación');
     if(!publicationHeading) return;
     publicationHeading.textContent='Aportes individuales pendientes de publicación';
 
@@ -49,10 +87,10 @@
         const fb=(feedback||[]).filter(x=>String(x.review_request_id)===String(r.id));
         const approvals=fb.filter(x=>x.feedback_type==='Visto bueno').length;
         const messages=fb.filter(x=>x.feedback_type==='Mensaje').length;
-        return '<div class="row"><div><span class="pill amber">EN REVISIÓN DE MESA</span> <b>'+safe(s.title||'Aporte individual')+'</b><br><small>Autor: '+safe(s.author_name||'Profesional')+(s.author_profession?' · '+safe(s.author_profession):'')+' · Mesa '+safe(r.technical_tables?.name||'')+' · '+safe(s.document_type||'')+' · '+safe(s.topic||'')+' · Versión '+safe(r.version)+' · '+approvals+' vistos buenos · '+messages+' mensajes · '+safe(fmtDate(r.requested_at))+'</small></div><div><button class="btn soft" type="button" data-review-id="'+safe(r.id)+'">Ver aporte</button><div class="muted" style="font-size:12px;margin-top:6px;max-width:260px">Pendiente de validación de la Coordinación. Aún no corresponde Publicar ni Devolver desde Administración.</div></div></div>';
+        return '<div class="row"><div><span class="pill amber">EN REVISIÓN DE MESA</span> <b>'+safe(s.title||'Aporte individual')+'</b><br><small>Autor: '+safe(s.author_name||'Profesional')+(s.author_profession?' · '+safe(s.author_profession):'')+' · Mesa '+safe(r.technical_tables?.name||'')+' · '+safe(s.document_type||'')+' · '+safe(s.topic||'')+' · Versión '+safe(r.version)+' · '+approvals+' vistos buenos · '+messages+' mensajes · '+safe(fmtDate(r.requested_at))+'</small></div><div><button class="btn soft" type="button" data-review-id="'+safe(r.id)+'">Ver aporte completo</button><div class="muted" style="font-size:12px;margin-top:6px;max-width:260px">Pendiente de validación de la Coordinación.</div></div></div>';
       }).join(''):'<div class="card"><p>No hay aportes actualmente en revisión de Mesa.</p></div>';
 
-      section.innerHTML='<h2 class="section-sub">Aportes individuales en revisión de Mesa</h2><div class="mini-note" style="margin-bottom:10px"><b>Seguimiento administrativo.</b> Estos aportes ya fueron enviados por sus autores y deben ser revisados por la Mesa Técnica. Administración puede verlos, pero las acciones <b>Publicar</b> y <b>Devolver</b> se habilitan recién cuando la Coordinación valida la revisión.</div>'+html;
+      section.innerHTML='<h2 class="section-sub">Aportes individuales en revisión de Mesa</h2><div class="mini-note" style="margin-bottom:10px"><b>Seguimiento administrativo.</b> Aquí se muestran todos los aportes enviados a revisión, no solo el más reciente.</div>'+html+'<div id="individualReviewDetail"></div>';
       section.querySelectorAll('[data-review-id]').forEach(btn=>{
         const id=btn.getAttribute('data-review-id');
         btn.addEventListener('click',()=>openReviewSnapshot(list.find(x=>String(x.id)===String(id))));
