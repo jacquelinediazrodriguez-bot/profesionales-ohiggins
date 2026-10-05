@@ -10,7 +10,7 @@
   async function completarAportesEnRevision(){
     try{
       if (!window.sbAuth) return;
-      const c = document.getElementById('privatecontent');
+      const c = document.getElementById('admincontent') || document.getElementById('privatecontent');
       if (!c) return;
 
       const heading = [...c.querySelectorAll('h2')].find(h => h.textContent.trim() === 'Aportes individuales pendientes');
