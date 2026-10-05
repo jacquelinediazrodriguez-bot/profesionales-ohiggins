@@ -9,14 +9,15 @@
 
   async function completarAportesEnRevision(){
     try{
-      if (!window.sbAuth) return;
+      /* sbAuth está declarado como variable global léxica en la aplicación, no como window.sbAuth. */
+      if (typeof sbAuth === 'undefined' || !sbAuth) return;
       const c = document.getElementById('admincontent') || document.getElementById('privatecontent');
       if (!c) return;
 
       const heading = [...c.querySelectorAll('h2')].find(h => h.textContent.trim() === 'Aportes individuales pendientes');
       if (!heading) return;
 
-      const {data, error} = await window.sbAuth
+      const {data, error} = await sbAuth
         .from('individual_review_requests')
         .select('id,contribution_id,requested_by,version,snapshot,status,requested_at')
         .in('status', ['Pendiente','En revisión'])
