@@ -1,4 +1,5 @@
-/* Corrección 2026-10-02: aviso de versión más reciente y normalización de nombre. */
+/* Corrección 2026-10-02: aviso de versión más reciente y normalización de nombre.
+   Optimización 2026-10-06: reduce comprobaciones remotas innecesarias. */
 (function(){
 'use strict';
 
@@ -29,8 +30,6 @@ function normalizarUsuarioActual(){
 
 normalizarUsuarioActual();
 
-/* Toda información de trabajo que entra al navegador conserva el historial,
-   pero corrige la etiqueta histórica del nombre para mostrarlo correctamente. */
 const baseSetWork=window.setWork;
 if(typeof baseSetWork==='function'){
   window.setWork=function(m,d){return baseSetWork.call(this,m,normalizarDocumento(d));};
@@ -69,8 +68,8 @@ function showNotice(remoteN,localN){
     const anchor=document.getElementById('autosaveStatus');
     if(anchor)anchor.insertAdjacentElement('afterend',n);else host.prepend(n);
   }
-  n.innerHTML='<b>Existe una versión más reciente del documento.</b><br>'+ 
-    'Este computador muestra la versión '+localN+' y en la plataforma ya está disponible la versión '+remoteN+'. ' +
+  n.innerHTML='<b>Existe una versión más reciente del documento.</b><br>'+
+    'Este computador muestra la versión '+localN+' y en la plataforma ya está disponible la versión '+remoteN+'. '+
     '<b>Actualice antes de continuar editando</b> para no trabajar sobre una versión desactualizada.<br>'+
     '<button class="btn warn" style="margin-top:9px" onclick="actualizarDocumentoMasReciente()">↻ Actualizar documento</button>';
 }
@@ -85,7 +84,8 @@ async function readRemote(m){
 
 window.checkWorkspaceFreshness=async function(force){
   const now=Date.now();
-  if(checking||(!force&&now-lastCheck<3500))return staleMesa===window.currentDocMesa;
+  if(document.hidden&&!force)return false;
+  if(checking||(!force&&now-lastCheck<10000))return staleMesa===window.currentDocMesa;
   if(!window.currentUser?.supabaseId||!window.currentDocMesa)return false;
   checking=true;lastCheck=now;
   try{
@@ -119,8 +119,6 @@ window.actualizarDocumentoMasReciente=async function(){
   }catch(e){console.error(e);alert('No fue posible actualizar el documento. Intente nuevamente.');}
 };
 
-/* Antes de comenzar a editar o guardar, comprobar que no haya aparecido una
-   nueva versión en otro computador. */
 const baseAcquire=window.acquireLock;
 if(typeof baseAcquire==='function'){
   window.acquireLock=async function(s){
@@ -137,22 +135,23 @@ if(typeof baseGuardar==='function'){
   };
 }
 
-/* Al volver a dibujar el espacio de trabajo, conservar el aviso y revisar la nube. */
 const baseRender=window.renderEspacio;
 if(typeof baseRender==='function'){
   window.renderEspacio=function(){
     normalizarUsuarioActual();
     const out=baseRender.apply(this,arguments);
-    setTimeout(()=>checkWorkspaceFreshness(true),150);
+    setTimeout(()=>checkWorkspaceFreshness(false),250);
     return out;
   };
 }
 
+/* Verificación periódica más liviana: solo con la pestaña visible y cada 15 s. */
 setInterval(()=>{
   try{
+    if(document.hidden)return;
     const area=document.getElementById('privatecontent');
     if(area&&area.offsetParent!==null&&window.currentUser?.supabaseId&&window.currentDocMesa)checkWorkspaceFreshness(false);
   }catch(e){}
-},5000);
+},15000);
 
 })();
