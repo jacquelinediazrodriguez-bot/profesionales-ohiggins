@@ -233,7 +233,7 @@ footer{text-align:center;color:var(--muted);padding:24px}
 <script>
 const SUPABASE_URL='https://ozfcvaiatkmbehaokskz.supabase.co';
 const SUPABASE_KEY='sb_publishable_HZljMDp-yL6cEddxKWECiw_hJe-oaOQ';
-const sbAuth=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
+const sbAuth=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,storage:window.sessionStorage,autoRefreshToken:true,detectSessionInUrl:true}}):null;
 let mesas=(()=>{try{const x=JSON.parse(localStorage.getItem('frentePT_mesas')||'null');return Array.isArray(x)&&x.length?x:['Salud','Educación','Economía','Trabajo','Agricultura']}catch(e){return ['Salud','Educación','Economía','Trabajo','Agricultura']}})();
 function saveMesas(){localStorage.setItem('frentePT_mesas',JSON.stringify(mesas))}
 function getMesaMeta(m){try{const all=JSON.parse(localStorage.getItem('frentePT_mesas_meta')||'{}');return {descripcion:'',estado:'Activa',...(all[m]||{})}}catch(e){return {descripcion:'',estado:'Activa'}}}
