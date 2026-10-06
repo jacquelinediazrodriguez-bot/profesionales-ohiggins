@@ -12,6 +12,10 @@ function goMyWork(){
   if(typeof privateTab==='function')privateTab('panel');
 }
 
+function goBiblioteca(){
+  if(typeof go==='function')return go('biblioteca');
+}
+
 const generalItems=[
   {label:'🏠 Inicio',fn:'adminHome'},
   {label:'🧭 Ir a mi trabajo',call:goMyWork},
@@ -21,6 +25,7 @@ const generalItems=[
   {label:'📄 Documentos de las mesas',fn:'adminDocumentosMesas'},
   {label:'📚 Solicitudes y revisión de publicaciones',fn:'adminPublicaciones'},
   {label:'✉️ Solicitudes de biblioteca',fn:'adminSolicitudes'},
+  {label:'📖 Biblioteca',call:goBiblioteca},
   {label:'🏛️ Directorio',fn:'adminRepresentantes'},
   {label:'🖼️ Galería',fn:'abrirGestionGaleria'},
   {label:'📧 Correo institucional',fn:'adminCorreoInstitucional'},
