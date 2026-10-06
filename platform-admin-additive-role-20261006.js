@@ -2,6 +2,25 @@
 (function(){
 'use strict';
 
+let syncingPermission=false;
+async function syncPlatformAdminPermission(){
+  if(syncingPermission)return;
+  try{
+    if(typeof currentUser==='undefined'||!currentUser?.supabaseId)return;
+    if(typeof sbAuth==='undefined'||!sbAuth)return;
+    syncingPermission=true;
+    const {data,error}=await sbAuth.from('profiles').select('role,is_platform_admin,is_active').eq('id',currentUser.supabaseId).maybeSingle();
+    if(error||!data||data.is_active===false)return;
+    currentUser.accountRole=data.role||'integrante';
+    currentUser.isPlatformAdmin=data.is_platform_admin===true;
+    currentUser.systemRole=data.role==='administrador_general'?'administrador_general':(data.is_platform_admin===true?'administrador_plataforma':data.role||'integrante');
+    if(currentUser.systemRole==='administrador_general')currentUser.rol='Administrador General';
+    else if(currentUser.systemRole==='administrador_plataforma')currentUser.rol='Administrador de Plataforma';
+    try{sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser))}catch(e){}
+  }catch(e){console.warn('No se pudo sincronizar el permiso de Administrador de Plataforma',e)}
+  finally{syncingPermission=false}
+}
+
 function patchAdminRoleHelp(){
   try{
     const c=document.getElementById('admincontent');
@@ -29,6 +48,7 @@ function patchAdminRoleHelp(){
 const originalAdminUsuarios=window.adminUsuarios;
 if(typeof originalAdminUsuarios==='function'){
   window.adminUsuarios=async function(){
+    await syncPlatformAdminPermission();
     const r=await originalAdminUsuarios.apply(this,arguments);
     setTimeout(patchAdminRoleHelp,0);
     return r;
@@ -37,5 +57,6 @@ if(typeof originalAdminUsuarios==='function'){
 
 const observer=new MutationObserver(()=>patchAdminRoleHelp());
 observer.observe(document.documentElement,{childList:true,subtree:true});
-setTimeout(patchAdminRoleHelp,300);
+setTimeout(()=>{syncPlatformAdminPermission();patchAdminRoleHelp()},300);
+document.addEventListener('click',()=>syncPlatformAdminPermission(),true);
 })();
