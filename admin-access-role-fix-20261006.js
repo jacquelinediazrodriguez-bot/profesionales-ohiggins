@@ -23,9 +23,12 @@ function canonicalRole(user){
   if(!user)return '';
   const rawSystem=String(user.systemRole||'').trim();
   if(rawSystem==='administrador_general'||rawSystem==='administrador_plataforma')return rawSystem;
-  const systemKey=clean(rawSystem);
-  const labelKey=clean(user.rol||user.role||'');
-  return ROLE_MAP[systemKey]||ROLE_MAP[labelKey]||'';
+  const candidates=[rawSystem,user.rol,user.role,user.accountRole,user.globalRole];
+  for(const value of candidates){
+    const key=clean(value);
+    if(ROLE_MAP[key])return ROLE_MAP[key];
+  }
+  return '';
 }
 
 function syncAdminRole(){
@@ -35,6 +38,7 @@ function syncAdminRole(){
     if(!role)return '';
     currentUser.systemRole=role;
     currentUser.rol=role==='administrador_general'?'Administrador General':'Administrador de Plataforma';
+    currentUser.role=role;
     try{sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser))}catch(e){}
     return role;
   }catch(e){return ''}
@@ -57,25 +61,40 @@ window.requireAdmin=function(generalOnly=false){
   return true;
 };
 
-/* Sincronizar antes de cualquier navegación o render administrativo. */
-const baseGo=window.go;
-if(typeof baseGo==='function'){
-  window.go=function(){syncAdminRole();return baseGo.apply(this,arguments)};
-}
-const baseRenderAdminShell=window.renderAdminShell;
-if(typeof baseRenderAdminShell==='function'){
-  window.renderAdminShell=function(){syncAdminRole();return baseRenderAdminShell.apply(this,arguments)};
-}
-const baseAdminHome=window.adminHome;
-if(typeof baseAdminHome==='function'){
-  window.adminHome=function(){syncAdminRole();return baseAdminHome.apply(this,arguments)};
+function wrapWithRoleSync(name){
+  const base=window[name];
+  if(typeof base!=='function'||base.__roleSyncWrapped)return;
+  const wrapped=function(){
+    syncAdminRole();
+    return base.apply(this,arguments);
+  };
+  wrapped.__roleSyncWrapped=true;
+  window[name]=wrapped;
 }
 
-/* Si la sesión ya estaba abierta al recargar, corregir el objeto local inmediatamente. */
+/* Normalizar antes de toda navegación y de cada área administrativa que también
+   posee validaciones propias en sync.js. */
+[
+  'go','renderAdminShell','adminHome','adminPublicaciones','adminSolicitudes',
+  'adminUsuarios','adminMesas','adminDocumentosMesas','adminRepresentantes',
+  'abrirGestionGaleria','adminCorreoInstitucional','adminPresidencia',
+  'adminBloqueos','adminEstado','adminSeguridadLimites','adminInvitaciones'
+].forEach(wrapWithRoleSync);
+
+/* Si otros scripts redefinen funciones después, volver a envolverlas. */
+function refreshWrappers(){
+  [
+    'go','renderAdminShell','adminHome','adminPublicaciones','adminSolicitudes',
+    'adminUsuarios','adminMesas','adminDocumentosMesas','adminRepresentantes',
+    'abrirGestionGaleria','adminCorreoInstitucional','adminPresidencia',
+    'adminBloqueos','adminEstado','adminSeguridadLimites','adminInvitaciones'
+  ].forEach(wrapWithRoleSync);
+}
+
 syncAdminRole();
-setTimeout(syncAdminRole,80);
-setTimeout(syncAdminRole,350);
-document.addEventListener('click',syncAdminRole,true);
+setTimeout(()=>{syncAdminRole();refreshWrappers()},80);
+setTimeout(()=>{syncAdminRole();refreshWrappers()},350);
+document.addEventListener('click',()=>{syncAdminRole();refreshWrappers()},true);
 
 /* Menú administrativo usable en iPhone: desplazamiento horizontal visible y controlado. */
 function addMobileAdminStyle(){
@@ -93,20 +112,31 @@ function addMobileAdminStyle(){
 }
 addMobileAdminStyle();
 
-/* Recuperación visual: si quedó visible el aviso de permiso por una evaluación anterior,
-   volver a renderizar el área administrativa con el rol ya normalizado. */
+/* Recuperación visual fuerte: si una validación antigua dejó visible el aviso,
+   reconstruir Administración y volver a Inicio con el rol ya normalizado. */
 function recoverBlockedAdminView(){
   const role=syncAdminRole();
   if(!role)return;
   const adminPage=document.getElementById('adminarea');
-  if(!adminPage||!adminPage.classList.contains('active'))return;
-  const text=(adminPage.textContent||'').toLowerCase();
-  if(text.includes('requiere administración general')||text.includes('requiere administracion general')||text.includes('cuenta administrativa autorizada')){
-    try{
-      if(typeof renderAdminShell==='function')renderAdminShell();
-      if(typeof adminHome==='function')adminHome();
-    }catch(e){console.warn('No se pudo reconstruir la vista administrativa',e)}
-  }
+  const adminContent=document.getElementById('admincontent');
+  const shell=document.getElementById('adminShell');
+  const text=((adminPage?.textContent||'')+' '+(adminContent?.textContent||'')+' '+(shell?.textContent||'')).toLowerCase();
+  const blocked=text.includes('requiere administración general')||text.includes('requiere administracion general')||text.includes('cuenta administrativa autorizada');
+  if(!blocked)return;
+  try{
+    refreshWrappers();
+    if(typeof renderAdminShell==='function')renderAdminShell();
+    if(typeof adminHome==='function')adminHome();
+  }catch(e){console.warn('No se pudo reconstruir la vista administrativa',e)}
 }
+
 setTimeout(recoverBlockedAdminView,450);
+setTimeout(recoverBlockedAdminView,1200);
+
+const observer=new MutationObserver(()=>{
+  if(observer.__busy)return;
+  observer.__busy=true;
+  try{recoverBlockedAdminView()}finally{setTimeout(()=>{observer.__busy=false},60)}
+});
+observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
 })();
