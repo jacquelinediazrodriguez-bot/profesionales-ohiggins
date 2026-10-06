@@ -412,13 +412,17 @@ async function login(){
   sessionStorage.setItem('frentePT_real_roles',JSON.stringify(all));
   const isAdmin=['administrador_general','administrador_plataforma'].includes(profile.role);currentUser={nombre:profile.full_name,correo:e,rol:isAdmin?(profile.role==='administrador_general'?'Administrador General':'Administrador de Plataforma'):all[0].rol,systemRole:profile.role,mesa:isAdmin?'Administración':all[0].mesa,estado:'Activo',supabaseId:profile.id};
   sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser));
+  /* La cuenta ya fue autenticada por Supabase y el perfil/rol fue validado.
+     Habilitar navegación privada antes de abrir Administración o Mi Trabajo. */
+  window.__frenteAuthVerified=true;
+  window.__frenteAuthChecking=false;
   const cloudOk=await initSharedWorkspace();
-  if(!cloudOk){currentUser=null;sessionStorage.removeItem('frentePT_user');msg.textContent='No se pudo conectar con los datos compartidos. Sus documentos anteriores no han sido modificados. Intente nuevamente.';return}
+  if(!cloudOk){window.__frenteAuthVerified=false;currentUser=null;sessionStorage.removeItem('frentePT_user');msg.textContent='No se pudo conectar con los datos compartidos. Sus documentos anteriores no han sido modificados. Intente nuevamente.';return}
   if(isAdmin){go('adminarea');renderAdminShell();adminHome()}else{currentDocMesa=all[0].mesa;go('mifrente');privateTab('panel')}
  }catch(err){console.error(err);msg.textContent='No se completó la validación. Revise su conexión.'}
  finally{if(btn){btn.disabled=false;btn.textContent='Validar e ingresar'}}
 }
-function logout(){if($('wsTitulo'))syncWorkFromUI(true);if(currentUser?.supabaseId&&sbAuth)sbAuth.auth.signOut();currentUser=null;sessionStorage.removeItem('frentePT_user');go('inicio')}
+function logout(){if($('wsTitulo'))syncWorkFromUI(true);window.__frenteAuthVerified=false;if(currentUser?.supabaseId&&sbAuth)sbAuth.auth.signOut();currentUser=null;sessionStorage.removeItem('frentePT_user');go('inicio')}
 function restoreSession(){try{currentUser=JSON.parse(sessionStorage.getItem('frentePT_user')||'null');if(currentUser&&!currentUser.systemRole){if(currentUser.rol==='Administrador General')currentUser.systemRole='administrador_general';if(currentUser.rol==='Administrador de Plataforma')currentUser.systemRole='administrador_plataforma'}}catch(e){currentUser=null}}
 function isAdminGeneral(){return currentUser?.systemRole==='administrador_general'}
 function isAdminPlataforma(){return currentUser?.systemRole==='administrador_plataforma'}
