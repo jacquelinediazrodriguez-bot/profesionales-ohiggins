@@ -28,7 +28,6 @@ function syncAdminRole(){
     const role=canonicalRole(currentUser);if(!role)return '';
     currentUser.systemRole=role;
     currentUser.rol=role==='administrador_general'?'Administrador General':'Administrador de Plataforma';
-    currentUser.role=role;
     try{sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser))}catch(e){}
     return role;
   }catch(e){return ''}
@@ -47,45 +46,41 @@ window.requireAdmin=function(generalOnly=false){
   return true;
 };
 
+let ensuring=null;
 async function ensureRealSession(){
   syncAdminRole();
   if(!currentUser?.supabaseId||!window.sbAuth)return false;
-  try{
-    if(typeof window.initSharedWorkspace==='function')await window.initSharedWorkspace();
-    return true;
-  }catch(e){console.warn('No se pudo inicializar la sesión compartida',e);return false}
+  if(ensuring)return ensuring;
+  ensuring=(async()=>{
+    try{
+      if(typeof window.initSharedWorkspace==='function')return (await window.initSharedWorkspace())!==false;
+      return true;
+    }catch(e){console.warn('No se pudo inicializar la sesión compartida',e);return false}
+    finally{ensuring=null}
+  })();
+  return ensuring;
 }
 
-function wrapWithRoleSync(name){
+function wrapAdminAction(name){
   const base=window[name];
-  if(typeof base!=='function'||base.__roleSyncWrapped)return;
-  let wrapped;
-  if(['adminPublicaciones','adminSolicitudes','adminDocumentosMesas','adminUsuarios','adminMesas','adminRepresentantes','abrirGestionGaleria','adminCorreoInstitucional','adminBloqueos','adminEstado','adminInvitaciones'].includes(name)){
-    wrapped=async function(){
-      syncAdminRole();
-      await ensureRealSession();
-      syncAdminRole();
-      return base.apply(this,arguments);
-    };
-  }else{
-    wrapped=function(){syncAdminRole();return base.apply(this,arguments)};
-  }
-  wrapped.__roleSyncWrapped=true;
+  if(typeof base!=='function'||base.__adminReadyWrapped)return;
+  const wrapped=async function(){
+    syncAdminRole();
+    await ensureRealSession();
+    syncAdminRole();
+    return base.apply(this,arguments);
+  };
+  wrapped.__adminReadyWrapped=true;
   window[name]=wrapped;
 }
 
-const WRAPPED=[
- 'go','renderAdminShell','adminHome','adminPublicaciones','adminSolicitudes','adminUsuarios','adminMesas',
- 'adminDocumentosMesas','adminRepresentantes','abrirGestionGaleria','adminCorreoInstitucional','adminPresidencia',
+const ADMIN_ACTIONS=[
+ 'adminPublicaciones','adminSolicitudes','adminUsuarios','adminMesas','adminDocumentosMesas',
+ 'adminRepresentantes','abrirGestionGaleria','adminCorreoInstitucional','adminPresidencia',
  'adminBloqueos','adminEstado','adminSeguridadLimites','adminInvitaciones'
 ];
-function refreshWrappers(){WRAPPED.forEach(wrapWithRoleSync)}
+function refreshWrappers(){ADMIN_ACTIONS.forEach(wrapAdminAction)}
 refreshWrappers();
-
-syncAdminRole();
-setTimeout(()=>{syncAdminRole();refreshWrappers()},80);
-setTimeout(()=>{syncAdminRole();refreshWrappers()},350);
-document.addEventListener('click',()=>{syncAdminRole();refreshWrappers()},true);
 
 function addMobileAdminStyle(){
   if(document.getElementById('adminAccessRoleFixStyle'))return;
@@ -95,28 +90,48 @@ function addMobileAdminStyle(){
 }
 addMobileAdminStyle();
 
-async function recoverBlockedAdminView(){
-  const role=syncAdminRole();if(!role)return;
-  const adminPage=document.getElementById('adminarea');
-  const adminContent=document.getElementById('admincontent');
-  const shell=document.getElementById('adminShell');
-  const text=((adminPage?.textContent||'')+' '+(adminContent?.textContent||'')+' '+(shell?.textContent||'')).toLowerCase();
-  const blocked=text.includes('requiere administración general')||text.includes('requiere administracion general')||text.includes('cuenta administrativa autorizada');
-  if(!blocked)return;
+async function openAdminArea(){
+  const role=syncAdminRole();
+  if(!role)return false;
   await ensureRealSession();
-  syncAdminRole();refreshWrappers();
+  syncAdminRole();
+  refreshWrappers();
   try{
+    if(typeof go==='function')go('adminarea');
     if(typeof renderAdminShell==='function')renderAdminShell();
     if(typeof adminHome==='function')adminHome();
-  }catch(e){console.warn('No se pudo reconstruir la vista administrativa',e)}
+    return true;
+  }catch(e){console.warn('No se pudo abrir Administración',e);return false}
 }
-setTimeout(recoverBlockedAdminView,450);
-setTimeout(recoverBlockedAdminView,1200);
+
+/* Al recargar Safari, la aplicación base restauraba la sesión pero dejaba activa la página Inicio.
+   Si existe una sesión administrativa válida, volver automáticamente a Administración. */
+function restoreAdminView(){
+  const role=syncAdminRole();
+  if(!role)return;
+  const active=document.querySelector('.page.active');
+  const isPublicStart=!active||active.id==='inicio';
+  if(isPublicStart)openAdminArea();
+}
+
+async function recoverBlockedAdminView(){
+  const role=syncAdminRole();if(!role)return;
+  const adminContent=document.getElementById('admincontent');
+  const shell=document.getElementById('adminShell');
+  const text=((adminContent?.textContent||'')+' '+(shell?.textContent||'')).toLowerCase();
+  const blocked=text.includes('requiere administración general')||text.includes('requiere administracion general')||text.includes('cuenta administrativa autorizada');
+  if(blocked)await openAdminArea();
+}
+
+syncAdminRole();
+setTimeout(()=>{syncAdminRole();refreshWrappers();restoreAdminView()},180);
+setTimeout(()=>{syncAdminRole();refreshWrappers();restoreAdminView();recoverBlockedAdminView()},700);
+document.addEventListener('click',()=>{syncAdminRole();refreshWrappers()},true);
 
 const observer=new MutationObserver(()=>{
   if(observer.__busy)return;
   observer.__busy=true;
-  Promise.resolve(recoverBlockedAdminView()).finally(()=>setTimeout(()=>{observer.__busy=false},80));
+  Promise.resolve(recoverBlockedAdminView()).finally(()=>setTimeout(()=>{observer.__busy=false},100));
 });
 observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
 })();
