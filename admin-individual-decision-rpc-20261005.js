@@ -38,4 +38,12 @@
       alert('No fue posible publicar el aporte: '+(err?.message||'error desconocido'));
     }
   };
+
+  /* Carga una corrección complementaria del flujo de restauración de versiones. */
+  if(!document.querySelector('script[data-restore-state-fix]')){
+    const s=document.createElement('script');
+    s.src='./workspace-restore-state-fix-20261005.js?v=1';
+    s.dataset.restoreStateFix='1';
+    document.head.appendChild(s);
+  }
 })();
