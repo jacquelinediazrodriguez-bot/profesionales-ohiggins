@@ -46,4 +46,12 @@
     s.dataset.restoreStateFix='1';
     document.head.appendChild(s);
   }
+
+  /* Expone un resolvedor estable de ID de Mesa para guardar/restaurar en nube. */
+  if(!document.querySelector('script[data-mesa-id-fix]')){
+    const s=document.createElement('script');
+    s.src='./workspace-mesa-id-fix-20261006.js?v=1';
+    s.dataset.mesaIdFix='1';
+    document.head.appendChild(s);
+  }
 })();
