@@ -2,8 +2,8 @@
 (function(){
 'use strict';
 const GLOBAL_ADMIN=['administrador_general','administrador_plataforma'];
-const globalLabel=r=>r==='administrador_general'?'Administrador General':r==='administrador_plataforma'?'Administrador de Plataforma':'';
-const isGlobalAdminProfile=p=>GLOBAL_ADMIN.includes(String(p?.role||''));
+const globalLabel=p=>String(p?.role||'')==='administrador_general'?'Administrador General':p?.is_platform_admin===true?'Administrador de Plataforma':'';
+const isGlobalAdminProfile=p=>String(p?.role||'')==='administrador_general'||p?.is_platform_admin===true;
 
 async function reloadMembershipCache(){
   try{
@@ -45,7 +45,7 @@ window.adminUsuarios=async function(){
   c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Integrantes y Roles</h1><p class="muted">Cargando integrantes…</p>';
   try{
     const [{data:profiles,error:pe},{data:members,error:me},{data:tables,error:te}]=await Promise.all([
-      sbAuth.from('profiles').select('id,full_name,email,role,is_active').order('full_name'),
+      sbAuth.from('profiles').select('id,full_name,email,role,is_platform_admin,is_active').order('full_name'),
       sbAuth.from('table_memberships').select('profile_id,technical_table_id,member_role,is_coordinator'),
       sbAuth.from('technical_tables').select('id,name,is_active').order('name')
     ]);
@@ -53,7 +53,7 @@ window.adminUsuarios=async function(){
     window.__adminProfiles=profiles||[];window.__adminMemberships=members||[];window.__adminTables=tables||[];
     const activeTables=(tables||[]).filter(t=>t.is_active!==false);
     const tableOptions=activeTables.map(t=>'<option value="'+t.id+'">'+esc(t.name)+'</option>').join('');
-    const profileOptions=(profiles||[]).map(p=>'<option value="'+p.id+'">'+esc(p.full_name||'Nombre pendiente')+' — '+esc(p.email)+(globalLabel(p.role)?' · '+globalLabel(p.role):'')+'</option>').join('');
+    const profileOptions=(profiles||[]).map(p=>'<option value="'+p.id+'">'+esc(p.full_name||'Nombre pendiente')+' — '+esc(p.email)+(globalLabel(p)?' · '+globalLabel(p):'')+'</option>').join('');
     const general=currentUser?.systemRole==='administrador_general';
     c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Integrantes y Roles</h1>'+
       '<div class="notice"><b>Una persona = una cuenta.</b> El correo y la contraseña son únicos. A esa misma cuenta se le pueden agregar distintas Mesas y un rol diferente en cada una. Los roles globales de administración no reemplazan los roles de Mesa.</div><br>'+
@@ -69,7 +69,7 @@ window.renderIntegrantesCompleto=function(){
   const ps=window.__adminProfiles||[],ms=window.__adminMemberships||[],ts=window.__adminTables||[];
   b.innerHTML=ps.length?ps.map(p=>{
     const own=ms.filter(m=>String(m.profile_id)===String(p.id));
-    const g=globalLabel(p.role);
+    const g=globalLabel(p);
     const assigns=own.length?own.map(m=>{const t=ts.find(x=>String(x.id)===String(m.technical_table_id));const role=m.is_coordinator?'Coordinador/a de Mesa':(m.member_role||'Integrante de Mesa');return '<div class="row"><div><b>'+esc(t?.name||'Mesa')+'</b></div><div><span class="pill">'+esc(role)+'</span> <button class="btn danger" onclick="quitarAsignacionAdmin(\''+p.id+'\','+Number(m.technical_table_id)+',\''+String(p.full_name||'Integrante').replace(/'/g,"\\'")+'\',\''+String(t?.name||'Mesa').replace(/'/g,"\\'")+'\')">Quitar de esta Mesa</button></div></div>'}).join(''):'<div class="mini-note">Sin Mesa ni rol asignado todavía.</div>';
     return '<div class="card" style="margin-bottom:10px"><b>'+esc(p.full_name||'Nombre pendiente')+'</b><br><small>'+esc(p.email||'')+'</small> '+(g?'<span class="pill">'+esc(g)+'</span> ':'')+'<span class="pill '+(p.is_active?'green':'amber')+'">'+(p.is_active?'Activo':'Inactivo')+'</span><div class="muted" style="margin-top:7px">Mesas asignadas: '+own.length+(isGlobalAdminProfile(p)?' de 3 máximo':'')+'</div><div style="margin-top:10px">'+assigns+'</div></div>';
   }).join(''):'<div class="notice">Sin perfiles registrados.</div>';
