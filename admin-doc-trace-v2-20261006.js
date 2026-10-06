@@ -41,7 +41,7 @@ async function loadTrace(row){
     events.push({at:p.published_at,type:p.withdrawn_at?'Retirada':'Biblioteca',text:p.withdrawn_at?'Publicación retirada · '+esc2(p.withdrawal_reason||'Sin motivo'):'Documento publicado en Biblioteca'});
     if(p.withdrawn_at)events.push({at:p.withdrawn_at,type:'Retirada',text:'Retirado de publicación · '+esc2(p.withdrawal_reason||'Sin motivo')});
   });
-  return events.sort((a,b)=>new Date(a.at||0)-new Date(b.at||0));
+  return events.sort((a,b)=>new Date(b.at||0)-new Date(a.at||0));
 }
 
 window.abrirSeguimientoDocumentoMesa=async function(workspaceId){
@@ -58,7 +58,7 @@ window.abrirSeguimientoDocumentoMesa=async function(workspaceId){
     const versiones=Array.isArray(row.data?.versiones)?row.data.versiones:[];
     const ultimaVersion=versiones.length?(versiones[versiones.length-1]?.numero??versiones.length):'—';
     const timeline=events.length?events.map(e=>'<div style="padding:12px 0;border-bottom:1px solid var(--line)"><small class="muted">'+esc2(fmtDate(e.at))+'</small><br><b>'+esc2(e.type)+'</b><div class="muted" style="margin-top:4px">'+e.text+'</div></div>').join(''):'<p class="muted">No hay movimientos registrados.</p>';
-    c.innerHTML='<div class="kicker">Seguimiento documental</div><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h1 class="section-title" style="margin-bottom:6px">'+esc2(row.title||'Documento de trabajo')+'</h1><p class="muted" style="margin-top:0">'+esc2(mesa)+' · Estado actual: <b>'+esc2(row.state||'En elaboración')+'</b> · Última versión '+esc2(ultimaVersion)+'</p></div><button id="volverDocsMesa" class="btn soft" type="button">← Volver</button></div><div class="notice"><b>Solo lectura.</b> Esta vista permite revisar el seguimiento completo sin modificar el documento.</div><div class="card" style="margin-top:14px"><h2 class="section-sub" style="margin-top:0">Trazabilidad completa</h2>'+timeline+'</div>';
+    c.innerHTML='<div class="kicker">Seguimiento documental</div><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h1 class="section-title" style="margin-bottom:6px">'+esc2(row.title||'Documento de trabajo')+'</h1><p class="muted" style="margin-top:0">'+esc2(mesa)+' · Estado actual: <b>'+esc2(row.state||'En elaboración')+'</b> · Última versión '+esc2(ultimaVersion)+'</p></div><button id="volverDocsMesa" class="btn soft" type="button">← Volver</button></div><div class="notice"><b>Solo lectura.</b> Esta vista permite revisar el seguimiento completo sin modificar el documento.</div><div class="card" style="margin-top:14px"><h2 class="section-sub" style="margin-top:0">Trazabilidad completa de: '+esc2(row.title||'Documento de trabajo')+'</h2>'+timeline+'</div>';
     document.getElementById('volverDocsMesa')?.addEventListener('click',()=>window.adminDocumentosMesas());
     window.scrollTo({top:0,behavior:'smooth'});
   }catch(err){console.error(err);c.innerHTML='<div class="notice">No fue posible abrir el seguimiento del documento.</div><br><button class="btn soft" id="volverDocsMesa">← Volver</button>';document.getElementById('volverDocsMesa')?.addEventListener('click',()=>window.adminDocumentosMesas())}
