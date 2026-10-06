@@ -47,9 +47,13 @@ window.requireAdmin=function(generalOnly=false){
 };
 
 let ensuring=null;
+function getSb(){
+  try{return (typeof sbAuth!=='undefined'&&sbAuth)?sbAuth:null}catch(e){return null}
+}
 async function ensureRealSession(){
   syncAdminRole();
-  if(!currentUser?.supabaseId||!window.sbAuth)return false;
+  const sb=getSb();
+  if(!currentUser?.supabaseId||!sb)return false;
   if(ensuring)return ensuring;
   ensuring=(async()=>{
     try{
@@ -66,8 +70,11 @@ function wrapAdminAction(name){
   if(typeof base!=='function'||base.__adminReadyWrapped)return;
   const wrapped=async function(){
     syncAdminRole();
-    await ensureRealSession();
+    const ok=await ensureRealSession();
     syncAdminRole();
+    if(!ok&&typeof isAnyAdmin==='function'&&isAnyAdmin()){
+      console.warn('Administración reconocida, pero la sincronización compartida aún no está lista.');
+    }
     return base.apply(this,arguments);
   };
   wrapped.__adminReadyWrapped=true;
@@ -104,14 +111,11 @@ async function openAdminArea(){
   }catch(e){console.warn('No se pudo abrir Administración',e);return false}
 }
 
-/* Al recargar Safari, la aplicación base restauraba la sesión pero dejaba activa la página Inicio.
-   Si existe una sesión administrativa válida, volver automáticamente a Administración. */
 function restoreAdminView(){
   const role=syncAdminRole();
   if(!role)return;
   const active=document.querySelector('.page.active');
-  const isPublicStart=!active||active.id==='inicio';
-  if(isPublicStart)openAdminArea();
+  if(!active||active.id==='inicio')openAdminArea();
 }
 
 async function recoverBlockedAdminView(){
