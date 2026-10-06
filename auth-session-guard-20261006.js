@@ -5,7 +5,7 @@
 'use strict';
 
 const USER_KEY='frentePT_user';
-const PRIVATE_PAGES=new Set(['adminarea','trabajo','miTrabajo','mitrabajo','workspace']);
+const PRIVATE_PAGES=new Set(['adminarea','mifrente','trabajo','miTrabajo','mitrabajo','workspace']);
 const PRIVATE_ACTIONS=[
   'adminHome','renderAdminShell','adminPublicaciones','adminSolicitudes','adminUsuarios','adminMesas',
   'adminDocumentosMesas','adminRepresentantes','abrirGestionGaleria','adminCorreoInstitucional',
@@ -44,15 +44,28 @@ function sameAuthenticatedUser(sessionUser,appUser){
   return !!(se&&ae&&se===ae);
 }
 
-function forcePublicAccess(){
+function showPublicHome(){
   clearClientIdentity();
   try{
     const badge=document.querySelector('[data-professional-connected],#professionalConnected,#activeProfessionalHeader');
     if(badge)badge.remove();
   }catch(e){}
-  try{if(typeof go==='function')go('mesas')}catch(e){
-    try{if(typeof go==='function')go('inicio')}catch(_){}
-  }
+  try{if(typeof go==='function')go('inicio')}catch(e){}
+}
+
+function showLogin(){
+  clearClientIdentity();
+  try{
+    const badge=document.querySelector('[data-professional-connected],#professionalConnected,#activeProfessionalHeader');
+    if(badge)badge.remove();
+  }catch(e){}
+  try{
+    if(typeof go==='function')go('mesas');
+    setTimeout(()=>{
+      const email=document.getElementById('loginEmail');
+      if(email){email.focus();email.scrollIntoView({behavior:'smooth',block:'center'})}
+    },120);
+  }catch(e){}
 }
 
 async function getSupabaseSession(){
@@ -80,7 +93,7 @@ async function verifySession(){
     try{if(typeof updateAccessUI==='function')updateAccessUI()}catch(e){}
     return true;
   }
-  forcePublicAccess();
+  showPublicHome();
   return false;
 }
 
@@ -91,7 +104,7 @@ function wrapGo(){
   const guarded=function(page){
     const p=String(page||'');
     if(PRIVATE_PAGES.has(p)&&window.__frenteAuthVerified!==true){
-      forcePublicAccess();
+      showLogin();
       return false;
     }
     return base.apply(this,arguments);
@@ -106,7 +119,7 @@ function wrapPrivateActions(){
     if(typeof base!=='function'||base.__sessionGuardWrapped)return;
     const guarded=function(){
       if(window.__frenteAuthVerified!==true){
-        forcePublicAccess();
+        showLogin();
         return false;
       }
       return base.apply(this,arguments);
@@ -129,7 +142,7 @@ setTimeout(()=>{
         if(event==='SIGNED_OUT'||!session){
           window.__frenteAuthVerified=false;
           window.__frenteAuthChecking=false;
-          forcePublicAccess();
+          showPublicHome();
         }
       });
     }
