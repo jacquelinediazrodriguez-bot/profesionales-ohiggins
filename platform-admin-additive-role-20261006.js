@@ -1,16 +1,23 @@
-/* Administrador de Plataforma como permiso global adicional — 06-10-2026 */
+/* Administrador de Plataforma como permiso global adicional — 06-10-2026
+   Optimización 06-10-2026: evita consultas en cada clic y observación global del DOM. */
 (function(){
 'use strict';
 
 let syncingPermission=false;
-async function syncPlatformAdminPermission(){
+let lastPermissionSync=0;
+const PERMISSION_SYNC_TTL=30000;
+
+async function syncPlatformAdminPermission(force){
+  const now=Date.now();
   if(syncingPermission)return;
+  if(!force && now-lastPermissionSync<PERMISSION_SYNC_TTL)return;
   try{
     if(typeof currentUser==='undefined'||!currentUser?.supabaseId)return;
     if(typeof sbAuth==='undefined'||!sbAuth)return;
     syncingPermission=true;
     const {data,error}=await sbAuth.from('profiles').select('role,is_platform_admin,is_active').eq('id',currentUser.supabaseId).maybeSingle();
     if(error||!data||data.is_active===false)return;
+    lastPermissionSync=Date.now();
     currentUser.accountRole=data.role||'integrante';
     currentUser.isPlatformAdmin=data.is_platform_admin===true;
     currentUser.systemRole=data.role==='administrador_general'?'administrador_general':(data.is_platform_admin===true?'administrador_plataforma':data.role||'integrante');
@@ -48,15 +55,18 @@ function patchAdminRoleHelp(){
 const originalAdminUsuarios=window.adminUsuarios;
 if(typeof originalAdminUsuarios==='function'){
   window.adminUsuarios=async function(){
-    await syncPlatformAdminPermission();
+    await syncPlatformAdminPermission(true);
     const r=await originalAdminUsuarios.apply(this,arguments);
     setTimeout(patchAdminRoleHelp,0);
     return r;
   };
 }
 
-const observer=new MutationObserver(()=>patchAdminRoleHelp());
-observer.observe(document.documentElement,{childList:true,subtree:true});
-setTimeout(()=>{syncPlatformAdminPermission();patchAdminRoleHelp()},300);
-document.addEventListener('click',()=>syncPlatformAdminPermission(),true);
+/* Sincronización inicial única. El rol se vuelve a consultar al entrar
+   a Administración de usuarios, no en cada interacción de la plataforma. */
+setTimeout(async()=>{
+  await syncPlatformAdminPermission(true);
+  patchAdminRoleHelp();
+},300);
+
 })();
