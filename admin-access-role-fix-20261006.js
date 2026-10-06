@@ -132,10 +132,22 @@ setTimeout(()=>{syncAdminRole();refreshWrappers();restoreAdminView()},180);
 setTimeout(()=>{syncAdminRole();refreshWrappers();restoreAdminView();recoverBlockedAdminView()},700);
 document.addEventListener('click',()=>{syncAdminRole();refreshWrappers()},true);
 
-const observer=new MutationObserver(()=>{
-  if(observer.__busy)return;
-  observer.__busy=true;
-  Promise.resolve(recoverBlockedAdminView()).finally(()=>setTimeout(()=>{observer.__busy=false},100));
+let observerTimer=null;
+const observer=new MutationObserver((mutations)=>{
+  let shouldCheck=false;
+  for(const m of mutations){
+    for(const n of (m.addedNodes||[])){
+      const t=String(n && n.textContent || '').toLowerCase();
+      if(t.includes('requiere administración general')||t.includes('requiere administracion general')||t.includes('cuenta administrativa autorizada')){
+        shouldCheck=true; break;
+      }
+    }
+    if(shouldCheck)break;
+  }
+  if(!shouldCheck)return;
+  clearTimeout(observerTimer);
+  observerTimer=setTimeout(()=>recoverBlockedAdminView(),180);
 });
-observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+const observedAdmin=document.getElementById('adminShell');
+if(observedAdmin)observer.observe(observedAdmin,{childList:true,subtree:true});
 })();
