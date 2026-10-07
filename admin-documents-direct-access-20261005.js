@@ -89,7 +89,7 @@ function traceEntries(mesa,d){
   if(p&&pubDate){
     out.push({when:dateValue({fecha:pubDate}),date:displayDate({fecha:pubDate}),kind:'Biblioteca',tone:'green',title:'Registro en Biblioteca pública',detail:'Documento final disponible para consulta.'});
   }
-  return out.sort((a,b)=>a.when-b.when);
+  return out.sort((a,b)=>b.when-a.when);
 }
 function statusSummary(mesa,d){
   const estado=typeof normalizeEstado==='function'?normalizeEstado(d?.estado):String(d?.estado||'En elaboración');
@@ -135,7 +135,7 @@ window.abrirDocumentoMesaAdmin=function(mesa){
         '<button class="btn soft" type="button" onclick="adminDocumentosMesas()">← Volver a Documentos de las Mesas</button>'+
       '</div>'+
       '<div class="notice" style="margin-bottom:14px"><b>Vista de seguimiento en modo solo lectura.</b> Aquí puede revisar versiones, fechas, observaciones, devoluciones, reenvíos y publicación sin modificar el documento.</div>'+
-      '<div class="card" style="margin-bottom:16px"><h2 class="section-sub" style="margin-top:0">Trazabilidad completa</h2>'+timeline+'</div>'+
+      '<div class="card" style="margin-bottom:16px"><h2 class="section-sub" style="margin-top:0">Trazabilidad completa de: '+safe(d.titulo||('Documento de trabajo de la Mesa '+mesa))+'</h2>'+timeline+'</div>'+
       '<details class="card"><summary style="cursor:pointer;font-weight:800;color:var(--blue)">Ver contenido actual del documento</summary><div style="margin-top:14px">'+body+'</div></details>'+
       '<style>@media(max-width:680px){#admincontent .admin-trace-row{grid-template-columns:1fr!important}}</style>';
     window.scrollTo({top:0,behavior:'smooth'});
