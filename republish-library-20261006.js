@@ -7,35 +7,47 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 
 function canRepublish(){
   try{
-    return typeof isReal==='function' && isReal() &&
-      currentUser?.rol==='Administrador General';
+    return !!window.currentUser &&
+      (window.currentUser.rol==='Administrador General' ||
+       window.currentUser.systemRole==='administrador_general');
   }catch(e){ return false; }
 }
 
 function findHistory(){
   const c=document.getElementById('admincontent');
   if(!c)return null;
-  const h=[...c.querySelectorAll('h2')].find(el=>/Historial de Biblioteca/i.test(el.textContent||''));
+  const h=[...c.querySelectorAll('h2,h3')].find(el=>/Historial de Biblioteca/i.test(el.textContent||''));
   if(!h)return null;
-  const rows=[];
-  let node=h.nextElementSibling;
-  while(node){
-    if(node.tagName==='H2')break;
-    if(node.classList?.contains('row'))rows.push(node);
-    node=node.nextElementSibling;
+
+  // El historial puede renderizar sus tarjetas dentro de contenedores auxiliares.
+  // No dependemos de que cada .row sea hermano directo del título.
+  let rows=[...c.querySelectorAll('.row')].filter(row=>{
+    const txt=norm(row.textContent||'');
+    return txt.includes('motivo del retiro') ||
+      txt.includes('retirado de publicacion') ||
+      txt.includes('ver pdf oficial');
+  });
+
+  // Respaldo para futuras variantes de marcado.
+  if(!rows.length){
+    const all=[...c.querySelectorAll('div,article')];
+    rows=all.filter(row=>{
+      const txt=norm(row.textContent||'');
+      return txt.includes('motivo del retiro') &&
+        (txt.includes('ver pdf oficial')||txt.includes('retirado de publicacion'));
+    }).filter(row=>!rows.some(x=>x!==row&&row.contains(x)));
   }
   return {c,h,rows};
 }
 
 function pickRowPublication(row,items,used){
   const txt=norm(row.textContent);
-  const matches=items.filter(p=>!used.has(String(p.id)) && txt.includes(norm(p.title)));
+  const matches=items
+    .filter(p=>!used.has(String(p.id)) && p.title && txt.includes(norm(p.title)))
+    .sort((a,b)=>new Date(b.withdrawn_at||b.republished_at||b.published_at||0)-new Date(a.withdrawn_at||a.republished_at||a.published_at||0));
   if(!matches.length)return null;
-  if(/retirado de publicacion/.test(txt)){
-    const retired=matches.find(p=>p.withdrawn_at || !p.is_public);
-    if(retired)return retired;
-  }
-  return matches[0];
+  const retired=matches.find(p=>p.withdrawn_at || !p.is_public);
+  return retired||matches[0];
 }
 
 function ensureFilters(h,rows){
@@ -132,7 +144,7 @@ async function decorateRepublish(){
     row.dataset.date=p.withdrawn_at||p.republished_at||p.published_at||'';
     row.dataset.status=p.republished_at&&p.is_public?'republicado':(p.withdrawn_at||!p.is_public?'retirado':'publicado');
 
-    const actions=row.querySelector('.toolbar-row')||row.lastElementChild;
+    const actions=row.querySelector('.toolbar-row')||row.querySelector('div:last-child')||row.lastElementChild;
     if(actions && canRepublish() && (p.withdrawn_at||!p.is_public) && !actions.querySelector('[data-republish-id]')){
       const btn=document.createElement('button');
       btn.className='btn success';
