@@ -117,6 +117,16 @@ window.renderAdminShell=function(){
   }
 };
 
-const observer=new MutationObserver(()=>injectWorkAdminButton());
-observer.observe(document.documentElement,{childList:true,subtree:true});
+// Observe only sidebar replacement, not every DOM change on the entire site.
+const sidebarHost=document.getElementById('adminShell');
+if(sidebarHost){
+  let pending=false;
+  const observer=new MutationObserver((records)=>{
+    if(pending)return;
+    if(!records.some(m=>[...m.addedNodes].some(n=>n.nodeType===1 && (n.matches?.('.side')||n.querySelector?.('.side')))))return;
+    pending=true;
+    queueMicrotask(()=>{pending=false;injectWorkAdminButton()});
+  });
+  observer.observe(sidebarHost,{childList:true,subtree:true});
+}
 })();
