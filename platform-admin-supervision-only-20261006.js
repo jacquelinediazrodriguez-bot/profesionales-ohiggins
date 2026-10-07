@@ -28,6 +28,7 @@ async function supervision(){
         '<p><b>Estado:</b> '+escText(doc.estado||'Sin estado')+
         ' · <b>Observaciones registradas:</b> '+Number(doc.observaciones||0)+
         ' · <b>Secciones con contenido:</b> '+Number(doc.secciones_completadas||0)+'</p>'+
+        '<div class="mini-note" style="margin-top:9px"><b>Observaciones actuales:</b> '+(Array.isArray(doc.observaciones_detalle)&&doc.observaciones_detalle.length?doc.observaciones_detalle.map(o=>'<p>'+escText(o.texto||'Observación sin texto')+' <small>('+escText(o.estado||'Sin estado')+' · '+escText(o.autor||'Autor no indicado')+')</small></p>').join(''):' Sin observaciones registradas')+'</div>'+ 
         '<p class="muted">Última actualización: '+(doc.actualizado?escText(new Date(doc.actualizado).toLocaleString('es-CL')):'Sin registro')+'</p></div>';
       }).join(''):'<div class="notice">No existen Mesas registradas.</div>')+
       '<br><button class="btn soft" onclick="platformMesaSupervision()">Actualizar estado</button>';
