@@ -5,11 +5,16 @@
 const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+function getCurrentUser(){
+  try{return (typeof currentUser!=='undefined')?currentUser:null}catch(e){return null}
+}
+function getSb(){
+  try{return (typeof sbAuth!=='undefined'&&sbAuth)?sbAuth:null}catch(e){return null}
+}
 function canRepublish(){
   try{
-    return !!window.currentUser &&
-      (window.currentUser.rol==='Administrador General' ||
-       window.currentUser.systemRole==='administrador_general');
+    const u=getCurrentUser();
+    return !!u && (u.rol==='Administrador General' || u.systemRole==='administrador_general');
   }catch(e){ return false; }
 }
 
@@ -126,9 +131,10 @@ function ensureFilters(h,rows){
 
 async function decorateRepublish(){
   const block=findHistory();
-  if(!block || !window.sbAuth || !block.rows.length)return;
+  const sb=getSb();
+  if(!block || !sb || !block.rows.length)return;
 
-  const {data,error}=await sbAuth.from('public_library')
+  const {data,error}=await sb.from('public_library')
     .select('id,title,is_public,published_at,withdrawn_at,withdrawal_reason,republished_at,republish_count,technical_table_id,technical_tables(name)')
     .order('published_at',{ascending:false});
   if(error){ console.warn('No se pudo preparar Historial de Biblioteca',error); return; }
@@ -174,7 +180,9 @@ window.volverAPublicar=async function(id,title){
   const ok=confirm('¿Volver a publicar “'+String(title||'este documento')+'” en la Biblioteca pública?\n\nSe conservarán el PDF oficial, la fecha y el motivo del retiro anterior.');
   if(!ok)return;
 
-  const {error}=await sbAuth.rpc('republish_publication',{p_library_id:Number(id)});
+  const sb=getSb();
+  if(!sb)return alert('No hay conexión disponible con la base de datos.');
+  const {error}=await sb.rpc('republish_publication',{p_library_id:Number(id)});
   if(error){
     console.error(error);
     const msg=String(error.message||'');
