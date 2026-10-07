@@ -26,9 +26,12 @@ function syncAdminRole(){
   try{
     if(typeof currentUser==='undefined'||!currentUser)return '';
     const role=canonicalRole(currentUser);if(!role)return '';
-    currentUser.systemRole=role;
-    currentUser.rol=role==='administrador_general'?'Administrador General':'Administrador de Plataforma';
-    try{sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser))}catch(e){}
+    const label=role==='administrador_general'?'Administrador General':'Administrador de Plataforma';
+    if(currentUser.systemRole!==role||currentUser.rol!==label){
+      currentUser.systemRole=role;
+      currentUser.rol=label;
+      try{sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser))}catch(e){}
+    }
     return role;
   }catch(e){return ''}
 }
@@ -130,7 +133,11 @@ async function recoverBlockedAdminView(){
 syncAdminRole();
 setTimeout(()=>{syncAdminRole();refreshWrappers();restoreAdminView()},180);
 setTimeout(()=>{syncAdminRole();refreshWrappers();restoreAdminView();recoverBlockedAdminView()},700);
-document.addEventListener('click',()=>{syncAdminRole();refreshWrappers()},true);
+document.addEventListener('click',(event)=>{
+  if(!event.target || !event.target.closest || !event.target.closest('#adminShell'))return;
+  syncAdminRole();
+  refreshWrappers();
+},true);
 
 let observerTimer=null;
 const observer=new MutationObserver((mutations)=>{
