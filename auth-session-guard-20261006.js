@@ -82,17 +82,25 @@ async function getSupabaseSession(){
 }
 
 async function verifySession(){
-  /* No confiar en el usuario cacheado mientras se valida la sesión real. */
-  clearClientIdentity();
+  /* No borrar la identidad mientras Supabase recupera la sesión: podría
+     interrumpir un ingreso nuevo y destruir el perfil recién validado. */
   const session=await getSupabaseSession();
-  const valid=!!(session?.user&&sameAuthenticatedUser(session.user,cachedUser));
+  if(window.__frenteAuthVerified===true){
+    window.__frenteAuthChecking=false;
+    return true;
+  }
+  const liveUser=(()=>{try{return typeof currentUser!=='undefined'?currentUser:null}catch(e){return null}})();
+  const identity=liveUser||cachedUser;
+  const valid=!!(session?.user&&sameAuthenticatedUser(session.user,identity));
   window.__frenteAuthVerified=valid;
   window.__frenteAuthChecking=false;
   if(valid){
-    restoreClientIdentity(cachedUser);
+    restoreClientIdentity(identity);
     try{if(typeof updateAccessUI==='function')updateAccessUI()}catch(e){}
     return true;
   }
+  /* Nunca borrar una identidad creada después de iniciar esta verificación. */
+  if(!cachedUser&&liveUser)return false;
   showPublicHome();
   return false;
 }
