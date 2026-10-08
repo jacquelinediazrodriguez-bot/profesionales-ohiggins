@@ -1019,7 +1019,44 @@
  }
  window.revisarSolicitudDocumento=async function(id){
    if(!isReal())return;
-   const group=solicitudGrupo(id);if(!group.length)return alert('No se encontró la solicitud.');
+   let group=solicitudGrupo(id);
+   if(!group.length){
+     // El listado puede quedar obsoleto tras la actualización de estados.
+     await refreshSharedAdmin();
+     group=solicitudGrupo(id);
+   }
+   if(!group.length){
+     // Recuperación focalizada: no depender de otras consultas administrativas.
+     const {data:head,error:headError}=await sbAuth.from('document_requests')
+       .select('*').eq('id',id).maybeSingle();
+     if(headError){console.error('Error consultando solicitud de Biblioteca',headError);}
+     if(head){
+       const query=sbAuth.from('document_requests').select('*');
+       const {data:rows,error:groupError}=head.request_group_id
+         ?await query.eq('request_group_id',head.request_group_id)
+         :await query.eq('id',head.id);
+       if(groupError)console.error('Error recuperando grupo de Biblioteca',groupError);
+       if(rows?.length){
+         if(!STATE.adminData)STATE.adminData={integrantes:[],requests:[],solicitudes:[]};
+         const existing=STATE.adminData.solicitudes||[];
+         const recovered=rows.map(x=>({
+           id:x.id,libraryId:x.library_id,titulo:x.title,nombre:x.name,
+           correo:x.email,institucion:x.institution,motivo:x.reason||'',
+           fecha:new Date(x.created_at).toLocaleString('es-CL'),createdAt:x.created_at,
+           estado:x.status,cloud:true,requestGroupId:x.request_group_id||null,
+           sentAt:x.sent_at||null,deliveredAt:x.delivered_at||null,
+           adminMessage:x.admin_message||'',deliveryEmailId:x.delivery_email_id||null,
+           copyEmail:x.copy_email||'',sentBy:x.sent_by||null
+         }));
+         STATE.adminData.solicitudes=[
+           ...existing.filter(x=>!recovered.some(y=>String(y.id)===String(x.id))),
+           ...recovered
+         ];
+         group=solicitudGrupo(id);
+       }
+     }
+   }
+   if(!group.length)return alert('No fue posible recuperar la solicitud desde la base de datos. Actualice e inténtelo nuevamente.');
    const first=group[0],host=document.getElementById('admincontent');if(!host)return;
    host.innerHTML='<div class="muted">Cargando documento solicitado…</div>';
    if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
