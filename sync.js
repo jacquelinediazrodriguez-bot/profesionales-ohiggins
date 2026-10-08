@@ -1599,12 +1599,34 @@
      (!locked&&!editing?(tables.length?'<div class="form-row" style="margin-top:14px"><div><label>Mesa Técnica que revisará este aporte</label><select id="aporteMesaRevision">'+tables.map(t=>'<option value="'+t.id+'" '+(t.name===x.topic?'selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select><div class="mini-note" style="margin-top:6px">Solo aparecen Mesas activas que tienen Coordinador/a asignado/a.</div></div></div>':'<div class="notice" style="margin-top:14px">No hay una Mesa Técnica activa con Coordinador/a disponible para revisar este aporte. Administración debe asignar una Coordinación antes de enviarlo.</div>'):'')+
      '<div class="toolbar-row" style="margin-top:14px">'+
        (editing?'<button class="btn primary" onclick="finalizarEdicionAporte('+x.id+')">Finalizar edición</button> <button class="btn soft" onclick="guardarAporteIndividual('+x.id+',false)">Guardar borrador</button> <button class="btn success" onclick="guardarAporteIndividual('+x.id+',true)">Guardar versión</button>':'')+
-       (!locked&&!editing?'<button class="btn primary" onclick="iniciarEdicionAporte('+x.id+')">Editar</button> '+(tables.length?'<button class="btn success" onclick="solicitarRevisionAporte('+x.id+')">Solicitar revisión</button>':''):'')+
+       (!locked&&!editing?'<button class="btn primary" onclick="iniciarEdicionAporte('+x.id+')">Editar</button> '+(tables.length?'<button class="btn success" onclick="solicitarRevisionAporte('+x.id+')">Enviar a coordinador para revisión</button>':''):'')+
        (review&&review.status==='En revisión'&&review.requested_by===STATE.uid?' <button class="btn danger" onclick="cancelarRevisionAporte('+review.id+')">Cancelar revisión y volver a editar</button>':'')+
        '<button class="btn soft" onclick="vistaPreviaAporte('+x.id+')">Vista del documento</button> <button class="btn soft" onclick="exportarAporteWord('+x.id+')">Exportar Word</button> <button class="btn soft" onclick="exportarAportePDF('+x.id+')">Exportar PDF</button>'+
      '</div>'+
-     '<h3 style="margin-top:18px">Historial de versiones</h3>'+aporteHistorialHTML(x)+
+     '<h3 style="margin-top:18px">Historial de versiones</h3>'+aporteHistorialHTML(x)+'<div id="aporteTrazabilidad" class="card" style="margin-top:16px"><b>Historial de validación y publicación</b><p class="muted">Consultando movimientos…</p></div>'+
      '</div>';
+   (async function(){
+     const host=document.getElementById('aporteTrazabilidad');if(!host)return;
+     try{
+       const [review,publishing]=await Promise.all([
+         sbAuth.from('individual_review_requests').select('id,status,requested_at,closed_at,coordinator_observation,version').eq('contribution_id',id).order('requested_at',{ascending:true}),
+         sbAuth.from('individual_publication_requests').select('id,status,requested_at,responded_at,observation,version').eq('contribution_id',id).order('requested_at',{ascending:true})
+       ]);
+       if(review.error)throw review.error;if(publishing.error)throw publishing.error;
+       const events=[];
+       (review.data||[]).forEach(v=>{
+         if(v.requested_at)events.push({at:v.requested_at,name:'Enviado a coordinación para revisión',detail:'Versión '+v.version});
+         if(v.closed_at)events.push({at:v.closed_at,name:v.status==='Validada'?'Aprobado por coordinación':v.status==='Devuelta'?'Devuelto por coordinación':'Revisión: '+v.status,detail:v.coordinator_observation||''});
+       });
+       (publishing.data||[]).forEach(v=>{
+         if(v.requested_at)events.push({at:v.requested_at,name:'Solicitud de publicación enviada',detail:'Versión '+v.version});
+         if(v.responded_at)events.push({at:v.responded_at,name:v.status==='Publicado'?'Documento publicado':'Decisión de Administración: '+v.status,detail:v.observation||''});
+       });
+       events.sort((a,b)=>new Date(a.at)-new Date(b.at));
+       if(!host.isConnected)return;
+       host.innerHTML='<b>Historial de validación y publicación</b>'+(events.length?events.map(e=>'<div class="history-item"><div><b>'+esc(e.name)+'</b><br><small>'+esc(new Date(e.at).toLocaleString('es-CL'))+(e.detail?' · '+esc(e.detail):'')+'</small></div></div>').join(''):'<p class="muted">Sin movimientos registrados.</p>');
+     }catch(error){console.warn('Historial del aporte',error);if(host.isConnected)host.innerHTML='<b>Historial de validación y publicación</b><p class="muted">No fue posible consultar los movimientos.</p>'}
+   })();
    box.scrollIntoView({behavior:'smooth',block:'start'});
  };
  window.guardarAporteIndividual=async function(id,versionar,quiet=false){
@@ -1762,9 +1784,9 @@
        const coord=getRoleForMesa(mesa)==='Coordinador/a de Mesa';
        const open=r.status==='En revisión';
        return '<div class="card" style="margin-bottom:14px"><div class="row"><div><span class="pill amber">'+esc(mesa)+'</span> <b>'+esc(r.snapshot?.title||'Aporte individual')+'</b><br><small>Autor: '+esc(r.snapshot?.author_name||'Profesional')+(r.snapshot?.author_profession?' · '+esc(r.snapshot.author_profession):'')+' · '+esc(r.snapshot?.document_type||'')+' · Versión '+r.version+' · '+new Date(r.requested_at).toLocaleString('es-CL')+'</small><br><small><b>'+vistos.length+'</b> vistos buenos · <b>'+mensajes.length+'</b> mensajes · Estado: '+esc(r.status)+'</small></div></div>'+
-       '<div class="toolbar-row" style="margin-top:12px"><button class="btn soft" onclick="verRevisionAporte('+r.id+')">Ver aporte</button>'+
+       '<div class="toolbar-row" style="margin-top:12px"><button class="btn soft" onclick="verRevisionAporte('+r.id+')">Revisar aporte personal</button>'+
        (open&&assigned.includes(mesa)?' <button class="btn success" '+(mine?'disabled':'')+' onclick="darVistoBuenoAporte('+r.id+')">'+(mine?'✓ Visto bueno registrado':'✓ Dar visto bueno')+'</button> <button class="btn soft" onclick="mensajeRevisionAporte('+r.id+')">💬 Dejar mensaje</button>':'')+
-       (open&&coord?' <button class="btn primary" onclick="coordinadorEnviarAporte('+r.id+')">Validar y solicitar publicación</button> <button class="btn soft" onclick="coordinadorDevolverAporte('+r.id+')">Devolver al autor</button>':'')+
+       (open&&coord?' <button class="btn primary" onclick="coordinadorEnviarAporte('+r.id+')">Aprobar y solicitar publicación</button> <button class="btn soft" onclick="coordinadorDevolverAporte('+r.id+')">Devolver al autor</button>':'')+
        '</div>'+
        ((r.feedback||[]).length?'<div style="margin-top:12px"><b>Actividad de revisión</b><ul>'+r.feedback.map(f=>'<li>'+esc(f.profiles?.full_name||'Integrante')+' · '+esc(f.feedback_type)+(f.message?': '+esc(f.message):'')+' · '+new Date(f.created_at).toLocaleString('es-CL')+'</li>').join('')+'</ul></div>':'')+
        (r.coordinator_observation?'<div class="mini-note"><b>Observación de Coordinación:</b> '+esc(r.coordinator_observation)+'</div>':'')+
