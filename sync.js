@@ -1328,8 +1328,10 @@
    if(!p)return alert('No se encontró la publicación final de esta Mesa.');
    return window.verDocumentoFinalPDF(p.id,false);
  };
+ let lastDeliveryCheck=0;
  window.comprobarEntregaSolicitudes=async function(){
-   if(!isReal())return;
+   if(!isReal()||Date.now()-lastDeliveryCheck<60000)return;
+   lastDeliveryCheck=Date.now();
    const ids=getSolicitudes().filter(x=>x.deliveryEmailId&&x.estado!=='Entregado').map(x=>x.id);
    if(!ids.length)return;
    try{
@@ -1344,7 +1346,7 @@
  window.adminSolicitudes=async function(){
    if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol))return original.adminSolicitudes();
    await refreshSharedAdmin();
-   await window.comprobarEntregaSolicitudes();
+   // La verificación externa de entrega no debe bloquear la navegación.
    const c=document.getElementById('admincontent'),a=getSolicitudes();if(!c)return;
    const groups=[];
    for(const x of a){
@@ -2268,7 +2270,7 @@
  };
  // Actualizar otras secciones desde la nube sin sobrescribir lo que se está escribiendo.
  async function pollSharedChanges(){
-   if(!isReal()||!Object.keys(STATE.ids).length)return;
+   if(!isReal()||document.hidden||!Object.keys(STATE.ids).length)return;
    const {data,error}=await sbAuth.from('workspace_documents').select('technical_table_id,data,revision')
       .in('technical_table_id',Object.values(STATE.ids));
    if(error)return;
@@ -2310,7 +2312,7 @@
      }
    }
  }
- setInterval(pollSharedChanges,25000);
+ setInterval(()=>{if(!document.hidden)void pollSharedChanges()},45000);
  setInterval(renewMyLocks,60000);
  window.addEventListener('online',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>flush(m))});
  window.addEventListener('pagehide',()=>{if(isReal())Object.keys(STATE.ids).forEach(m=>{if(localStorage.getItem(pendingKey(m))==='1')flush(m)});const m=currentDocMesa,names=ownedLocks();if(names.length)void flushThenRelease(m,names)});
