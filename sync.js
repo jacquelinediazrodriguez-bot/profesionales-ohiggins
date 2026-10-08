@@ -1040,26 +1040,28 @@
      }
    }
    const requestedLibraryIds=new Set(uniqueDocs.map(x=>String(x.libraryId||x.library_id||'')).filter(Boolean));
+   const pendingCount=uniqueDocs.filter(x=>!['Enviada','Entregado'].includes(x.estado)&&!x.sentAt&&!x.deliveryEmailId).length;
    const docs=uniqueDocs.map(x=>{
      const libraryId=String(x.libraryId||x.library_id||'');
      const pub=pubs.find(p=>String(p.id)===libraryId);
      const requestId=x.id;
      const fileName=pub?.finalPdfName||'PDF oficial no disponible';
      const ready=!!pub?.finalPdfPath;
+     const alreadySent=['Enviada','Entregado'].includes(x.estado)||!!x.sentAt||!!x.deliveryEmailId;
      return '<div class="card library-send-doc-card"><div class="row library-send-doc-row">'+
-       '<div class="library-send-doc-main"><input class="library-request-doc" type="checkbox" value="'+esc(String(requestId))+'" data-library-id="'+esc(libraryId)+'" '+(ready?'checked':'disabled')+'>'+
+       '<div class="library-send-doc-main"><input class="library-request-doc" type="checkbox" value="'+esc(String(requestId))+'" data-library-id="'+esc(libraryId)+'" '+(alreadySent?'disabled':ready?'checked':'disabled')+'>'+
        '<div class="library-send-doc-text"><b>'+esc(x.titulo)+'</b><br><small>Archivo: '+esc(fileName)+'</small><br><small>ID Biblioteca: '+esc(libraryId)+'</small></div></div>'+
-       '<div class="library-send-doc-actions"><span class="pill '+(ready?'green':'amber')+'">'+(ready?'PDF DISPONIBLE':'SIN PDF')+'</span>'+
+       '<div class="library-send-doc-actions"><span class="pill '+(ready?'green':'amber')+'">'+(alreadySent?esc(solicitudEstadoLabel(x.estado)):ready?'PDF DISPONIBLE':'SIN PDF')+'</span>'+
        (ready?'<button class="btn soft" type="button" onclick="verDocumentoFinalPDF('+Number(libraryId)+',false)">Ver PDF</button>':'')+
        '</div></div></div>';
    }).join('');
    host.innerHTML='<div class="kicker">Revisión de solicitud</div><h1 class="section-title">Enviar documentos de Biblioteca</h1>'+
     '<div class="card"><h3>Solicitante</h3><p><b>'+esc(first.nombre)+'</b><br>'+esc(first.correo)+(first.institucion?'<br>'+esc(first.institucion):'')+'</p>'+
     (first.motivo?'<p><b>Motivo / interés:</b><br>'+esc(first.motivo)+'</p>':'')+'</div>'+
-    '<div class="card" style="margin-top:12px"><h3>Documento(s) solicitado(s)</h3><div class="mini-note"><b>Los documentos pedidos aparecen seleccionados automáticamente.</b> Si la solicitud incluye más de un documento, podrá enviar todos en el mismo correo, sin duplicados. Puede abrir cada PDF antes de enviarlo.</div>'+docs+'</div>'+
+    '<div class="card" style="margin-top:12px"><h3>Documento(s) solicitado(s)</h3><div class="mini-note"><b>Solo los documentos pendientes y con PDF disponible aparecen seleccionados.</b> Los documentos ya enviados no pueden seleccionarse nuevamente. Puede abrir cada PDF antes de enviarlo.</div>'+docs+'</div>'+
     '<div class="card" style="margin-top:12px"><label><b>Mensaje al solicitante</b></label><textarea id="libraryReplyMessage" rows="6" placeholder="Escriba aquí el mensaje que acompañará los documentos.">'+esc(first.adminMessage||'Adjuntamos los documentos solicitados desde nuestra Biblioteca. Saludos cordiales.')+'</textarea>'+
     '<p class="mini-note">El correo se enviará con los PDF marcados y una copia a la cuenta administrativa que realiza el envío.</p>'+
-    '<div style="margin-top:12px"><button id="sendLibraryDocsBtn" class="btn primary" onclick="enviarDocumentosSolicitud('+id+')">Enviar documentos seleccionados</button> <button class="btn soft" onclick="adminSolicitudes()">Volver</button></div></div>';
+    '<div style="margin-top:12px">'+(pendingCount?'<button id="sendLibraryDocsBtn" class="btn primary" onclick="enviarDocumentosSolicitud('+id+')">Enviar documentos pendientes seleccionados</button> ':'')+'<button class="btn soft" onclick="adminSolicitudes()">Volver</button></div></div>';
  }
  async function generarAdjuntoPDFFinalBiblioteca(pub){
    const jsPDF=window.jspdf?.jsPDF;
@@ -1353,14 +1355,15 @@
     '<div class="notice">Revise qué se solicitó antes de enviar. El sistema muestra únicamente dos estados de despacho: <b>Enviado</b> y <b>Entregado</b>.</div><br>'+
     (groups.length?groups.map(g=>{
       const x=g[0],allDelivered=g.every(y=>y.estado==='Entregado'),allSent=g.every(y=>['Enviada','Entregado'].includes(y.estado));
-      const estado=allDelivered?'Entregado':allSent?'Enviado':'Pendiente';
       const uniqueDocs=solicitudDocumentosUnicos(g);
+      const sentCount=uniqueDocs.filter(y=>['Enviada','Entregado'].includes(y.estado)||!!y.sentAt||!!y.deliveryEmailId).length;
+      const estado=allDelivered?'Entregado':allSent?'Enviado':sentCount?'Envío parcial: '+sentCount+' de '+uniqueDocs.length+' documentos':'Pendiente';
       const names=uniqueDocs.map(y=>y.titulo).join(' · ');
       const sentTimes=g.map(y=>y.sentAt).filter(Boolean).sort();
       const deliveredTimes=g.map(y=>y.deliveredAt).filter(Boolean).sort();
       const sentLabel=sentTimes.length?' · Enviado '+new Date(sentTimes[sentTimes.length-1]).toLocaleString('es-CL'):'';
       const deliveredLabel=deliveredTimes.length?' · Entregado '+new Date(deliveredTimes[deliveredTimes.length-1]).toLocaleString('es-CL'):'';
-      return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.nombre)+'</b> · '+esc(x.correo)+'<br><small>'+esc(x.fecha)+(x.institucion?' · '+esc(x.institucion):'')+sentLabel+deliveredLabel+'</small><p style="margin:8px 0 0"><b>'+uniqueDocs.length+' documento(s):</b> '+esc(names)+'</p>'+(x.copyEmail?'<small>Copia administrativa: '+esc(x.copyEmail)+'</small>':'')+'</div><div><span class="pill '+(estado==='Entregado'?'green':estado==='Enviado'?'amber':'')+'">'+estado+'</span><br><button class="btn soft" style="margin-top:8px" onclick="revisarSolicitudDocumento('+x.id+')">'+(allSent?'Ver envío':'Revisar y enviar')+'</button></div></div></div>';
+      return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.nombre)+'</b> · '+esc(x.correo)+'<br><small>'+esc(x.fecha)+(x.institucion?' · '+esc(x.institucion):'')+sentLabel+deliveredLabel+'</small><p style="margin:8px 0 0"><b>'+uniqueDocs.length+' documento(s):</b> '+esc(names)+'</p>'+(x.copyEmail?'<small>Copia administrativa: '+esc(x.copyEmail)+'</small>':'')+'</div><div><span class="pill '+(estado==='Entregado'?'green':estado==='Enviado'?'amber':'')+'">'+estado+'</span><br><button class="btn soft" style="margin-top:8px" onclick="revisarSolicitudDocumento('+x.id+')">'+(allSent?'Ver envío':sentCount?'Revisar pendientes':'Revisar y enviar')+'</button></div></div></div>';
     }).join(''):'<div class="card"><p>Aún no hay solicitudes registradas.</p></div>');
  };
  window.publicarSolicitud=async function(id){
