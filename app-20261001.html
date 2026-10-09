@@ -692,10 +692,26 @@ function renderTareas(c){
  c.innerHTML=`<div class="kicker">Organización del trabajo</div><h1 class="section-title">Tareas de la Mesa</h1><div class="notice"><b>Trabajo interno de la Mesa.</b> Los integrantes pueden crear y actualizar tareas. El responsable debe ser un integrante activo de esta Mesa. Si una persona es retirada, sus tareas se conservan y quedan marcadas para reasignación. Solo Coordinación, Secretaría Técnica o Administración pueden eliminar una tarea.</div><br><div class="summary-card"><div><small>Total</small><br><b>${(d.tareas||[]).length}</b></div><div><small>Pendientes</small><br><b>${pendientes}</b></div><div><small>Responsable retirado</small><br><b>${retirados}</b></div></div><br><div class="form-row"><div><label>Mesa Técnica</label><select id="taskMesa" onchange="currentDocMesa=this.value;renderTareas($('privatecontent'))">${ass.map(m=>`<option ${m===currentDocMesa?'selected':''}>${esc(m)}</option>`).join('')}</select></div></div><br><div class="card"><div class="task-head"><span>TAREA</span><span>RESPONSABLE DE EJECUTAR LA TAREA</span><span>FECHA LÍMITE</span><span>ESTADO</span><span></span></div><div id="taskRows">${(d.tareas||[]).map((t,i)=>taskRow(t,i,currentDocMesa)).join('')}</div><button class="btn soft" onclick="agregarTarea()">＋ Agregar tarea</button></div>`
 }
 function agregarTarea(){
- if(!puedeTrabajarMesa())return alert('No tiene permiso para trabajar en esta Mesa.');
- const d=getWork(currentDocMesa);
- d.tareas.push({id:Date.now(),que:'',quien:'',quienId:'',quienCorreo:'',responsableEstado:'Sin asignar',cuando:'',estado:'Pendiente',creadoPor:currentUser?.nombre||'',creadoCorreo:currentUser?.correo||''});
- setWork(currentDocMesa,d);renderTareas($('privatecontent'))
+ const c=$('privatecontent');
+ if(!c)return;
+ if(!puedeTrabajarMesa()){
+   alert('No tiene permiso para trabajar en esta Mesa. Actualice la sesión o verifique su asignación con Administración.');
+   return;
+ }
+ try{
+   const mesa=currentDocMesa;
+   const d=getWork(mesa);
+   if(!Array.isArray(d.tareas))d.tareas=[];
+   d.tareas.push({id:Date.now(),que:'',quien:'',quienId:'',quienCorreo:'',responsableEstado:'Sin asignar',cuando:'',estado:'Pendiente',creadoPor:currentUser?.nombre||'',creadoCorreo:currentUser?.correo||''});
+   setWork(mesa,d);
+   renderTareas(c);
+   const rows=c.querySelectorAll('#taskRows .task-row');
+   const last=rows[rows.length-1];
+   if(last){last.scrollIntoView({behavior:'smooth',block:'center'});const field=last.querySelector('input,textarea');if(field)field.focus({preventScroll:true});}
+ }catch(e){
+   console.error('Error al agregar tarea:',e);
+   alert('No fue posible agregar la tarea. '+(e?.name==='QuotaExceededError'?'El almacenamiento local está lleno.':'Revise el acceso y vuelva a intentarlo.'));
+ }
 }
 function updTaskResponsible(i,profileId){
  if(!puedeTrabajarMesa())return alert('No tiene permiso para modificar tareas de esta Mesa.');
