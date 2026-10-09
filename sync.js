@@ -1312,6 +1312,45 @@
    pub.finalPdfPath=path;pub.finalPdfName=finalPdf.filename;pub.finalPdfSize=finalPdf.size;pub.finalPdfCreatedAt=new Date().toISOString();
    return pub;
  }
+ async function pdfIndividualDesdeBiblioteca(id,descargar,preopened){
+   const {data:x,error}=await sbAuth.from('public_library')
+     .select('id,title,snapshot,author_name,technical_table_id,origin_type,is_public')
+     .eq('id',id).eq('is_public',true).single();
+   if(error||!x||x.origin_type!=='individual')throw error||new Error('No se encontró el aporte individual publicado.');
+   const PDF=window.jspdf?.jsPDF;
+   if(!PDF)throw new Error('La herramienta PDF no está disponible.');
+   const pdf=new PDF({unit:'mm',format:'a4'});
+   const margin=18, width=174, height=297;
+   let y=22;
+   const write=(value,size=10,bold=false)=>{
+     if(!value)return;
+     pdf.setFont('helvetica',bold?'bold':'normal');pdf.setFontSize(size);
+     const lines=pdf.splitTextToSize(String(value),width);
+     for(const line of lines){if(y>height-21){pdf.addPage();y=22;}pdf.text(line,margin,y);y+=size*.49+2;}
+     y+=3;
+   };
+   const clean=(html)=>{
+     const d=document.createElement('div');d.innerHTML=String(html||'');
+     return (d.innerText||d.textContent||'').replace(/\\u00a0/g,' ').trim();
+   };
+   const {data:mesa}=await sbAuth.from('technical_tables').select('name').eq('id',x.technical_table_id).maybeSingle();
+   write('FRENTE DE PROFESIONALES Y TÉCNICOS - O’HIGGINS',11,true);
+   write('APORTE PERSONAL PUBLICADO',13,true);
+   write(x.title,15,true);
+   write('Autor: '+(x.author_name||x.snapshot?.author_name||'Profesional'));
+   write('Mesa: '+(mesa?.name||'No identificada')+' | Versión: '+(x.snapshot?.version||1));
+   write('Resumen',12,true);write(clean(x.snapshot?.summary||''));
+   write('Contenido',12,true);write(clean(x.snapshot?.body||''));
+   const n=pdf.getNumberOfPages();
+   for(let p=1;p<=n;p++){pdf.setPage(p);pdf.setFontSize(8);pdf.text('Página '+p+' de '+n,190,286,{align:'right'});}
+   const blob=pdf.output('blob');
+   const url=URL.createObjectURL(blob);
+   const name='aporte-personal-'+id+'.pdf';
+   if(descargar){const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();if(preopened)preopened.close();}
+   else if(preopened)preopened.location.replace(url);
+   else location.href=url;
+   setTimeout(()=>URL.revokeObjectURL(url),120000);
+ }
  window.verDocumentoFinalPDF=async function(id,descargar=false){
    // Safari/iOS puede bloquear window.open si se ejecuta después de un await.
    // Abrimos una pestaña vacía dentro del gesto del usuario y luego la dirigimos
@@ -1333,8 +1372,8 @@
        return alert('Este documento ya no se encuentra disponible en la Biblioteca pública.');
      }
      if(!live.final_pdf_path){
-       if(preopened)preopened.close();
-       return alert('Este documento todavía no tiene un PDF final oficial disponible.');
+       await pdfIndividualDesdeBiblioteca(Number(id),descargar,preopened);
+       return;
      }
 
      const filename=live.final_pdf_name||'documento-final.pdf';
