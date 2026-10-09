@@ -1129,9 +1129,8 @@ async function copiarCitaBiblioteca(id){
   }
 }
 function bibliotecaMesaLabel(p){
-  return (p.origen||'Documento de Mesa')==='Aporte individual'
-    ?'Aportes individuales'
-    :(p.mesa||p.tema||'Sin Mesa');
+  // La Mesa responsable tiene prioridad sobre la clasificación temática o el origen individual.
+  return p.mesa||p.mesaNombre||p.technicalTableName||p.tema||'Sin Mesa';
 }
 function bibliotecaFechaTs(p){
   if(p.publishedAt){
