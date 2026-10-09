@@ -475,6 +475,16 @@
    try{localStorage.setItem('frentePT_biblioteca_cloud',JSON.stringify(pubs));}catch(e){console.warn('No se pudo guardar la copia local de Biblioteca',e)}
    if(document.getElementById('biblioteca')?.classList.contains('active'))renderBiblioteca();
  };
+ // Compartir las cargas simultáneas de Biblioteca Pública sin alterar su actualización.
+ const loadPublicLibraryWithoutDuplication=window.loadPublicLibrary;
+ let pendingPublicLibraryLoad=null;
+ window.loadPublicLibrary=function(){
+   if(pendingPublicLibraryLoad)return pendingPublicLibraryLoad;
+   pendingPublicLibraryLoad=Promise.resolve().then(()=>loadPublicLibraryWithoutDuplication()).finally(()=>{
+     pendingPublicLibraryLoad=null;
+   });
+   return pendingPublicLibraryLoad;
+ };
  window.citarPublicacionEnMesa=function(id){
    if(!isReal())return alert('Ingrese con su cuenta para citar una publicación en un trabajo de Mesa.');
    const p=window.getPublicaciones().find(x=>x.id===id);if(!p)return alert('No se encontró la publicación.');
