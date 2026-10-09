@@ -2140,7 +2140,7 @@
    try{
      const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'approve',id}});
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible aprobar.');
-     alert(data.status==='Cuenta activada'?'La persona ya tenía cuenta. Se agregó la Mesa y el rol aprobados.':'Invitación enviada correctamente por correo.');
+     alert(data.existing?'Se incorporó la cuenta existente a la Mesa y rol aprobados.':'Invitación enviada correctamente por correo.');
      await window.adminInvitaciones();
    }catch(e){console.error(e);alert(e?.message||'No fue posible aprobar la solicitud.');}
  };
@@ -2152,35 +2152,39 @@
      await window.adminInvitaciones();
    }catch(e){console.error(e);alert(e?.message||'No fue posible rechazar la solicitud.');}
  };
+ window.adminConsultarCuentaInvitacion=async function(email){
+   const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'check_account',email}});
+   if(error)throw error;
+   if(!data?.ok)throw new Error(data?.error||'No se pudo consultar el estado de la cuenta.');
+   return !!data.exists;
+ };
  window.adminRecuperarAccesoIntegrante=async function(){
    const email=prompt('Correo electrónico de la cuenta existente:');
    if(email===null)return;
    const clean=String(email).trim().toLowerCase();
-   if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(clean))return alert('Ingrese un correo válido.');
-   const {data:found,error:lookupError}=await sbAuth.from('profiles').select('id').eq('email',clean).limit(1);
-   if(lookupError)return alert('No se pudo verificar la cuenta. Inténtelo nuevamente.');
-   if(!found?.length)return alert('No se encontró una cuenta registrada. Utilice Nueva invitación.');
-   if(!confirm('¿Enviar un enlace de recuperación a la cuenta registrada? No se modificarán sus mesas ni roles.'))return;
+   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean))return alert('Ingrese un correo válido.');
    try{
+     if(!(await window.adminConsultarCuentaInvitacion(clean)))return alert('No se encontró una cuenta registrada. Utilice Nueva invitación.');
+     if(!confirm('¿Solicitar un enlace de recuperación para esta cuenta? No se modificarán sus mesas ni roles.'))return;
      const {error}=await sbAuth.auth.resetPasswordForEmail(clean,{redirectTo:location.origin+location.pathname});
      if(error)throw error;
-     alert('Se solicitó el envío del enlace de recuperación. Revise la bandeja de entrada y correo no deseado.');
-   }catch(err){console.error(err);alert('No se pudo solicitar la recuperación: '+(err?.message||'error de envío'));}
+     alert('Se solicitó el enlace de recuperación. Revise la bandeja de entrada y correo no deseado.');
+   }catch(err){console.error(err);alert('No fue posible solicitar recuperación: '+(err?.message||'Error de servicio'));}
  };
  window.adminInvitacionDirecta=async function(){
-   const email=prompt('Correo electrónico:');if(email===null)return;
+   const email=prompt('Correo electrónico del nuevo profesional:');
+   if(email===null)return;
    const clean=String(email).normalize('NFKC').replace(/[\s\u200B-\u200D\uFEFF]+/g,'').toLowerCase();
-   const parts=clean.split('@');
-   const valid=parts.length===2&&parts[0].length>0&&/^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(parts[0])&&/^[A-Z0-9-]+(?:\.[A-Z0-9-]+)+$/i.test(parts[1]);
-   if(!valid)return alert('Ingrese un correo electrónico válido.');
+   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean))return alert('Ingrese un correo válido.');
    try{
+     if(await window.adminConsultarCuentaInvitacion(clean))return alert('Esta persona ya tiene una cuenta. Utilice Incorporar integrante existente o Recuperar acceso a cuenta.');
      const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'direct_invite',email:clean}});
-     if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible enviar la invitación.');
-     alert(data.status==='Registro completado'?'Este correo ya tiene el registro completado.':'Invitación enviada correctamente. El correo quedó registrado en la lista de invitaciones.');
+     if(error)throw error;
+     if(!data?.ok)throw new Error(data?.error||'No fue posible enviar la invitación.');
+     alert('Invitación tramitada. Revise su registro y estado de entrega.');
      await window.adminInvitaciones();
-   }catch(e){console.error(e);alert(e?.message||'No fue posible enviar la invitación.');}
+   }catch(e){console.error(e);alert('No se pudo completar la invitación: '+(e?.message||'Error de servicio'));}
  };
-
  const _renderInvitacionesIntegrantes=window.renderInvitacionesIntegrantes;
  window.renderInvitacionesIntegrantes=async function(container){
    const c=container||document.getElementById('privatecontent');
