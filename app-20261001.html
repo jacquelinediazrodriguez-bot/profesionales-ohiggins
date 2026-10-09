@@ -422,7 +422,7 @@ async function login(){
  }catch(err){console.error(err);msg.textContent='No se completó la validación. Revise su conexión.'}
  finally{if(btn){btn.disabled=false;btn.textContent='Validar e ingresar'}}
 }
-function logout(){if($('wsTitulo'))syncWorkFromUI(true);window.__frenteAuthVerified=false;if(currentUser?.supabaseId&&sbAuth)sbAuth.auth.signOut();currentUser=null;sessionStorage.removeItem('frentePT_user');go('inicio')}
+async function logout(){if($('wsTitulo'))syncWorkFromUI(true);window.__frenteAuthVerified=false;window.__frenteAuthChecking=false;try{if(sbAuth)await sbAuth.auth.signOut()}catch(e){console.error('No se pudo cerrar sesión en autenticación',e);alert('No se pudo cerrar la sesión de forma segura. Intente nuevamente.');return}currentUser=null;sessionStorage.removeItem('frentePT_user');sessionStorage.removeItem('frentePT_real_roles');go('inicio')}
 function restoreSession(){try{currentUser=JSON.parse(sessionStorage.getItem('frentePT_user')||'null');if(currentUser&&!currentUser.systemRole){if(currentUser.rol==='Administrador General')currentUser.systemRole='administrador_general';if(currentUser.rol==='Administrador de Plataforma')currentUser.systemRole='administrador_plataforma'}}catch(e){currentUser=null}}
 function isAdminGeneral(){return currentUser?.systemRole==='administrador_general'}
 function isAdminPlataforma(){return currentUser?.systemRole==='administrador_plataforma'}
