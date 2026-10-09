@@ -1222,7 +1222,7 @@ function renderBiblioteca(){
       return '<tr class="library-row tone-'+g.tone+'">'+
         '<td class="library-select-cell" data-label="Seleccionar"><input class="bib-select" data-id="'+esc(String(p.id))+'" type="checkbox" aria-label="Seleccionar '+esc(p.titulo)+'" onchange="toggleBibliotecaSeleccion(\''+String(p.id).replace(/'/g,"\\'")+'\',this.checked)"'+checked+'></td>'+
         '<td data-label="Mesa"><span class="pill">'+esc(mesa)+'</span></td>'+
-        '<td data-label="Título"><div class="library-title"><button type="button" onclick="leerBiblioteca('+p.id+')">'+esc(p.titulo)+'</button></div><div class="library-inline-actions"><button type="button" onclick="leerBiblioteca('+p.id+')">Ver documento</button>'+(p.finalPdfPath?'<button type="button" onclick="verDocumentoFinalPDF('+p.id+',false)">Ver PDF final</button><button type="button" onclick="verDocumentoFinalPDF('+p.id+',true)">Descargar PDF</button>':'')+'<button type="button" onclick="copiarCitaBiblioteca('+p.id+')">Copiar cita</button></div></td>'+
+        '<td data-label="Título"><div class="library-title"><button type="button" onclick="leerBiblioteca('+p.id+')">'+esc(p.titulo)+'</button></div><div class="library-inline-actions"><button type="button" onclick="leerBiblioteca('+p.id+')">Ver ficha</button><button type="button" onclick="abrirSolicitud('+p.id+')">Solicitar por correo</button><button type="button" onclick="copiarCitaBiblioteca('+p.id+')">Copiar cita</button></div></td>'+
         '<td data-label="Breve descripción" class="library-desc">'+esc(descripcion)+'</td>'+
       '</tr>';
     }).join('');
@@ -1234,7 +1234,8 @@ function renderBiblioteca(){
 }
 function leerBiblioteca(id){
   const p=getPublicaciones().find(x=>String(x.id)===String(id)),b=$('bibliotecaDetalle');if(!p||!b)return;
-  b.innerHTML=documentFinalHTML(p)+'<br>'+(p.finalPdfPath?'<button class="btn primary" onclick="verDocumentoFinalPDF('+p.id+',false)">Ver documento final en PDF</button> <button class="btn soft" onclick="verDocumentoFinalPDF('+p.id+',true)">Descargar PDF</button> ':'')+(currentUser?'<button class="btn success" onclick="citarPublicacionEnMesa('+p.id+')">Citar en mi trabajo</button> ':'')+'<button class="btn soft" onclick="abrirSolicitud('+p.id+')">📩 Solicitar copia de este documento</button>';
+  const fecha=p.fechaPublicacion||p.fecha||'';
+  b.innerHTML='<div class="card"><div class="kicker">Ficha de publicación</div><h2>'+esc(p.titulo)+'</h2><p class="muted">Mesa: '+esc(p.mesa||p.tema||'Sin mesa')+' · Fecha de publicación: '+esc(fecha)+'</p><p><b>Breve descripción:</b> '+esc(p.descripcion||p.resumen||'Documento publicado en Biblioteca.')+'</p><p class="muted">Para recibir el documento completo, solicite una copia por correo electrónico.</p><button class="btn primary" onclick="abrirSolicitud('+p.id+')">Solicitar copia por correo</button></div>';
   b.scrollIntoView({behavior:'smooth'});
 }
 function abrirSolicitud(id){
