@@ -1315,40 +1315,83 @@
  }
  async function pdfIndividualDesdeBiblioteca(id,descargar,preopened){
    const {data:x,error}=await sbAuth.from('public_library')
-     .select('id,title,snapshot,author_name,technical_table_id,origin_type,is_public')
+     .select('id,title,snapshot,author_name,technical_table_id,origin_type,is_public,published_at')
      .eq('id',id).eq('is_public',true).single();
    if(error||!x||x.origin_type!=='individual')throw error||new Error('No se encontró el aporte individual publicado.');
    const PDF=window.jspdf?.jsPDF;
    if(!PDF)throw new Error('La herramienta PDF no está disponible.');
    const pdf=new PDF({unit:'mm',format:'a4'});
-   const margin=18, width=174, height=297;
-   let y=22;
-   const write=(value,size=10,bold=false)=>{
-     if(!value)return;
-     pdf.setFont('helvetica',bold?'bold':'normal');pdf.setFontSize(size);
-     const lines=pdf.splitTextToSize(String(value),width);
-     for(const line of lines){if(y>height-21){pdf.addPage();y=22;}pdf.text(line,margin,y);y+=size*.49+2;}
-     y+=3;
-   };
-   const clean=(html)=>{
-     const d=document.createElement('div');d.innerHTML=String(html||'');
-     return (d.innerText||d.textContent||'').replace(/\\u00a0/g,' ').trim();
-   };
+   const margin=20,maxWidth=170;
    const {data:mesa}=await sbAuth.from('technical_tables').select('name').eq('id',x.technical_table_id).maybeSingle();
-   write('FRENTE DE PROFESIONALES Y TÉCNICOS - O’HIGGINS',11,true);
-   write('APORTE PERSONAL PUBLICADO',13,true);
-   write(x.title,15,true);
-   write('Autor: '+(x.author_name||x.snapshot?.author_name||'Profesional'));
-   write('Mesa: '+(mesa?.name||'No identificada')+' | Versión: '+(x.snapshot?.version||1));
-   write('Resumen',12,true);write(clean(x.snapshot?.summary||''));
-   write('Contenido',12,true);write(clean(x.snapshot?.body||''));
-   const n=pdf.getNumberOfPages();
-   for(let p=1;p<=n;p++){pdf.setPage(p);pdf.setFontSize(8);pdf.text('Página '+p+' de '+n,190,286,{align:'right'});}
+   const fecha=x.published_at?new Date(x.published_at).toLocaleDateString('es-CL'):'Sin fecha';
+   const normal=t=>String(t||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
+   const writeBlock=(txt,opts={})=>{
+     const value=normal(txt);if(!value)return;
+     const size=opts.size||11, indent=opts.indent||0;
+     pdf.setFont('helvetica',opts.bold?'bold':'normal');pdf.setFontSize(size);
+     const lines=pdf.splitTextToSize(value,maxWidth-indent);
+     let y=cursor;
+     for(const line of lines){
+       if(y>277){pdf.addPage();y=24;}
+       pdf.text(line,opts.center?105:margin+indent,y,opts.center?{align:'center'}:undefined);
+       y+=size*.48+2.3;
+     }
+     cursor=y+(opts.after??5);
+   };
+   let cursor=24;
+   // Portada institucional independiente del cuerpo del aporte.
+   try{
+     if(typeof imagenAPngBytes==='function'){
+       const logos=await Promise.all([
+         imagenAPngBytes('https://upload.wikimedia.org/wikipedia/commons/7/71/Logo_Democracia_Cristiana_Chile_2020.png',260,92),
+         imagenAPngBytes('https://upload.wikimedia.org/wikipedia/commons/1/1b/Emblem_of_the_Christian_Democrat_Party_of_Chile.svg',110,92)
+       ]);
+       const left=logos[0],right=logos[1];
+       if(left?.data)pdf.addImage(left.data,'PNG',22,18,65,65*left.height/left.width);
+       if(right?.data)pdf.addImage(right.data,'PNG',165,18,25,25*right.height/right.width);
+     }
+   }catch(e){console.warn('No se pudieron incorporar los logos a la portada del aporte:',e);}
+   cursor=76;
+   writeBlock('Plataforma Digital Frente PT O’Higgins',{size:15,bold:true,center:true,after:8});
+   writeBlock('APORTE PERSONAL PUBLICADO',{size:13,bold:true,center:true,after:15});
+   writeBlock(x.title,{size:18,bold:true,center:true,after:22});
+   const metadata=[
+     ['Autor',x.author_name||x.snapshot?.author_name||'Profesional'],
+     ['Mesa Técnica',mesa?.name||'No identificada'],
+     ['Versión',String(x.snapshot?.version||1)],
+     ['Fecha de publicación',fecha]
+   ];
+   for(const [k,v] of metadata)writeBlock(k+': '+v,{size:11,after:7});
+   // El aporte comienza siempre en una página nueva, conservando su estructura de párrafos.
+   pdf.addPage();cursor=24;
+   writeBlock(x.title,{size:15,bold:true,center:true,after:10});
+   const container=document.createElement('div');
+   container.innerHTML=String(x.snapshot?.body||'');
+   const elements=[...container.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,blockquote')];
+   if(elements.length){
+     for(const el of elements){
+       const tag=el.tagName.toLowerCase();
+       const isTitle=/^h[1-6]$/.test(tag);
+       const text=el.innerText||el.textContent||'';
+       writeBlock(tag==='li'?'• '+text:text,{
+         size:isTitle?13:11,bold:isTitle,center:isTitle,indent:isTitle?0:5,after:isTitle?7:5
+       });
+     }
+   }else writeBlock(container.innerText||container.textContent||'',{indent:5});
+   if(normal(x.snapshot?.summary)){
+     // El resumen no sustituye ni duplica el cuerpo: se conserva íntegro en el registro de Biblioteca.
+   }
+   const pages=pdf.getNumberOfPages();
+   for(let p=1;p<=pages;p++){
+     pdf.setPage(p);pdf.setFontSize(8);pdf.setFont('helvetica','normal');
+     pdf.text('Página '+p+' de '+pages,190,287,{align:'right'});
+   }
    const blob=pdf.output('blob');
-   const url=URL.createObjectURL(blob);
-   const name='aporte-personal-'+id+'.pdf';
-   if(descargar){const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();if(preopened)preopened.close();}
-   else if(preopened)preopened.location.replace(url);
+   const url=URL.createObjectURL(blob),name='aporte-personal-'+id+'.pdf';
+   if(descargar){
+     const link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();
+     if(preopened)preopened.close();
+   }else if(preopened)preopened.location.replace(url);
    else location.href=url;
    setTimeout(()=>URL.revokeObjectURL(url),120000);
  }
