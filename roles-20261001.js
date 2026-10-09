@@ -29,7 +29,10 @@ window.irAAdministracion=function(){
 
 function injectWorkAdminButton(){
   const side=document.querySelector('#mifrente .side');
-  if(!side||!currentUser||!GLOBAL_ADMIN.includes(String(currentUser.systemRole||''))||side.querySelector('[data-back-admin]'))return;
+  if(!side)return;
+  const authorized=!!currentUser&&GLOBAL_ADMIN.includes(String(currentUser.systemRole||''));
+  if(!authorized){side.querySelectorAll('[data-back-admin]').forEach(b=>b.remove());return;}
+  if(side.querySelector('[data-back-admin]'))return;
   const b=document.createElement('button');b.dataset.backAdmin='1';b.innerHTML='⚙️ Volver a Administración';b.onclick=irAAdministracion;
   const logout=[...side.querySelectorAll('button')].find(x=>x.textContent.includes('Salir'));
   if(logout)side.insertBefore(b,logout);else side.appendChild(b);
