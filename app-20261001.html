@@ -309,7 +309,7 @@ function seed(){
   localStorage.setItem('frentePT_integrantes_roles',JSON.stringify(integrantes));
   if(!localStorage.getItem('frentePT_mesas'))localStorage.setItem('frentePT_mesas',JSON.stringify(mesas));
 }
-function go(id){if($('wsTitulo'))syncWorkFromUI(true);document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const p=$(id);if(p)p.classList.add('active');if(id==='inicio')loadPresidencyMessage();if(id==='biblioteca'){const host=$('bibliotecaLista');if(host)host.innerHTML='<div class="card"><p>Cargando documentos publicados…</p></div>';if(typeof window.loadPublicLibrary==='function')window.loadPublicLibrary().catch(()=>renderBiblioteca());else renderBiblioteca()}if(id==='galeria')renderGaleria();window.scrollTo({top:0,behavior:'smooth'})}
+function go(id){if($('wsTitulo'))syncWorkFromUI(true);document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));const p=$(id);if(p)p.classList.add('active');if(id==='inicio')loadPresidencyMessage();if(id==='biblioteca'){const host=$('bibliotecaLista');if(!window.__bibliotecaLoading){if(host)host.innerHTML='<div class="card"><p>Cargando documentos publicados…</p></div>';if(typeof window.loadPublicLibrary==='function'){window.__bibliotecaLoading=Promise.resolve().then(()=>window.loadPublicLibrary()).catch(()=>renderBiblioteca()).finally(()=>{window.__bibliotecaLoading=null})}else renderBiblioteca()}}if(id==='galeria')renderGaleria();window.scrollTo({top:0,behavior:'smooth'})}
 function goAccess(){
   if(currentUser){
     if(isAnyAdmin()){
