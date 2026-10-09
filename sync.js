@@ -183,8 +183,13 @@
    if(isReal()){
      const cloudState=STATE.snapshots[m]?.estado||'En elaboración';
      if(['Solicitud de publicación','Publicado','Retirado de publicación'].includes(cloudState)){
-       label('Documento bloqueado para edición mientras está '+cloudState+'.',true);
-       return;
+       // Las tareas siguen siendo editables, pero el documento y sus otras colecciones permanecen bloqueados.
+       const previous=getWork(m);
+       const stripTasks=x=>{const v=copy(x);delete v.tareas;return v;};
+       if(JSON.stringify(stripTasks(previous))!==JSON.stringify(stripTasks(d))){
+         label('Documento bloqueado para edición mientras está '+cloudState+'.',true);
+         return;
+       }
      }
    }
    original.setWork(m,d);queue(m)
