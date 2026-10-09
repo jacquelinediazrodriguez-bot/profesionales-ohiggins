@@ -2044,7 +2044,7 @@
    const mesa=Number(document.getElementById('invMesa')?.value);
    const out=document.getElementById('invEmailCheck');
    if(!out)return null;
-   if(!name||!mesa||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){out.textContent='Complete nombre, correo válido y Mesa para verificar.';return null}
+   if(!name||!mesa||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){out.textContent='Complete nombre, correo válido y Mesa para verificar.';return null}
    out.textContent='Verificando correo en la plataforma…';
    try{
      const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'check_coordinator_email',full_name:name,email,technical_table_id:mesa}});
