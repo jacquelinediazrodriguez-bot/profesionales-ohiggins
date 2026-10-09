@@ -13,6 +13,7 @@
       const sessionKey=signedIn?'signed':'public';
       if(pending)return pending;
       if(!signedIn&&cachedSession===sessionKey&&Date.now()-lastPublicAt<12000){
+        if(document.getElementById('biblioteca')?.classList.contains('active')&&typeof window.renderBiblioteca==='function')window.renderBiblioteca();
         return Promise.resolve();
       }
       pending=Promise.resolve().then(()=>original.apply(this,args));
