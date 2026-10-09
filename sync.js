@@ -431,6 +431,10 @@
      .select('id,technical_table_id,title,topic,description,snapshot,published_at,origin_type,author_id,author_name,source_contribution_id,final_pdf_path,final_pdf_name,final_pdf_size_bytes,final_pdf_created_at')
      .eq('is_public',true).order('published_at',{ascending:false});
    if(error){console.warn('No se pudo cargar la biblioteca compartida',error);return}
+   // Lookup público de mesas: nunca confundir el tema "Otros" con la Mesa de Trabajo.
+   const {data:mesaRows,error:mesaError}=await sbAuth.from('technical_tables').select('id,name').eq('is_active',true);
+   if(mesaError)console.warn('No se pudieron consultar los nombres de mesas',mesaError);
+   const mesaPorId=new Map((mesaRows||[]).map(m=>[String(m.id),m.name]));
    const pubs=(data||[]).map(x=>({
      id:x.id,cloud:true,
      origen:x.origin_type||'Documento de Mesa',
@@ -451,7 +455,8 @@
      resumen:x.snapshot?.summary||'',
      cuerpo:x.snapshot?.body||'',
      version:x.snapshot?.version||1,
-     ...x.snapshot
+     ...x.snapshot,
+     mesa:mesaPorId.get(String(x.technical_table_id))||x.snapshot?.mesa||''
    }));
    if(isReal()&&['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)){
      for(const p of pubs.filter(x=>!x.finalPdfPath)){
