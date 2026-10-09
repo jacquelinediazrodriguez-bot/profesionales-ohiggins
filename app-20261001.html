@@ -1399,12 +1399,21 @@ async function adminBloqueos(){
  if(!requireAdmin())return;
  const c=$('admincontent');
  c.innerHTML='<div class="kicker">Operación</div><h1 class="section-title">Bloqueos de edición</h1><p class="muted">Consultando bloqueos activos…</p>';
- if(!sbAuth){c.innerHTML+='<div class="notice">Servicio de datos no disponible.</div>';return}
+ if(!sbAuth){c.innerHTML='<div class="notice">Servicio de datos no disponible.</div>';return}
  const {data,error}=await sbAuth.from('workspace_locks').select('technical_table_id,section_name,profile_id,locked_at').order('locked_at',{ascending:false});
  if(error){c.innerHTML='<div class="notice">No fue posible consultar los bloqueos de edición.</div>';return}
+ const rows=data||[];
+ const ids=[...new Set(rows.map(x=>x.profile_id).filter(Boolean))],mesas=[...new Set(rows.map(x=>x.technical_table_id).filter(x=>x!=null))];
+ const [users,tables]=await Promise.all([
+   ids.length?sbAuth.from('profiles').select('id,full_name').in('id',ids):Promise.resolve({data:[],error:null}),
+   mesas.length?sbAuth.from('technical_tables').select('id,name').in('id',mesas):Promise.resolve({data:[],error:null})
+ ]);
+ const usersById=new Map((users.data||[]).map(x=>[String(x.id),x.full_name]));
+ const mesasById=new Map((tables.data||[]).map(x=>[String(x.id),x.name]));
+ const live=rows.filter(x=>Date.now()-new Date(x.locked_at).getTime()<300000);
  c.innerHTML='<div class="kicker">Operación</div><h1 class="section-title">Bloqueos de edición</h1>'+
- '<div class="notice">Aquí puede identificar secciones que están siendo editadas. Los bloqueos abandonados se recuperan según la regla de la plataforma.</div><br>'+
- ((data&&data.length)?data.map(x=>'<div class="row"><div><b>'+esc(x.section_name||'Sección')+'</b><br><small>Mesa ID '+esc(x.technical_table_id)+' · Usuario '+esc(x.profile_id)+'</small></div><div><span class="pill">'+esc(new Date(x.locked_at).toLocaleString('es-CL'))+'</span></div></div>').join(''):'<div class="card"><p>No hay bloqueos activos.</p></div>');
+ '<div class="notice">Esta pantalla muestra la Mesa, la sección bloqueada y el nombre del profesional. Los bloqueos anteriores a cinco minutos no se consideran activos.</div><br>'+
+ (live.length?live.map(x=>'<div class="row"><div><b>Sección: '+esc(x.section_name||'Sin especificar')+'</b><br><small>Mesa: '+esc(mesasById.get(String(x.technical_table_id))||'No identificada')+' · Profesional: '+esc(usersById.get(String(x.profile_id))||'No identificado')+'</small></div><div><span class="pill">'+esc(new Date(x.locked_at).toLocaleString('es-CL'))+'</span></div></div>').join(''):'<div class="card"><p>No hay bloqueos activos.</p></div>');
 }
 const DEFAULT_BOARD_MEMBERS=[
  {role:'Presidente',name:'Carlos Enrique Manzoliz Jaramillo',commune:''},
