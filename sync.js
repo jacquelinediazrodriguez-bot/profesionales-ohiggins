@@ -2400,16 +2400,28 @@
    baseRelease(); // libera el bloqueo visual local, conservando el bloqueo recién adquirido.
    if(names.length)void flushThenRelease(m,names);
  };
+ window.mostrarAlertaBloqueo=function(message){
+   let el=document.getElementById('alertaBloqueoEdicion');
+   if(!el){
+     const host=document.getElementById('autosaveStatus')||document.querySelector('#privatecontent .section-title');
+     if(!host)return;
+     el=document.createElement('div');el.id='alertaBloqueoEdicion';el.setAttribute('role','alert');
+     el.style.cssText='background:#fff0f0;color:#a11b1b;border:1px solid #d43b3b;border-left:5px solid #c62828;padding:12px 14px;border-radius:8px;margin:12px 0;font-weight:600';
+     host.insertAdjacentElement('afterend',el);
+   }
+   el.textContent='⚠ '+message;
+   el.scrollIntoView({block:'nearest',behavior:'smooth'});
+ };
  window.acquireLock=async function(name){
    if(!isReal())return baseAcquire(name);
    if(!mesaId(currentDocMesa))return alert('Esta Mesa no está disponible en la nube.');
    const m=currentDocMesa;
    const old=getLock(m,name);
-   if(old&&old.email!==currentUser.correo)return alert(old.nombre+' está editando esta sección.');
+   if(old&&old.email!==currentUser.correo)return window.mostrarAlertaBloqueo(old.nombre+' está editando la sección «'+name+'». Puede trabajar en otra sección disponible.');
    const {data:ok,error}=await sbAuth.rpc('try_lock_workspace_section',{
      p_technical_table_id:mesaId(m),p_section_name:name});
    if(error){console.error(error);return alert('No se pudo obtener permiso de edición. Compruebe la conexión.')}
-   if(!ok)return alert('Otro integrante está editando esta sección. Intente nuevamente más tarde.');
+   if(!ok)return window.mostrarAlertaBloqueo('Otro integrante está editando la sección «'+name+'». Intente nuevamente cuando quede disponible.');
    acquiring=name;
    try{baseAcquire(name)}finally{acquiring=null}
  };
