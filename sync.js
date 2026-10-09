@@ -2028,15 +2028,34 @@
    c.innerHTML='<div class="kicker">Coordinación de Mesa</div><h1 class="section-title">Nuevos integrantes</h1>'+
     '<div class="notice">La Coordinación propone la incorporación. Administración revisa la solicitud y, si la aprueba, envía la invitación al profesional.</div><br>'+
     '<div class="card form" style="max-width:720px"><h3>Solicitar incorporación</h3>'+
-    '<label>Nombre completo</label><input id="invName" autocomplete="name">'+
-    '<label>Correo electrónico</label><input id="invEmail" type="email" autocomplete="email">'+
+    '<label>Nombre completo</label><input id="invName" autocomplete="name" onblur="verificarCorreoNuevoIntegrante()">'+
+    '<label>Correo electrónico</label><input id="invEmail" type="email" autocomplete="email" onblur="verificarCorreoNuevoIntegrante()"><p id="invEmailCheck" class="muted" style="margin:5px 0 10px">Ingrese nombre y correo para verificar la cuenta.</p>'+
     '<label>Profesión</label><input id="invProfession" autocomplete="organization-title">'+
     '<label>Teléfono <span class="muted">(opcional)</span></label><input id="invPhone" autocomplete="tel">'+
-    '<label>Mesa Técnica</label><select id="invMesa">'+options+'</select>'+
+    '<label>Mesa Técnica</label><select id="invMesa" onchange="verificarCorreoNuevoIntegrante()">'+options+'</select>'+
     '<label>Rol propuesto</label><select id="invRole"><option>Integrante de Mesa</option><option>Secretario/a Técnico/a</option></select>'+
     '<button id="invSubmitBtn" class="btn primary" onclick="solicitarNuevoIntegrante()">Enviar solicitud a Administración</button><p id="invStatus" class="muted"></p></div>'+
     '<h2 class="section-sub">Mis solicitudes</h2>'+
     ((data||[]).length?(data||[]).map(x=>'<div class="row"><div><b>'+esc(x.full_name)+'</b> · '+esc(x.email)+'<br><small>'+esc(x.technical_tables?.name||'Mesa')+' · '+esc(x.proposed_role)+' · '+new Date(x.requested_at).toLocaleString('es-CL')+(x.rejection_reason?' · '+esc(x.rejection_reason):'')+'</small></div><span class="pill '+(x.status==='Cuenta activada'?'green':x.status==='Rechazada'?'amber':'')+'">'+esc(x.status)+'</span></div>').join(''):'<div class="card"><p>Aún no ha enviado solicitudes de incorporación.</p></div>');
+ };
+ window.verificarCorreoNuevoIntegrante=async function(){
+   const name=document.getElementById('invName')?.value.trim()||'';
+   const email=document.getElementById('invEmail')?.value.trim().toLowerCase()||'';
+   const mesa=Number(document.getElementById('invMesa')?.value);
+   const out=document.getElementById('invEmailCheck');
+   if(!out)return null;
+   if(!name||!mesa||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){out.textContent='Complete nombre, correo válido y Mesa para verificar.';return null}
+   out.textContent='Verificando correo en la plataforma…';
+   try{
+     const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'check_coordinator_email',full_name:name,email,technical_table_id:mesa}});
+     if(error)throw error;
+     if(!data?.ok)throw Error(data?.error||'No fue posible verificar.');
+     if(document.getElementById('invEmail')?.value.trim().toLowerCase()!==email||document.getElementById('invName')?.value.trim()!==name)return null;
+     const labels={available:'Correo disponible: la persona no tiene cuenta registrada.',existing:'Cuenta existente: nombre y correo coinciden. Administración revisará las mesas y roles.',name_mismatch:'Correo asociado a otro nombre. Corrija los datos; no puede enviar esta solicitud.'};
+     out.textContent=(labels[data.account_status]||'No fue posible confirmar el correo.')+(data.previous_request?' Ya existe una solicitud para este correo y Mesa.':'');
+     out.style.color=data.account_status==='name_mismatch'||data.previous_request?'#a3352a':'#2e6655';
+     return data;
+   }catch(e){console.error(e);out.textContent='No se pudo verificar el correo. Intente nuevamente.';out.style.color='#a3352a';return null}
  };
  window.solicitarNuevoIntegrante=async function(){
    if(!isReal())return;
@@ -2048,8 +2067,13 @@
      proposed_role=document.getElementById('invRole')?.value||'Integrante de Mesa',
      status=document.getElementById('invStatus'),btn=document.getElementById('invSubmitBtn');
    if(!name||!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)||!technical_table_id){status.textContent='Complete nombre, correo válido y Mesa.';return}
-   btn.disabled=true;btn.textContent='Enviando…';status.textContent='';
+   btn.disabled=true;btn.textContent='Verificando…';status.textContent='';
    try{
+     const result=await window.verificarCorreoNuevoIntegrante();
+     if(!result)throw Error('No fue posible validar el correo. Revise los datos.');
+     if(result.account_status==='name_mismatch')throw Error('El correo pertenece a otra persona. Corrija el nombre o correo.');
+     if(result.previous_request)throw Error('Ya existe una solicitud para ese correo en esta Mesa.');
+     btn.textContent='Enviando…';
      const {data,error}=await sbAuth.functions.invoke('member-invitation',{body:{action:'submit',full_name:name,email,profession,phone,technical_table_id,proposed_role}});
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible registrar la solicitud.');
      status.style.color='#2e7d62';status.textContent='Solicitud enviada a Administración.';
