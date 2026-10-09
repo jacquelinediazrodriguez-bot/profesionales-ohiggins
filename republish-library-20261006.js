@@ -161,7 +161,7 @@ async function decorateRepublish(){
     row.dataset.status=p.republished_at&&p.is_public?'republicado':(p.withdrawn_at||!p.is_public?'retirado':'publicado');
 
     const actions=row.querySelector('.toolbar-row')||row.querySelector('div:last-child')||row.lastElementChild;
-    if(actions && canRepublish() && (p.withdrawn_at||!p.is_public) && !actions.querySelector('[data-republish-id]')){
+    if(actions && canRepublish() && !p.is_public && !actions.querySelector('[data-republish-id]')){
       const btn=document.createElement('button');
       btn.className='btn success';
       btn.type='button';
@@ -170,6 +170,8 @@ async function decorateRepublish(){
       btn.onclick=()=>window.volverAPublicar(p.id,p.title||'este documento');
       actions.appendChild(btn);
     }
+
+    if(p.is_public){ row.querySelectorAll('[data-republish-id]').forEach(button=>button.remove()); }
 
     if(p.republished_at && !row.querySelector('[data-republished-info]')){
       const left=row.firstElementChild||row;
@@ -187,11 +189,17 @@ async function decorateRepublish(){
 
 window.volverAPublicar=async function(id,title){
   if(!canRepublish())return alert('Solo Administración General puede volver a publicar documentos.');
+  const sb=getSb();
+  if(!sb)return alert('No hay conexión disponible con la base de datos.');
+  const {data:current,error:readError}=await sb.from('public_library').select('id,is_public').eq('id',Number(id)).maybeSingle();
+  if(readError || !current)return alert('No fue posible comprobar el estado del documento. Inténtelo nuevamente.');
+  if(current.is_public){
+    if(typeof window.adminPublicaciones==='function')await window.adminPublicaciones();
+    return alert('Este documento ya se encuentra publicado. No es necesario volver a publicarlo.');
+  }
   const ok=confirm('¿Volver a publicar “'+String(title||'este documento')+'” en la Biblioteca pública?\n\nSe conservarán el PDF oficial, la fecha y el motivo del retiro anterior.');
   if(!ok)return;
 
-  const sb=getSb();
-  if(!sb)return alert('No hay conexión disponible con la base de datos.');
   const {error}=await sb.rpc('republish_publication',{p_library_id:Number(id)});
   if(error){
     console.error(error);
