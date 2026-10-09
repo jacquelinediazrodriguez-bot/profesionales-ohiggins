@@ -1169,14 +1169,9 @@
 
    // Portada institucional definitiva.
    if(typeof imagenAPngBytes!=='function')throw new Error('No está disponible el cargador de logos institucionales.');
-   const [logoDC,logoFrente]=await Promise.all([
-     imagenAPngBytes('https://upload.wikimedia.org/wikipedia/commons/7/71/Logo_Democracia_Cristiana_Chile_2020.png',260,92),
-     imagenAPngBytes('https://upload.wikimedia.org/wikipedia/commons/1/1b/Emblem_of_the_Christian_Democrat_Party_of_Chile.svg',110,92)
-   ]);
-   const dcW=Math.min(78,logoDC.width*0.2646),dcH=logoDC.height*(dcW/logoDC.width);
-   const frW=Math.min(28,logoFrente.width*0.2646),frH=logoFrente.height*(frW/logoFrente.width);
-   pdf.addImage(logoDC.data,'PNG',22,15,dcW,dcH);
-   pdf.addImage(logoFrente.data,'PNG',pageW-22-frW,14,frW,frH);
+   const logoDC=await imagenAPngBytes('https://upload.wikimedia.org/wikipedia/commons/7/71/Logo_Democracia_Cristiana_Chile_2020.png',260,92);
+   const dcW=Math.min(66,logoDC.width*0.2646),dcH=logoDC.height*(dcW/logoDC.width);
+   pdf.addImage(logoDC.data,'PNG',(pageW-dcW)/2,14,dcW,dcH);
 
    pdf.setTextColor(18,59,103);
    pdf.setFont('helvetica','bold');pdf.setFontSize(15.5);
@@ -1342,13 +1337,8 @@
    // Portada institucional independiente del cuerpo del aporte.
    try{
      if(typeof imagenAPngBytes==='function'){
-       const logos=await Promise.all([
-         imagenAPngBytes('https://upload.wikimedia.org/wikipedia/commons/7/71/Logo_Democracia_Cristiana_Chile_2020.png',260,92),
-         imagenAPngBytes('https://upload.wikimedia.org/wikipedia/commons/1/1b/Emblem_of_the_Christian_Democrat_Party_of_Chile.svg',110,92)
-       ]);
-       const left=logos[0],right=logos[1];
-       if(left?.data)pdf.addImage(left.data,'PNG',22,18,65,65*left.height/left.width);
-       if(right?.data)pdf.addImage(right.data,'PNG',165,18,25,25*right.height/right.width);
+       const logo=await imagenAPngBytes('https://upload.wikimedia.org/wikipedia/commons/7/71/Logo_Democracia_Cristiana_Chile_2020.png',260,92);
+       if(logo?.data)pdf.addImage(logo.data,'PNG',(210-66)/2,18,66,66*logo.height/logo.width);
      }
    }catch(e){console.warn('No se pudieron incorporar los logos a la portada del aporte:',e);}
    cursor=76;
