@@ -1293,6 +1293,7 @@
    }
  };
  async function guardarPdfFinalLegacy(pub){
+   if(pub.origen==='individual'||pub.origen==='Aporte individual')return pub;
    if(!isReal()||!['Administrador General','Administrador de Plataforma'].includes(currentUser.rol)||pub.finalPdfPath)return pub;
    const finalPdf=await generarAdjuntoPDFFinalBiblioteca({...copy(pub),estado:'Aprobado',borrador:false});
    const safeFile=finalPdf.filename.replace(/[^a-zA-Z0-9._-]+/g,'_');
@@ -1371,9 +1372,15 @@
        if(typeof window.loadPublicLibrary==='function')await window.loadPublicLibrary();
        return alert('Este documento ya no se encuentra disponible en la Biblioteca pública.');
      }
-     if(!live.final_pdf_path){
+     const {data:kind,error:kindError}=await sbAuth.from('public_library').select('origin_type').eq('id',Number(id)).eq('is_public',true).single();
+     if(kindError)throw kindError;
+     if(kind?.origin_type==='individual'){
        await pdfIndividualDesdeBiblioteca(Number(id),descargar,preopened);
        return;
+     }
+     if(!live.final_pdf_path){
+       if(preopened)preopened.close();
+       return alert('Este documento todavía no tiene un PDF final oficial disponible.');
      }
 
      const filename=live.final_pdf_name||'documento-final.pdf';
