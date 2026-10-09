@@ -2090,13 +2090,17 @@
      return {label:'Pendiente de registro',date:null,green:false};
    };
    c.innerHTML='<div class="kicker">Administración</div><h1 class="section-title">Invitaciones de integrantes</h1>'+
+    '<div class="card" style="margin:12px 0"><h2 class="section-sub">Alternativas de invitación y acceso</h2><div class="toolbar-row" style="display:flex;gap:8px;flex-wrap:wrap">'+
+    '<button class="btn primary" onclick="adminInvitacionDirecta()">＋ Nueva invitación</button>'+
+    '<button class="btn soft" onclick="document.getElementById(\'solicitudesIntegrantesRecibidas\')?.scrollIntoView({behavior:\'smooth\'})">👥 Incorporar integrante existente</button>'+
+    '<button class="btn soft" onclick="adminRecuperarAccesoIntegrante()">🔑 Recuperar acceso a cuenta</button></div></div><br>'+
     '<div class="notice"><b>Seguimiento de la invitación:</b> “Estado del correo” indica únicamente si el mensaje fue enviado, entregado o tuvo un problema de entrega. “Estado del registro” cambia a “Registro completado” solo cuando la persona entra a la plataforma y finaliza la creación de su acceso. Posteriormente, Administración asigna Mesa Técnica y rol según la constitución de la Mesa.</div><br>'+
-    '<button class="btn primary" onclick="adminInvitacionDirecta()">＋ Invitar directamente</button> <button id="btnActualizarInvitaciones" class="btn soft" onclick="actualizarEstadosInvitaciones()">↻ Actualizar estados</button> <span id="estadoActualizacionInvitaciones" class="muted" style="margin-left:8px">'+esc(window._inviteRefreshMessage||'')+'</span>'+
+    '<button id="btnActualizarInvitaciones" class="btn soft" onclick="actualizarEstadosInvitaciones()">↻ Actualizar estados</button> <span id="estadoActualizacionInvitaciones" class="muted" style="margin-left:8px">'+esc(window._inviteRefreshMessage||'')+'</span>'+
     '<h2 class="section-sub">Registro de invitaciones enviadas</h2>'+
     (sent.length?'<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden"><thead><tr style="text-align:left;background:#f7f9fc"><th style="padding:10px">Fecha invitación</th><th style="padding:10px">Correo</th><th style="padding:10px">Estado del correo</th><th style="padding:10px">Estado del registro</th><th style="padding:10px">Fecha de registro</th></tr></thead><tbody>'+
       sent.map(x=>{const rv=regView(x);return '<tr style="border-top:1px solid var(--line)"><td style="padding:10px">'+esc(fmt(x.invitation_sent_at||x.requested_at))+'</td><td style="padding:10px"><b>'+esc(x.email)+'</b></td><td style="padding:10px"><span class="pill '+(x.email_delivery_status==='Entregado'?'green':/Fallido|Rebotado|Reclamado|Suprimido/.test(x.email_delivery_status||'')?'amber':'')+'">'+esc(x.email_delivery_status||'Enviado')+'</span></td><td style="padding:10px"><span class="pill '+(rv.green?'green':'')+'">'+esc(rv.label)+'</span></td><td style="padding:10px">'+esc(rv.date?fmt(rv.date):'—')+'</td></tr>'}).join('')+
       '</tbody></table></div>':'<div class="card"><p>No hay invitaciones enviadas todavía.</p></div>')+
-    '<h2 class="section-sub">Solicitudes recibidas</h2>'+
+    '<h2 id="solicitudesIntegrantesRecibidas" class="section-sub">Solicitudes recibidas</h2>'+
     (requests.length?requests.map(x=>{
       const r=who(x.requested_by),pending=x.status==='Pendiente';
       return '<div class="card" style="margin:12px 0"><div class="row"><div><b>'+esc(x.full_name||x.email)+'</b> · '+esc(x.email)+'<br><small>'+esc(x.profession||'Profesión no indicada')+(x.phone?' · '+esc(x.phone):'')+' · '+esc(x.technical_tables?.name||'Mesa')+' · '+esc(x.proposed_role||'Rol por definir')+'</small><br><small>Solicitado por: '+esc(r?.full_name||'Administración')+' · '+fmt(x.requested_at)+'</small>'+(x.rejection_reason?'<p class="muted"><b>Motivo:</b> '+esc(x.rejection_reason)+'</p>':'')+'</div><div><span class="pill '+(x.status==='Registro completado'?'green':x.status==='Rechazada'?'amber':'')+'">'+esc(x.status)+'</span>'+(pending?'<br><button class="btn primary" style="margin-top:8px" onclick="aprobarInvitacionIntegrante('+x.id+')">Aprobar y enviar invitación</button> <button class="btn soft" style="margin-top:8px" onclick="rechazarInvitacionIntegrante('+x.id+')">Rechazar</button>':'')+'</div></div></div>';
@@ -2147,6 +2151,21 @@
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible rechazar.');
      await window.adminInvitaciones();
    }catch(e){console.error(e);alert(e?.message||'No fue posible rechazar la solicitud.');}
+ };
+ window.adminRecuperarAccesoIntegrante=async function(){
+   const email=prompt('Correo electrónico de la cuenta existente:');
+   if(email===null)return;
+   const clean=String(email).trim().toLowerCase();
+   if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(clean))return alert('Ingrese un correo válido.');
+   const {data:found,error:lookupError}=await sbAuth.from('profiles').select('id').eq('email',clean).limit(1);
+   if(lookupError)return alert('No se pudo verificar la cuenta. Inténtelo nuevamente.');
+   if(!found?.length)return alert('No se encontró una cuenta registrada. Utilice Nueva invitación.');
+   if(!confirm('¿Enviar un enlace de recuperación a la cuenta registrada? No se modificarán sus mesas ni roles.'))return;
+   try{
+     const {error}=await sbAuth.auth.resetPasswordForEmail(clean,{redirectTo:location.origin+location.pathname});
+     if(error)throw error;
+     alert('Se solicitó el envío del enlace de recuperación. Revise la bandeja de entrada y correo no deseado.');
+   }catch(err){console.error(err);alert('No se pudo solicitar la recuperación: '+(err?.message||'error de envío'));}
  };
  window.adminInvitacionDirecta=async function(){
    const email=prompt('Correo electrónico:');if(email===null)return;
