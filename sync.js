@@ -339,7 +339,9 @@
    const x={full_name:document.getElementById('pfNombre').value.trim(),profession:document.getElementById('pfProf').value.trim(),
      specialty:document.getElementById('pfEsp').value.trim(),professional_experience:document.getElementById('pfExp').value.trim(),
      interests:document.getElementById('pfInteres').value.trim()};
-   const message=document.getElementById('pfStatus');message.textContent='Guardando en la nube…';
+   const message=document.getElementById('pfStatus');
+   if(x.full_name.length<3){message.textContent='Ingrese su nombre completo real (al menos 3 caracteres).';return}
+   message.textContent='Guardando en la nube…';
    const {error}=await sbAuth.from('profiles').update(x).eq('id',STATE.uid);
    if(error){console.error(error);message.textContent='No fue posible guardar el perfil en la nube.';return}
    original.guardarPerfil();message.textContent='Perfil guardado en la nube ✓';
