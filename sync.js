@@ -2081,7 +2081,7 @@
      status.style.color='#2e7d62';status.textContent='Solicitud enviada a Administración.';
      await window.renderInvitacionesIntegrantes(document.getElementById('privatecontent'));
    }catch(e){
-     console.error(e);status.style.color='#a3352a';status.textContent=e?.message||'No fue posible enviar la solicitud.';
+     console.error(e);let detail='';try{if(e?.context?.json){const body=await e.context.json();detail=body?.error||body?.message||''}}catch(_){}status.style.color='#a3352a';status.textContent='Solicitud no enviada: '+(detail||e?.message||'Revise los datos.');
    }finally{if(btn){btn.disabled=false;btn.textContent='Enviar solicitud a Administración';}}
  };
  window.adminInvitaciones=async function(){
