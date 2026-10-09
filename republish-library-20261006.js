@@ -129,14 +129,24 @@ function ensureFilters(h,rows){
   apply();
 }
 
+let decorating=false;
+let lastDecoration=0;
 async function decorateRepublish(){
+  // Prevent the DOM observer from causing overlapping or recursive database reads.
+  if(decorating || Date.now()-lastDecoration<3000)return;
   const block=findHistory();
   const sb=getSb();
   if(!block || !sb || !block.rows.length)return;
 
-  const {data,error}=await sb.from('public_library')
-    .select('id,title,is_public,published_at,withdrawn_at,withdrawal_reason,republished_at,republish_count,technical_table_id,technical_tables(name)')
-    .order('published_at',{ascending:false});
+  decorating=true;
+  lastDecoration=Date.now();
+  let data,error;
+  try{
+    ({data,error}=await sb.from('public_library')
+      .select('id,title,is_public,published_at,withdrawn_at,withdrawal_reason,republished_at,republish_count,technical_table_id,technical_tables(name)')
+      .order('published_at',{ascending:false}));
+  }catch(e){console.warn('No se pudo consultar historial',e);return;}
+  finally{decorating=false;}
   if(error){ console.warn('No se pudo preparar Historial de Biblioteca',error); return; }
 
   const used=new Set();
@@ -207,9 +217,20 @@ if(typeof base==='function'){
   };
 }
 
-const observer=new MutationObserver(()=>{
+const observer=new MutationObserver(mutations=>{
+  // Only genuinely new history rows/headings warrant a refresh.
+  // Changes to our own filters and labels must never trigger a remote read.
+  const relevant=mutations.some(m=>{
+    const target=m.target;
+    if(!(target instanceof Element) || !target.closest('#admincontent'))return false;
+    if(target.closest('#libraryHistoryFilters'))return false;
+    return [...m.addedNodes].some(node=>node.nodeType===1 &&
+      (node.matches?.('.row,h2,h3,#admincontent') || node.querySelector?.('.row,h2,h3')) &&
+      !node.closest?.('#libraryHistoryFilters'));
+  });
+  if(!relevant)return;
   clearTimeout(window.__libraryHistoryTimer);
-  window.__libraryHistoryTimer=setTimeout(decorateRepublish,80);
+  window.__libraryHistoryTimer=setTimeout(decorateRepublish,650);
 });
 observer.observe(document.documentElement,{subtree:true,childList:true});
 setTimeout(decorateRepublish,300);
