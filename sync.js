@@ -2142,7 +2142,12 @@
      if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No fue posible aprobar.');
      alert(data.existing?'Se incorporó la cuenta existente a la Mesa y rol aprobados.':'Invitación enviada correctamente por correo.');
      await window.adminInvitaciones();
-   }catch(e){console.error(e);alert(e?.message||'No fue posible aprobar la solicitud.');}
+   }catch(e){
+     console.error(e);
+     let detail='';
+     try{if(e?.context&&typeof e.context.json==='function'){const body=await e.context.json();detail=body?.error||'';}}catch(_){}
+     alert(detail||e?.message||'No fue posible aprobar la solicitud.');
+   }
  };
  window.rechazarInvitacionIntegrante=async function(id){
    const reason=prompt('Indique el motivo del rechazo:');if(reason===null)return;if(!reason.trim())return alert('Debe indicar un motivo.');
