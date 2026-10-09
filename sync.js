@@ -1532,7 +1532,7 @@
  async function cargarMisAportes(){
    if(!isReal())return [];
    const {data,error}=await sbAuth.from('individual_contributions')
-     .select('id,title,document_type,topic,summary,body,status,version,versions,review_observation,admin_observation,created_at,updated_at')
+     .select('id,title,document_type,topic,summary,body,status,version,versions,review_observation,admin_observation,technical_table_id,created_at,updated_at')
      .eq('author_id',STATE.uid).order('updated_at',{ascending:false});
    if(error){console.error(error);return []}
    STATE.contributions=data||[];return STATE.contributions;
@@ -1549,8 +1549,15 @@
  };
  window.nuevoAporteIndividual=async function(){
    if(!isReal())return;
+   const mesas=await cargarMesasRevisionAportes();
+   if(!mesas.length)return alert('No pertenece a ninguna Mesa Técnica activa. Solicite su incorporación antes de crear el aporte.');
+   const seleccion=mesas.length===1?mesas[0]:null;
+   const texto=seleccion?null:prompt('Seleccione la mesa que recibirá este aporte (escriba el número):\n'+mesas.map((m,i)=>(i+1)+'. '+m.name).join('\n'));
+   if(!seleccion&&texto===null)return;
+   const elegida=seleccion||mesas[Number(texto)-1];
+   if(!elegida)return alert('Debe seleccionar una mesa válida de la lista.');
    const {data,error}=await sbAuth.from('individual_contributions').insert({
-     author_id:STATE.uid,title:'Nuevo aporte',document_type:'Análisis',topic:'Otros',summary:'',body:''
+     author_id:STATE.uid,technical_table_id:elegida.id,title:'Nuevo aporte',document_type:'Análisis',topic:'Otros',summary:'',body:''
    }).select('id').single();
    if(error){console.error(error);return alert('No se pudo crear el aporte.')}
    STATE.editingContribution=data.id;
@@ -1590,11 +1597,11 @@
    if(Array.isArray(STATE.reviewTables))return STATE.reviewTables;
    const [{data:tables,error},{data:coords,error:coordError}]=await Promise.all([
      sbAuth.from('technical_tables').select('id,name,is_active').eq('is_active',true).order('name'),
-     sbAuth.from('table_memberships').select('technical_table_id').eq('is_coordinator',true)
+     sbAuth.from('table_memberships').select('technical_table_id').eq('profile_id',STATE.uid)
    ]);
    if(error||coordError){console.error(error||coordError);STATE.reviewTables=[];return []}
-   const withCoordinator=new Set((coords||[]).map(x=>String(x.technical_table_id)));
-   STATE.reviewTables=(tables||[]).filter(t=>withCoordinator.has(String(t.id)));
+   const allowed=new Set((coords||[]).map(x=>String(x.technical_table_id)));
+   STATE.reviewTables=(tables||[]).filter(t=>allowed.has(String(t.id)));
    return STATE.reviewTables;
  }
  async function resumenRevisionAporte(contributionId){
@@ -1631,7 +1638,7 @@
    const author=currentUser?.nombre||'Profesional';
    const toolbar=editing?'<div class="doc-toolbar" style="margin:10px 0"><button onclick="aporteFmt(\'bold\')"><b>B</b></button><button onclick="aporteFmt(\'italic\')"><i>I</i></button><button onclick="aporteFmt(\'underline\')"><u>U</u></button><button onclick="aporteFmt(\'formatBlock\',\'h2\')">Título</button><button onclick="aporteFmt(\'formatBlock\',\'p\')">Párrafo</button><button onclick="aporteFmt(\'insertUnorderedList\')">• Lista</button><button onclick="aporteFmt(\'insertOrderedList\')">1. Lista</button><button onclick="aporteFmt(\'justifyLeft\')">≡ Izq.</button><button onclick="aporteFmt(\'justifyCenter\')">≡ Centro</button><button onclick="aporteFmt(\'justifyRight\')">≡ Der.</button><button onclick="aporteFmt(\'undo\')">↶</button><button onclick="aporteFmt(\'redo\')">↷</button></div>':'';
    box.innerHTML='<div class="card"><div class="kicker">Aporte individual</div><h2>'+esc(x.title||'Nuevo aporte')+'</h2>'+
-     '<div class="mini-note"><b>Autor:</b> '+esc(author)+' · <b>Estado:</b> '+esc(x.status)+' · <b>Versión vigente:</b> '+x.version+'</div><br>'+
+     '<div class="mini-note"><b>Autor:</b> '+esc(author)+' · <b>Mesa de origen:</b> '+esc(tables.find(t=>String(t.id)===String(x.technical_table_id))?.name||review?.technical_tables?.name||'Sin mesa asignada')+' · <b>Estado:</b> '+esc(x.status)+' · <b>Versión vigente:</b> '+x.version+'</div><br>'+
      '<div class="form-row"><div><label>Título</label><input id="aporteTitulo" value="'+esc(x.title||'')+'" '+(editing?'':'disabled')+'></div>'+
      '<div><label>Tipo de documento</label><select id="aporteTipo" '+(editing?'':'disabled')+'>'+
        ['Estudio','Informe','Análisis','Artículo','Propuesta','Minuta','Otro'].map(t=>'<option '+(x.document_type===t?'selected':'')+'>'+t+'</option>').join('')+'</select></div>'+
@@ -1643,7 +1650,7 @@
      (x.review_observation?'<div class="notice" style="margin-top:12px"><b>Observación de Coordinación:</b> '+esc(x.review_observation)+'</div>':'')+
      (x.admin_observation?'<div class="notice" style="margin-top:12px"><b>Observación de Administración:</b> '+esc(x.admin_observation)+'</div>':'')+
      resumenRevisionAporteHTML(review)+
-     (!locked&&!editing?(tables.length?'<div class="form-row" style="margin-top:14px"><div><label>Mesa Técnica que revisará este aporte</label><select id="aporteMesaRevision">'+tables.map(t=>'<option value="'+t.id+'" '+(t.name===x.topic?'selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select><div class="mini-note" style="margin-top:6px">Solo aparecen Mesas activas que tienen Coordinador/a asignado/a.</div></div></div>':'<div class="notice" style="margin-top:14px">No hay una Mesa Técnica activa con Coordinador/a disponible para revisar este aporte. Administración debe asignar una Coordinación antes de enviarlo.</div>'):'')+
+     (!locked&&!editing?(tables.length?'<div class="form-row" style="margin-top:14px"><div><label>Mesa Técnica que revisará este aporte</label><select id="aporteMesaRevision">'+tables.map(t=>'<option value="'+t.id+'" '+(String(t.id)===String(x.technical_table_id)?'selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select><div class="mini-note" style="margin-top:6px">Solo aparecen Mesas activas que tienen Coordinador/a asignado/a.</div></div></div>':'<div class="notice" style="margin-top:14px">No hay una Mesa Técnica activa con Coordinador/a disponible para revisar este aporte. Administración debe asignar una Coordinación antes de enviarlo.</div>'):'')+
      '<div class="toolbar-row" style="margin-top:14px">'+
        (editing?'<button class="btn primary" onclick="finalizarEdicionAporte('+x.id+')">Finalizar edición</button> <button class="btn soft" onclick="guardarAporteIndividual('+x.id+',false)">Guardar borrador</button> <button class="btn success" onclick="guardarAporteIndividual('+x.id+',true)">Guardar versión</button>':'')+
        (!locked&&!editing?'<button class="btn primary" onclick="iniciarEdicionAporte('+x.id+')">Editar</button> '+(tables.length?'<button class="btn success" onclick="solicitarRevisionAporte('+x.id+')">Enviar a coordinador para revisión</button>':''):'')+
@@ -1752,8 +1759,14 @@
    if(x.status!=='En elaboración')return alert('Este aporte no está disponible para una nueva revisión.');
    if(STATE.editingContribution===id)return alert('Finalice la edición antes de solicitar revisión.');
    if(!String(x.title||'').trim()||!String(x.body||'').replace(/<[^>]*>/g,'').trim())return alert('El aporte debe tener título y contenido antes de enviarlo.');
-   const mesaId=Number(document.getElementById('aporteMesaRevision')?.value||0);
+   const mesaId=Number(document.getElementById('aporteMesaRevision')?.value||x.technical_table_id||0);
    if(!mesaId)return alert('Seleccione la Mesa Técnica que revisará el aporte.');
+   const asignadas=await cargarMesasRevisionAportes();
+   if(!asignadas.some(t=>Number(t.id)===mesaId))return alert('Solo puede enviar aportes a una mesa de la que es integrante.');
+   if(Number(x.technical_table_id)!==mesaId){
+     const {error:mesaError}=await sbAuth.from('individual_contributions').update({technical_table_id:mesaId}).eq('id',id).eq('author_id',STATE.uid);
+     if(mesaError){console.error(mesaError);return alert('No se pudo guardar la mesa seleccionada.');}
+   }
    const {error}=await sbAuth.rpc('submit_individual_review',{p_contribution_id:id,p_technical_table_id:mesaId});
    if(error){console.error(error);return alert(/already pending/i.test(String(error.message||''))?'Ya existe una revisión pendiente.':'No se pudo enviar la solicitud de revisión.')}
    STATE.editingContribution=null;
