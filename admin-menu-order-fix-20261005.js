@@ -19,7 +19,7 @@ function goBiblioteca(){
 const generalItems=[
   {label:'🏠 Inicio',fn:'adminHome'},
   {label:'🧭 Ir a mi trabajo',call:goMyWork},
-  {label:'📨 Solicitudes e invitaciones de integrantes',fn:'adminInvitaciones'},
+  {label:'📨 Invitación integrantes',fn:'adminInvitaciones'},
   {label:'👥 Asignación mesas integrantes',fn:'adminUsuarios'},
   {label:'🧩 Mesas técnicas',fn:'adminMesas'},
   {label:'📄 Documentos de las mesas',fn:'adminDocumentosMesas'},
