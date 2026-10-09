@@ -19,7 +19,7 @@ function goBiblioteca(){
 const generalItems=[
   {label:'🏠 Inicio',fn:'adminHome'},
   {label:'🧭 Ir a mi trabajo',call:goMyWork},
-  {label:'📨 Invitación integrantes',fn:'adminInvitaciones'},
+  {label:'📨 Solicitudes e invitaciones de integrantes',fn:'adminInvitaciones'},
   {label:'👥 Asignación mesas integrantes',fn:'adminUsuarios'},
   {label:'🧩 Mesas técnicas',fn:'adminMesas'},
   {label:'📄 Documentos de las mesas',fn:'adminDocumentosMesas'},
@@ -81,7 +81,7 @@ function buildQuickAccess(){
     const h=document.createElement('h3');h.textContent=item.label;
     const p=document.createElement('p');
     const desc={
-      adminInvitaciones:'Invitar nuevos integrantes a la plataforma.',
+      adminInvitaciones:'Revisar solicitudes de coordinadores, aprobarlas y enviar invitaciones.',
       adminUsuarios:'Asignar integrantes a sus Mesas Técnicas y roles.',
       adminMesas:'Crear, organizar y mantener Mesas Técnicas.',
       adminDocumentosMesas:'Revisar el avance de documentos de todas las Mesas.',
