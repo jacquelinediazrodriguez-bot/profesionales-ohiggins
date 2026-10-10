@@ -479,7 +479,20 @@ async function renderPerfil(c){
    }
  }
  const ass=getAssignedMesas();
- c.innerHTML=`<div class="kicker">Perfil profesional</div><h1 class="section-title">Mi Perfil</h1><div class="card form"><label>Nombre completo del profesional</label><input id="pfNombre" value="${esc(p.nombre||currentUser.nombre)}" required><div class="mini-note">Escriba su nombre real, no el nombre de su correo. Cambiarlo actualiza su identificación en la plataforma, sin cambiar su correo de acceso, contraseña, Mesas ni roles.</div><label>Correo</label><input value="${esc(currentUser.correo)}" disabled><label>Profesión</label><input id="pfProf" value="${esc(p.profesion||'')}" placeholder="Profesión"><label>Especialidad</label><input id="pfEsp" value="${esc(p.especialidad||'')}" placeholder="Especialidad"><label>Experiencia</label><textarea id="pfExp" rows="4">${esc(p.experiencia||'')}</textarea><label>Áreas de interés</label><input id="pfInteres" value="${esc(p.intereses||'')}" placeholder="Ej.: empleo, educación, desarrollo regional"><label>Mesa(s) asignada(s)</label><input value="${esc(ass.join(', ')||'Sin asignación')}" disabled><label>Rol(es) asignado(s)</label><textarea rows="3" disabled>${esc(ass.map(m=>m+' — '+getRoleForMesa(m)).join('\n'))}</textarea><div class="mini-note">La asignación de Mesa y los roles son definidos exclusivamente por Administración. Una persona puede participar en varias Mesas y tener un rol distinto en cada una.</div><button class="btn primary" onclick="guardarPerfil()">Guardar cambios</button><span id="pfStatus" class="muted"></span></div>`;
+ c.innerHTML=`<div class="kicker">Perfil profesional</div><h1 class="section-title">Mi Perfil</h1><div class="card form"><label>Nombre completo del profesional</label><input id="pfNombre" value="${esc(p.nombre||currentUser.nombre)}" required><div class="mini-note">Escriba su nombre real, no el nombre de su correo. Cambiarlo actualiza su identificación en la plataforma, sin cambiar su correo de acceso, contraseña, Mesas ni roles.</div><label>Correo</label><input value="${esc(currentUser.correo)}" disabled><label>Profesión</label><input id="pfProf" value="${esc(p.profesion||'')}" placeholder="Profesión"><label>Especialidad</label><input id="pfEsp" value="${esc(p.especialidad||'')}" placeholder="Especialidad"><label>Experiencia</label><textarea id="pfExp" rows="4">${esc(p.experiencia||'')}</textarea><label>Áreas de interés</label><input id="pfInteres" value="${esc(p.intereses||'')}" placeholder="Ej.: empleo, educación, desarrollo regional"><div class="mini-note"><b>Datos de contacto y ubicación (uso institucional reservado).</b> Visibles exclusivamente para usted y Administración General. La dirección es opcional y no se publica.</div><label>Teléfono de contacto</label><input id="pfPhone" type="tel" placeholder="+56 9 ..."><label>Número de WhatsApp</label><input id="pfWhatsapp" type="tel" placeholder="Si es el mismo número, puede repetirlo"><label>Dirección de contacto (opcional)</label><input id="pfAddress" placeholder="Calle y número"><label>Comuna</label><input id="pfCommune" placeholder="Comuna"><label>Región</label><select id="pfRegion"><option value="">Seleccione región</option>${['Arica y Parinacota','Tarapacá','Antofagasta','Atacama','Coquimbo','Valparaíso','Metropolitana de Santiago','O’Higgins','Maule','Ñuble','Biobío','La Araucanía','Los Ríos','Los Lagos','Aysén','Magallanes y de la Antártica Chilena'].map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select><label>Mesa(s) asignada(s)</label><input value="${esc(ass.join(', ')||'Sin asignación')}" disabled><label>Rol(es) asignado(s)</label><textarea rows="3" disabled>${esc(ass.map(m=>m+' — '+getRoleForMesa(m)).join('\n'))}</textarea><div class="mini-note">La asignación de Mesa y los roles son definidos exclusivamente por Administración. Una persona puede participar en varias Mesas y tener un rol distinto en cada una.</div><button class="btn primary" onclick="guardarPerfil()">Guardar cambios</button><span id="pfStatus" class="muted"></span></div>`;
+ await cargarContactoPrivadoPerfil();
+}
+
+async function cargarContactoPrivadoPerfil(){
+ if(!sbAuth||!currentUser?.supabaseId)return;
+ try{
+  const {data,error}=await sbAuth.from('professional_private_contacts').select('phone,whatsapp,address,commune,region').eq('user_id',currentUser.supabaseId).maybeSingle();
+  if(error)throw error;
+  if(!data)return;
+  for(const [field,id] of Object.entries({phone:'pfPhone',whatsapp:'pfWhatsapp',address:'pfAddress',commune:'pfCommune',region:'pfRegion'})){
+   const el=document.getElementById(id);if(el)el.value=data[field]||'';
+  }
+ }catch(e){console.warn('No se pudo cargar contacto privado',e)}
 }
 async function guardarPerfil(){
  const p={nombre:$('pfNombre').value.trim(),profesion:$('pfProf').value.trim(),especialidad:$('pfEsp').value.trim(),experiencia:$('pfExp').value.trim(),intereses:$('pfInteres').value.trim()};
@@ -497,6 +510,11 @@ async function guardarPerfil(){
      if(error)throw error;
      currentUser.nombre=p.nombre||currentUser.nombre;
      sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser));
+   }
+   if(sbAuth&&currentUser?.supabaseId){
+     const contact={user_id:currentUser.supabaseId,phone:$('pfPhone')?.value.trim()||'',whatsapp:$('pfWhatsapp')?.value.trim()||'',address:$('pfAddress')?.value.trim()||'',commune:$('pfCommune')?.value.trim()||'',region:$('pfRegion')?.value||'',updated_at:new Date().toISOString()};
+     const {error:contactError}=await sbAuth.from('professional_private_contacts').upsert(contact,{onConflict:'user_id'});
+     if(contactError)throw contactError;
    }
    localStorage.setItem(getProfileKey(),JSON.stringify(p));
    if(status)status.textContent=sbAuth&&currentUser?.supabaseId?'Perfil guardado en la plataforma y verificado.':'Perfil guardado en este navegador.';
