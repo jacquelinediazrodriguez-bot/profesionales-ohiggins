@@ -50,6 +50,7 @@ window.requireAdmin=function(generalOnly=false){
 };
 
 let ensuring=null;
+let readyUserId=null;
 function getSb(){
   try{return (typeof sbAuth!=='undefined'&&sbAuth)?sbAuth:null}catch(e){return null}
 }
@@ -57,11 +58,14 @@ async function ensureRealSession(){
   syncAdminRole();
   const sb=getSb();
   if(!currentUser?.supabaseId||!sb)return false;
+  const id=String(currentUser.supabaseId);
+  if(readyUserId===id)return true;
   if(ensuring)return ensuring;
   ensuring=(async()=>{
     try{
-      if(typeof window.initSharedWorkspace==='function')return (await window.initSharedWorkspace())!==false;
-      return true;
+      const ok=typeof window.initSharedWorkspace==='function'?(await window.initSharedWorkspace())!==false:true;
+      if(ok)readyUserId=id;
+      return ok;
     }catch(e){console.warn('No se pudo inicializar la sesión compartida',e);return false}
     finally{ensuring=null}
   })();
