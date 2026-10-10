@@ -41,9 +41,25 @@ function availableItems(){
 }
 
 function runItem(item){
+  if(!item)return;
   if(item.call)return item.call();
   const f=window[item.fn];
-  if(typeof f==='function')return f();
+  if(typeof f!=='function'){
+    console.error('Acceso administrativo no disponible:',item.fn);
+    alert('Esta sección no está disponible. Recargue la página e intente nuevamente.');
+    return;
+  }
+  try{
+    const p=f();
+    if(p&&typeof p.catch==='function')p.catch(e=>{
+      console.error('Error al abrir sección administrativa:',item.fn,e);
+      alert('No se pudo abrir la sección seleccionada.');
+    });
+    return p;
+  }catch(e){
+    console.error('Error de navegación administrativa:',item.fn,e);
+    alert('No se pudo abrir la sección seleccionada.');
+  }
 }
 
 function rebuildSide(){
