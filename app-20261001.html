@@ -1855,7 +1855,7 @@ async function adminCorreoInstitucional(tab='entrada'){
     else renderAdminMailSent();
   }catch(err){
     console.error(err);
-    $('adminMailBody').innerHTML='<div class="notice">No fue posible cargar el correo institucional. Si la recepción del dominio aún está en configuración, el envío seguirá disponible desde “Redactar”.</div>';
+    $('adminMailBody').innerHTML='<div class="notice">La bandeja externa de correo institucional no está disponible. Los mensajes enviados desde el formulario Contacto quedan registrados en la plataforma y pueden consultarse en «Mensajes del sitio». <button type="button" class="btn soft" onclick="adminContactos()">Abrir mensajes del sitio</button> Puede seguir utilizando «Redactar» para enviar correos.</div>';
   }
 }
 function adminMailDate(v){
@@ -1869,7 +1869,7 @@ function renderAdminMailInbox(){
   const h=$('adminMailBody');if(!h)return;
   const items=adminMailData.received||[];
   if(!items.length){
-    h.innerHTML='<div class="card"><h3>Bandeja de entrada</h3><p class="muted">No hay correos recibidos todavía.</p><div class="mini-note">Los mensajes enviados al correo institucional aparecerán aquí una vez que la recepción del dominio quede completamente verificada.</div></div>';
+    h.innerHTML='<div class="card"><h3>Bandeja de entrada</h3><p class="muted">No hay correos recibidos todavía.</p><div class="mini-note">Si una solicitud fue enviada desde el formulario Contacto, puede leerla y responderla desde «Mensajes del sitio», aunque la recepción externa del correo no esté disponible. <button type="button" class="btn soft" onclick="adminContactos()">Abrir mensajes del sitio</button></div></div>';
     return;
   }
   h.innerHTML='<div class="card"><h3>Bandeja de entrada</h3><p class="muted">Seleccione un mensaje para leerlo y responder.</p></div><br>'+
