@@ -16,6 +16,7 @@ el.innerHTML=`<style>
 <div class="erbox"><h2>Registrar mi asistencia</h2><p class="ersub">Complete sus datos para registrar su asistencia. La invitación por correo es opcional.</p>
 <form id="erform"><label>Nombre completo<input required name="full_name" minlength="3" maxlength="120" autocomplete="name"></label><label>Correo electrónico<input required type="email" name="email" autocomplete="email"></label><label>Teléfono / WhatsApp<input name="phone" type="tel" maxlength="40"></label><label>Comuna<input name="commune" maxlength="80"></label><label class="er-consent-label"><input type="checkbox" name="consent_invitation"> También deseo recibir por correo una invitación para acceder a la plataforma (opcional).</label><button class="erbtn" type="submit">Registrar asistencia</button><p id="erresult" role="status" aria-live="polite"></p></form>
 <p><button type="button" class="erbtn" id="erassisted">Registro asistido (acceso reservado)</button></p><p id="erassistedinfo" class="ersub"></p></div>
+<div class="erbox" id="er-admin-attendance" hidden><h2>Registro completo de asistencia</h2><p class="ersub">Consulta reservada al administrador general. La columna «Invitación» muestra el estado del envío, no solo la autorización.</p><button type="button" class="erbtn" id="er-refresh-attendance">Actualizar registro</button><p id="er-attendance-result" role="status" aria-live="polite"></p><div style="overflow-x:auto"><table><thead><tr><th>Fecha</th><th>Nombre completo</th><th>Correo electrónico</th><th>Teléfono / WhatsApp</th><th>Comuna</th><th>Invitación</th><th>Detalle</th></tr></thead><tbody id="er-attendance-body"></tbody></table></div></div>
 <div class="erbox"><h2>Conoce nuestra plataforma</h2><p>Mesas de Salud, Educación, Economía, Trabajo y Agricultura.</p><button class="erbtn" type="button" id="eraccess">Ingresar a la plataforma</button></div>`;
 main.appendChild(el);
 document.getElementById('erform').addEventListener('submit',async ev=>{
@@ -28,6 +29,33 @@ document.getElementById('erform').addEventListener('submit',async ev=>{
 });
 document.getElementById('erassisted').onclick=async()=>{const s=await (typeof sbAuth!=='undefined'?sbAuth:null)?.auth.getSession(); const p=document.getElementById('erassistedinfo');if(!s?.data?.session){p.textContent='Ingrese primero con sus credenciales habituales de administración.';window.goAccess?.();return;}document.getElementById('erform').dataset.assisted='true';p.textContent='Modo asistido: cada registro será validado con su sesión de administración.';document.getElementById('erform').scrollIntoView({behavior:'smooth'});};
 document.getElementById('eraccess').onclick=()=>window.goAccess?.();
+
+const attendancePanel=document.getElementById('er-admin-attendance');
+const attendanceBody=document.getElementById('er-attendance-body');
+const attendanceResult=document.getElementById('er-attendance-result');
+const refreshAttendance=document.getElementById('er-refresh-attendance');
+const attendanceSession=async()=>{try{return (typeof sbAuth!=='undefined'?sbAuth:null)?.auth.getSession()}catch(e){return null}};
+const attendanceCell=(tr,value)=>{const td=document.createElement('td');td.textContent=String(value??'—');tr.appendChild(td)};
+const attendanceLabel=(r)=>r.invite_status==='sent'?'Enviada':'No enviada';
+const attendanceDetail=(r)=>r.invite_status==='sent'?'Envío registrado':r.invite_status==='not_requested'?'No solicitada':r.invite_status==='existing_account'?'Cuenta existente':r.invite_status==='send_failed'?'Envío fallido':'Pendiente';
+async function loadAttendance(){
+ refreshAttendance.disabled=true;attendanceResult.textContent='Consultando registro...';
+ try{
+  const session=await attendanceSession(),token=session?.data?.session?.access_token;
+  if(!token)throw Error('Inicie sesión como administrador general');
+  const response=await fetch('https://ozfcvaiatkmbehaokskz.supabase.co/functions/v1/encuentro-2026-registro',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.SUPABASE_KEY||'sb_publishable_HZljMDp-yL6cEddxKWECiw_hJe-oaOQ','Authorization':'Bearer '+token},body:JSON.stringify({action:'list_attendance'})});
+  const result=await response.json();if(!response.ok)throw Error(result.error||'No fue posible consultar el registro');
+  attendancePanel.hidden=false;attendanceBody.replaceChildren();
+  for(const r of result.records||[]){const tr=document.createElement('tr');attendanceCell(tr,r.created_at?new Date(r.created_at).toLocaleString('es-CL'):'—');attendanceCell(tr,r.full_name);attendanceCell(tr,r.email);attendanceCell(tr,r.phone);attendanceCell(tr,r.commune);attendanceCell(tr,attendanceLabel(r));attendanceCell(tr,attendanceDetail(r));attendanceBody.appendChild(tr)}
+  attendanceResult.textContent='Total de asistencias: '+(result.records||[]).length;
+ }catch(e){attendanceResult.textContent=String(e.message||e)}
+ finally{refreshAttendance.disabled=false}
+}
+refreshAttendance.addEventListener('click',loadAttendance);
+const adminAttendanceBtn=document.createElement('button');adminAttendanceBtn.className='erbtn';adminAttendanceBtn.type='button';adminAttendanceBtn.textContent='Ver registro completo de asistencia';adminAttendanceBtn.style.marginTop='14px';
+adminAttendanceBtn.addEventListener('click',async()=>{attendancePanel.hidden=false;await loadAttendance();attendancePanel.scrollIntoView({behavior:'smooth',block:'start'})});
+document.getElementById('erassistedinfo').after(adminAttendanceBtn);
+
 if(location.hash==='#encuentro2026')window.go('encuentro2026');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
