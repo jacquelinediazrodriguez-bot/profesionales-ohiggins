@@ -16,7 +16,7 @@ el.innerHTML=`<style>
 <div class="erbox"><h2>Registrar mi asistencia</h2><p class="ersub">Complete sus datos para registrar su asistencia. La invitación por correo es opcional.</p>
 <form id="erform"><label>Nombre completo<input required name="full_name" minlength="3" maxlength="120" autocomplete="name"></label><label>Correo electrónico<input required type="email" name="email" autocomplete="email"></label><label>Teléfono / WhatsApp<input name="phone" type="tel" maxlength="40"></label><label>Comuna<input name="commune" maxlength="80"></label><label class="er-consent-label"><input type="checkbox" name="consent_invitation"> También deseo recibir por correo una invitación para acceder a la plataforma (opcional).</label><button class="erbtn" type="submit">Registrar asistencia</button><p id="erresult" role="status" aria-live="polite"></p></form>
 <p><button type="button" class="erbtn" id="erassisted">Registro asistido (acceso reservado)</button></p><p id="erassistedinfo" class="ersub"></p></div>
-<div class="erbox" id="er-admin-attendance" hidden><h2>Registro completo de asistencia</h2><p class="ersub">Consulta reservada al administrador general. La columna «Invitación» muestra el estado del envío, no solo la autorización.</p><button type="button" class="erbtn" id="er-refresh-attendance">Actualizar registro</button><p id="er-attendance-result" role="status" aria-live="polite"></p><div class="er-table-scroll" role="region" aria-label="Tabla desplazable de asistencia" tabindex="0"><table><thead><tr><th>Fecha</th><th>Nombre completo</th><th>Correo electrónico</th><th>Teléfono / WhatsApp</th><th>Comuna</th><th>Invitación</th><th>Detalle</th></tr></thead><tbody id="er-attendance-body"></tbody></table></div></div>
+<div class="erbox" id="er-admin-attendance" hidden><h2>Registro completo de asistencia</h2><p class="ersub">Consulta reservada a administración. La columna «Invitación» muestra el estado del envío, no solo la autorización.</p><button type="button" class="erbtn" id="er-refresh-attendance">Actualizar registro</button><p id="er-attendance-result" role="status" aria-live="polite"></p><div class="er-table-scroll" role="region" aria-label="Tabla desplazable de asistencia" tabindex="0"><table><thead><tr><th>Fecha</th><th>Nombre completo</th><th>Correo electrónico</th><th>Teléfono / WhatsApp</th><th>Comuna</th><th>Invitación</th><th>Detalle</th></tr></thead><tbody id="er-attendance-body"></tbody></table></div></div>
 <div class="erbox"><h2>Conoce nuestra plataforma</h2><p>Mesas de Salud, Educación, Economía, Trabajo y Agricultura.</p><button class="erbtn" type="button" id="eraccess">Ingresar a la plataforma</button></div>`;
 main.appendChild(el);
 document.getElementById('erform').addEventListener('submit',async ev=>{
@@ -43,7 +43,7 @@ async function loadAttendance(){
  try{
   const session=await attendanceSession(),token=session?.data?.session?.access_token;
   if(!token){attendancePanel.hidden=false;throw Error('La sesión de administración no está disponible en esta ventana. Pulse «Ingresar a la plataforma», inicie sesión aquí y vuelva a Encuentro Regional 2026.');}
-  if(window.__frenteAuthVerified!==true || typeof window.isAdminGeneral!=='function' || !window.isAdminGeneral())throw Error('Esta consulta requiere una sesión verificada de Administrador General.');
+  if(window.__frenteAuthVerified!==true)throw Error('Debe iniciar sesión para consultar el registro de asistencia.');
   const response=await fetch('https://ozfcvaiatkmbehaokskz.supabase.co/functions/v1/encuentro-2026-registro',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.SUPABASE_KEY||'sb_publishable_HZljMDp-yL6cEddxKWECiw_hJe-oaOQ','Authorization':'Bearer '+token},body:JSON.stringify({action:'list_attendance'})});
   const result=await response.json();if(!response.ok)throw Error(result.error||'No fue posible consultar el registro');
   attendancePanel.hidden=false;attendanceBody.replaceChildren();
@@ -55,11 +55,11 @@ async function loadAttendance(){
 refreshAttendance.addEventListener('click',loadAttendance);
 window.erLoadAttendanceWhenAdmin=async()=>{
  const s=await attendanceSession();
- if(!s?.data?.session?.access_token || window.__frenteAuthVerified!==true || !window.isAdminGeneral?.()){attendancePanel.hidden=true;return}
+ if(!s?.data?.session?.access_token || window.__frenteAuthVerified!==true){attendancePanel.hidden=true;return}
  attendancePanel.hidden=false;
  await loadAttendance();
 };
-const adminAttendanceBtn=document.createElement('button');adminAttendanceBtn.className='erbtn';adminAttendanceBtn.type='button';adminAttendanceBtn.textContent='Consultar registro de asistencia (administrador general)';adminAttendanceBtn.style.marginTop='14px';
+const adminAttendanceBtn=document.createElement('button');adminAttendanceBtn.className='erbtn';adminAttendanceBtn.type='button';adminAttendanceBtn.textContent='Consultar registro de asistencia (administración)';adminAttendanceBtn.style.marginTop='14px';
 adminAttendanceBtn.addEventListener('click',async()=>{attendancePanel.hidden=false;attendanceResult.textContent='Consultando asistencia registrada...';await loadAttendance();attendancePanel.scrollIntoView({behavior:'smooth',block:'start'})});
 document.getElementById('erassistedinfo').after(adminAttendanceBtn);
 if(location.hash==='#encuentro2026'){window.go('encuentro2026');window.erLoadAttendanceWhenAdmin();}
