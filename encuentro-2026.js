@@ -22,10 +22,10 @@ document.getElementById('erform').addEventListener('submit',async ev=>{
  button.disabled=true;out.textContent='Registrando asistencia...';
  try{const payload={full_name:fd.get('full_name'),email:fd.get('email'),phone:fd.get('phone'),commune:fd.get('commune'),consent_invitation:fd.get('consent_invitation')==='on',assisted:form.dataset.assisted==='true'};
  const h={'Content-Type':'application/json','apikey':window.SUPABASE_KEY||'sb_publishable_HZljMDp-yL6cEddxKWECiw_hJe-oaOQ'};
- if(payload.assisted){const s=await window.sbAuth?.auth.getSession();if(!s?.data?.session?.access_token)throw Error('Debe iniciar sesión con su cuenta autorizada');h.Authorization='Bearer '+s.data.session.access_token;}
+ if(payload.assisted){const s=await (typeof sbAuth!=='undefined'?sbAuth:null)?.auth.getSession();if(!s?.data?.session?.access_token)throw Error('Debe iniciar sesión con su cuenta autorizada');h.Authorization='Bearer '+s.data.session.access_token;}
  const r=await fetch('https://ozfcvaiatkmbehaokskz.supabase.co/functions/v1/encuentro-2026-registro',{method:'POST',headers:h,body:JSON.stringify(payload)}); const j=await r.json(); if(!r.ok)throw Error(j.error||'No fue posible registrar');out.textContent=j.message;form.reset();}catch(e){out.textContent=String(e.message||e)}finally{button.disabled=false}
 });
-document.getElementById('erassisted').onclick=async()=>{const s=await window.sbAuth?.auth.getSession(); const p=document.getElementById('erassistedinfo');if(!s?.data?.session){p.textContent='Ingrese primero con sus credenciales habituales de administración.';window.goAccess?.();return;}document.getElementById('erform').dataset.assisted='true';p.textContent='Modo asistido: cada registro será validado con su sesión de administración.';document.getElementById('erform').scrollIntoView({behavior:'smooth'});};
+document.getElementById('erassisted').onclick=async()=>{const s=await (typeof sbAuth!=='undefined'?sbAuth:null)?.auth.getSession(); const p=document.getElementById('erassistedinfo');if(!s?.data?.session){p.textContent='Ingrese primero con sus credenciales habituales de administración.';window.goAccess?.();return;}document.getElementById('erform').dataset.assisted='true';p.textContent='Modo asistido: cada registro será validado con su sesión de administración.';document.getElementById('erform').scrollIntoView({behavior:'smooth'});};
 document.getElementById('eraccess').onclick=()=>window.goAccess?.();
 if(location.hash==='#encuentro2026')window.go('encuentro2026');
 }
