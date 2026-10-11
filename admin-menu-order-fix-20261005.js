@@ -18,6 +18,7 @@ function goBiblioteca(){
 
 const generalItems=[
   {label:'🏠 Inicio',fn:'adminHome'},
+  {label:'📋 Asistencia Encuentro 2026',fn:'adminEncuentroAsistencia',generalOnly:true},
   {label:'🧭 Ir a mi trabajo',call:goMyWork},
   {label:'📨 Invitación integrantes',fn:'adminInvitaciones'},
   {label:'👥 Asignación mesas integrantes',fn:'adminUsuarios'},
@@ -97,6 +98,7 @@ function buildQuickAccess(){
     const h=document.createElement('h3');h.textContent=item.label;
     const p=document.createElement('p');
     const desc={
+      adminEncuentroAsistencia:'Consultar asistentes registrados y estado de invitaciones.',
       adminInvitaciones:'Revisar solicitudes de coordinadores, aprobarlas y enviar invitaciones.',
       adminUsuarios:'Asignar integrantes a sus Mesas Técnicas y roles.',
       adminMesas:'Crear, organizar y mantener Mesas Técnicas.',
