@@ -2,7 +2,7 @@
 function setup(){
 if(document.getElementById('encuentro2026'))return;
 const nav=document.querySelector('#publicNav'), main=document.querySelector('main'); if(!nav||!main)return;
-const btn=document.createElement('button');btn.textContent='Encuentro Regional 2026';btn.onclick=()=>window.go('encuentro2026');nav.insertBefore(btn,nav.children[1]||null);
+const btn=document.createElement('button');btn.textContent='Encuentro Regional 2026';btn.onclick=()=>{window.go('encuentro2026');setTimeout(()=>{if(typeof window.erLoadAttendanceWhenAdmin==='function')window.erLoadAttendanceWhenAdmin()},100)};nav.insertBefore(btn,nav.children[1]||null);
 const el=document.createElement('section');el.id='encuentro2026';el.className='page';
 el.innerHTML=`<style>
 #encuentro2026{font-size:18px;line-height:1.55}#encuentro2026 .erhero{padding:32px 20px;text-align:center;border-radius:18px;background:linear-gradient(135deg,#e2f2fc,#fff 55%,#f7e9ed);border-top:7px solid #133b67;border-bottom:4px solid #be2946}#encuentro2026 h1{font-size:clamp(29px,5vw,46px);color:#123b67;margin:8px}#encuentro2026 h2{font-size:26px;color:#123b67}#encuentro2026 .erbox{max-width:830px;margin:18px auto;padding:25px;background:white;border:1px solid #d5e1ed;border-radius:15px}#encuentro2026 label{display:block;font-weight:750;margin:14px 0 5px}#encuentro2026 input:not([type=checkbox]){width:100%;padding:15px;font-size:19px;border-radius:8px;border:1px solid #889aaa}#encuentro2026 .erbtn{padding:15px 20px;border:0;background:#123b67;color:#fff;border-radius:10px;font-weight:750;font-size:19px;cursor:pointer}#encuentro2026 .erbtn:disabled{opacity:.5}#encuentro2026 .erbanner{height:180px;background:linear-gradient(180deg,#add6f2,#dceafa);border-radius:14px;display:flex;align-items:end;justify-content:center;color:#123b67;font-weight:700;padding:16px}#encuentro2026 .ersub{color:#637388}#encuentro2026 td{padding:10px;border-bottom:1px solid #dbe4ec}#encuentro2026 table{width:100%;border-collapse:collapse}@media(max-width:600px){#encuentro2026 .erbox{padding:15px}#encuentro2026 td{font-size:16px;padding:7px}}
@@ -52,10 +52,16 @@ async function loadAttendance(){
  finally{refreshAttendance.disabled=false}
 }
 refreshAttendance.addEventListener('click',loadAttendance);
+window.erLoadAttendanceWhenAdmin=async()=>{
+ const s=await attendanceSession();
+ if(!s?.data?.session?.access_token){attendancePanel.hidden=true;return}
+ attendancePanel.hidden=false;
+ await loadAttendance();
+};
 const adminAttendanceBtn=document.createElement('button');adminAttendanceBtn.className='erbtn';adminAttendanceBtn.type='button';adminAttendanceBtn.textContent='Consultar registro de asistencia (administrador general)';adminAttendanceBtn.style.marginTop='14px';
 adminAttendanceBtn.addEventListener('click',async()=>{attendancePanel.hidden=false;attendanceResult.textContent='Consultando asistencia registrada...';await loadAttendance();attendancePanel.scrollIntoView({behavior:'smooth',block:'start'})});
 document.getElementById('erassistedinfo').after(adminAttendanceBtn);
-if(location.hash==='#encuentro2026')window.go('encuentro2026');
+if(location.hash==='#encuentro2026'){window.go('encuentro2026');window.erLoadAttendanceWhenAdmin();}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
 })();
