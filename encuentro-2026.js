@@ -42,31 +42,19 @@ async function loadAttendance(){
  refreshAttendance.disabled=true;attendanceResult.textContent='Consultando registro...';
  try{
   const session=await attendanceSession(),token=session?.data?.session?.access_token;
-  if(!token)throw Error('Inicie sesión como administrador general');
+  if(!token)throw Error('Para consultar la asistencia, primero ingrese a la plataforma con su cuenta de administrador general y vuelva a esta sección.');
   const response=await fetch('https://ozfcvaiatkmbehaokskz.supabase.co/functions/v1/encuentro-2026-registro',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.SUPABASE_KEY||'sb_publishable_HZljMDp-yL6cEddxKWECiw_hJe-oaOQ','Authorization':'Bearer '+token},body:JSON.stringify({action:'list_attendance'})});
   const result=await response.json();if(!response.ok)throw Error(result.error||'No fue posible consultar el registro');
   attendancePanel.hidden=false;attendanceBody.replaceChildren();
   for(const r of result.records||[]){const tr=document.createElement('tr');attendanceCell(tr,r.created_at?new Date(r.created_at).toLocaleString('es-CL'):'—');attendanceCell(tr,r.full_name);attendanceCell(tr,r.email);attendanceCell(tr,r.phone);attendanceCell(tr,r.commune);attendanceCell(tr,attendanceLabel(r));attendanceCell(tr,attendanceDetail(r));attendanceBody.appendChild(tr)}
   attendanceResult.textContent='Total de asistencias: '+(result.records||[]).length;
- }catch(e){attendanceResult.textContent=String(e.message||e)}
+ }catch(e){attendancePanel.hidden=false;attendanceResult.textContent=String(e.message||e)}
  finally{refreshAttendance.disabled=false}
 }
 refreshAttendance.addEventListener('click',loadAttendance);
 const adminAttendanceBtn=document.createElement('button');adminAttendanceBtn.className='erbtn';adminAttendanceBtn.type='button';adminAttendanceBtn.textContent='Consultar registro de asistencia (administrador general)';adminAttendanceBtn.style.marginTop='14px';
-adminAttendanceBtn.addEventListener('click',async()=>{attendancePanel.hidden=false;await loadAttendance();attendancePanel.scrollIntoView({behavior:'smooth',block:'start'})});
+adminAttendanceBtn.addEventListener('click',async()=>{attendancePanel.hidden=false;attendanceResult.textContent='Consultando asistencia registrada...';await loadAttendance();attendancePanel.scrollIntoView({behavior:'smooth',block:'start'})});
 document.getElementById('erassistedinfo').after(adminAttendanceBtn);
-async function checkAttendanceAccess(){
- try{
-  const session=await attendanceSession(),token=session?.data?.session?.access_token;
-  if(!token){attendancePanel.hidden=true;return}
-  const res=await fetch('https://ozfcvaiatkmbehaokskz.supabase.co/functions/v1/encuentro-2026-registro',{method:'POST',headers:{'Content-Type':'application/json','apikey':window.SUPABASE_KEY||'sb_publishable_HZljMDp-yL6cEddxKWECiw_hJe-oaOQ','Authorization':'Bearer '+token},body:JSON.stringify({action:'list_attendance'})});
-  
-  if(!res.ok)attendancePanel.hidden=true;
- }catch(e){attendancePanel.hidden=true}
-}
-btn.addEventListener('click',checkAttendanceAccess);
-checkAttendanceAccess();
-
 if(location.hash==='#encuentro2026')window.go('encuentro2026');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
