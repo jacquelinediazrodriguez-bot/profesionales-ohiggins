@@ -17,6 +17,12 @@ el.innerHTML=`<style>
 <form id="erform"><label>Nombre completo<input required name="full_name" minlength="3" maxlength="120" autocomplete="name"></label><label>Correo electrónico<input required type="email" name="email" autocomplete="email"></label><label>Teléfono / WhatsApp<input name="phone" type="tel" maxlength="40"></label><label>Comuna<input name="commune" maxlength="80"></label><label class="er-consent-label"><input type="checkbox" name="consent_invitation"> También deseo recibir por correo una invitación para acceder a la plataforma (opcional).</label><button class="erbtn" type="submit">Registrar asistencia</button><p id="erresult" role="status" aria-live="polite"></p></form>
 </div>\n<div class="erbox"><h2>Conoce nuestra plataforma</h2><p>Mesas de Salud, Educación, Economía, Trabajo y Agricultura.</p><button class="erbtn" type="button" id="eraccess">Ingresar a la plataforma</button></div>`;
 main.appendChild(el);
+// Entrada pública directa del QR al programa del Encuentro 2026.
+// El enlace habitual de la plataforma conserva su página de inicio.
+const params=new URLSearchParams(window.location.search);
+if(params.get('encuentro')==='2026'||window.location.hash==='#encuentro2026'){
+  window.go('encuentro2026');
+}
 document.getElementById('erform').addEventListener('submit',async ev=>{
  ev.preventDefault();const form=ev.target,fd=new FormData(form),button=form.querySelector('button'),out=document.getElementById('erresult');
  button.disabled=true;out.textContent='Registrando asistencia...';
