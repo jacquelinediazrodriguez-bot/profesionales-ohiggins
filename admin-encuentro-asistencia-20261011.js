@@ -15,22 +15,41 @@ window.adminEncuentroAsistencia=async function(){
  exportButton.style.marginLeft='10px';
  const status=document.createElement('p');status.setAttribute('role','status');
  let latestRecords=[];
- const excelCell=value=>{
-   const raw=String(value??'').replace(/\r\n?/g,' ').replace(/\n/g,' ');
-   const safe=/^[\s]*[=+@-]/.test(raw)?"'"+raw:raw;
-   return '"'+safe.replace(/"/g,'""')+'"';
+ const loadExcelLibrary=async()=>{
+  if(window.XLSX?.utils?.aoa_to_sheet && window.XLSX?.write)return window.XLSX;
+  await new Promise((resolve,reject)=>{
+   const script=document.createElement('script');
+   script.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+   script.onload=resolve;script.onerror=()=>reject(new Error('No se pudo cargar el generador Excel. Revise la conexión e intente nuevamente.'));
+   document.head.appendChild(script);
+  });
+  if(!window.XLSX?.utils?.aoa_to_sheet)throw Error('No se pudo inicializar Excel.');
+  return window.XLSX;
  };
- exportButton.onclick=()=>{
-   if(window.__frenteAuthVerified!==true || !window.isAdminGeneral?.())return;
+ exportButton.onclick=async()=>{
+  if(window.__frenteAuthVerified!==true || !window.isAdminGeneral?.())return;
+  exportButton.disabled=true;
+  status.textContent='Preparando archivo Excel...';
+  try{
+   const XLSX=await loadExcelLibrary();
+   if(window.__frenteAuthVerified!==true || !window.isAdminGeneral?.())throw Error('Sesión no autorizada.');
    const headers=['Fecha','Nombre completo','Correo','Teléfono / WhatsApp','Comuna','Invitación','Detalle'];
    const rows=latestRecords.map(a=>{
-     const detail=a.invite_status==='sent'?'Envío registrado':a.invite_status==='not_requested'?'No solicitada':a.invite_status==='existing_account'?'Cuenta existente':a.invite_status==='send_failed'?'Envío fallido':'Pendiente';
-     return [a.created_at?new Date(a.created_at).toLocaleString('es-CL'):'',a.full_name,a.email,a.phone,a.commune,a.invite_status==='sent'?'Enviada':'No enviada',detail];
+    const detail=a.invite_status==='sent'?'Envío registrado':a.invite_status==='not_requested'?'No solicitada':a.invite_status==='existing_account'?'Cuenta existente':a.invite_status==='send_failed'?'Envío fallido':'Pendiente';
+    return [a.created_at?new Date(a.created_at).toLocaleString('es-CL'):'',a.full_name,a.email,a.phone,a.commune,a.invite_status==='sent'?'Enviada':'No enviada',detail].map(v=>String(v??''));
    });
-   const csv='\uFEFFsep=;\r\n'+[headers,...rows].map(row=>row.map(excelCell).join(';')).join('\r\n');
-   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-   const a=document.createElement('a');a.href=url;a.download='asistencia-encuentro-regional-2026-'+new Date().toISOString().slice(0,10)+'.csv';
-   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
+   const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+   ws['!cols']=[{wch:25},{wch:34},{wch:36},{wch:23},{wch:22},{wch:18},{wch:24}];
+   if(rows.length)ws['!autofilter']={ref:'A1:G'+(rows.length+1)};
+   const wb=XLSX.utils.book_new();
+   XLSX.utils.book_append_sheet(wb,ws,'Asistencia 2026');
+   const bytes=XLSX.write(wb,{bookType:'xlsx',type:'array',compression:true});
+   const url=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+   const a=document.createElement('a');a.href=url;a.download='asistencia-encuentro-regional-2026-'+new Date().toISOString().slice(0,10)+'.xlsx';
+   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+   status.textContent='Total de asistencias: '+latestRecords.length+' · Archivo Excel generado.';
+  }catch(e){status.textContent='No se pudo descargar Excel: '+String(e.message||e)}
+  finally{exportButton.disabled=false}
  };
  const viewport=document.createElement('div');viewport.style.cssText='width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch';
  const table=document.createElement('table');table.style.cssText='border-collapse:collapse;min-width:880px;width:100%';
