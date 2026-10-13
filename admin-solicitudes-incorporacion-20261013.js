@@ -76,7 +76,7 @@ function addLink(){
  if(!authorized())return;
  const side=document.querySelector("#adminShell .side");
  if(side&&!side.querySelector("[data-incorporacion-link]")){
-  const b=el("button","📋 Solicitudes de incorporación");b.type="button";b.dataset.incorporacionLink="1";
+  const b=el("button","📋 Solicitudes Encuentro Regional");b.type="button";b.dataset.incorporacionLink="1";
   b.onclick=()=>window.adminSolicitudesIncorporacion();
   const near=[...side.querySelectorAll("button")].find(x=>/Asistencia Encuentro 2026/.test(x.textContent||""));
   if(near)near.insertAdjacentElement("afterend",b);else side.append(b);
