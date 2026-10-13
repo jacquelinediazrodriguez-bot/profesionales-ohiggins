@@ -34,20 +34,7 @@ function ensure(){
     }
     if(btn)btn.hidden=!authorized;
   }
-  const side=document.querySelector('#adminShell .side');
-  if(side){
-    let b=document.getElementById('adminGestionBiblioteca');
-    if(authorized&&!b){
-      b=document.createElement('button');
-      b.id='adminGestionBiblioteca';b.type='button';
-      b.textContent='📚 Gestión de Biblioteca y archivo';
-      b.onclick=manage;
-      const publication=[...side.querySelectorAll('button')].find(x=>/Revisión y publicaciones/.test(x.textContent||''));
-      if(publication)publication.insertAdjacentElement('afterend',b);
-      else side.appendChild(b);
-    }
-    if(b)b.hidden=!authorized;
-  }
+  // El botón lateral lo administra el menú central para evitar que se borre o duplique.
 }
 let scheduled=false;
 new MutationObserver(()=>{
