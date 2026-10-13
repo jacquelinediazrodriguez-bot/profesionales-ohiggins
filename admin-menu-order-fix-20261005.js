@@ -12,6 +12,13 @@ function goMyWork(){
   if(typeof privateTab==='function')privateTab('panel');
 }
 
+function goGestionBiblioteca(){
+  if(!isGeneral())return;
+  if(typeof window.abrirGestionBibliotecaGeneral==='function')return window.abrirGestionBibliotecaGeneral();
+  console.error('Acceso a Gestión de Biblioteca no disponible');
+  alert('No se pudo abrir Gestión de Biblioteca. Actualice la página.');
+}
+
 function goBiblioteca(){
   if(typeof go==='function')return go('biblioteca');
 }
@@ -26,6 +33,7 @@ const generalItems=[
   {label:'📄 Documentos de las mesas',fn:'adminDocumentosMesas'},
   {label:'📚 Solicitudes y revisión de publicaciones',fn:'adminPublicaciones'},
   {label:'✉️ Solicitudes de biblioteca',fn:'adminSolicitudes'},
+  {label:'📚 Gestión de Biblioteca y archivo',call:goGestionBiblioteca,generalOnly:true},
   {label:'📖 Biblioteca',call:goBiblioteca},
   {label:'🏛️ Directorio',fn:'adminRepresentantes'},
   {label:'🖼️ Galería',fn:'abrirGestionGaleria'},
@@ -92,7 +100,7 @@ function buildQuickAccess(){
   existingTitle.textContent='Accesos rápidos';
   if(grid.dataset.menuBuilt==='1')return;
   grid.innerHTML='';
-  availableItems().filter(x=>!['adminHome','logout'].includes(x.fn)&&!x.call).forEach(item=>{
+  availableItems().filter(x=>!['adminHome','logout'].includes(x.fn)&&(!x.call||x.call===goGestionBiblioteca)).forEach(item=>{
     const card=document.createElement('div');
     card.className='card';card.style.cursor='pointer';card.onclick=()=>runItem(item);
     const h=document.createElement('h3');h.textContent=item.label;
@@ -113,7 +121,7 @@ function buildQuickAccess(){
       adminEstado:'Revisar el estado operativo de la plataforma.',
       adminSeguridadLimites:'Revisar seguridad, cuotas y límites de la plataforma.'
     };
-    p.textContent=desc[item.fn]||'';
+    p.textContent=item.call===goGestionBiblioteca?'Consultar publicaciones, retirar documentos y recuperar elementos archivados.':(desc[item.fn]||'');
     card.append(h,p);grid.appendChild(card);
   });
   grid.dataset.menuBuilt='1';
