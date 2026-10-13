@@ -28,9 +28,9 @@ function ensure(){
     if(!b){
       b=document.createElement('button');
       b.id='bibGestionGeneral';b.type='button';b.className='btn primary';
-      b.textContent='📚 Gestionar publicaciones y archivo';
+      b.textContent='📚 Ir a Gestión de Biblioteca (Administración General)';
       b.onclick=openManagement;
-      b.style.cssText='display:block;margin:14px 0;padding:12px 18px;max-width:100%;white-space:normal';
+      b.style.cssText='display:block;position:sticky;top:8px;z-index:50;margin:14px 0;padding:12px 18px;max-width:100%;white-space:normal;box-shadow:0 4px 14px #173f702b';
       const h=page.querySelector('h1');
       (h||page.firstElementChild)?.insertAdjacentElement('afterend',b);
     }
@@ -46,7 +46,7 @@ function ensure(){
       const near=buttons.find(x=>/Solicitudes y revisión de publicaciones/i.test(x.textContent||''));
       if(near)near.insertAdjacentElement('afterend',b);else side.appendChild(b);
     }
-    if(b){b.onclick=openManagement;b.hidden=!allow;}
+    if(b){b.onclick=openManagement;b.hidden=!allow;b.style.display=allow?'':'none';}
   }
 }
 let timer;
