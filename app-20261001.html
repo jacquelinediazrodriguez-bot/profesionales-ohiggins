@@ -402,15 +402,15 @@ async function login(){
     msg.textContent=/email not confirmed/i.test(detail)?'Su correo todavía no ha sido confirmado. Abra el mensaje de validación recibido antes de ingresar.':/invalid login credentials/i.test(detail)?'Correo o contraseña incorrectos. Si no recuerda la clave, use «¿Olvidó su contraseña?».':'No fue posible validar la cuenta. Revise sus datos o intente nuevamente.';
     return;
   }
-  const {data:profile,error:pe}=await sbAuth.from('profiles').select('id,full_name,email,role,is_active').eq('id',data.user.id).maybeSingle();
+  const {data:profile,error:pe}=await sbAuth.from('profiles').select('id,full_name,email,role,is_active,is_platform_admin').eq('id',data.user.id).maybeSingle();
   if(pe||!profile?.is_active){msg.textContent='Cuenta autenticada, pero falta habilitar el perfil. Contacte a Administración.';await sbAuth.auth.signOut();return}
   const {data:membership,error:me}=await sbAuth.from('table_memberships').select('member_role,is_coordinator,technical_tables(name,is_active)').eq('profile_id',profile.id);
   if(me){msg.textContent='No se pudo consultar las Mesas asignadas.';await sbAuth.auth.signOut();return}
   const all=(membership||[]).filter(x=>x.technical_tables?.name&&x.technical_tables?.is_active!==false).map(x=>({nombre:profile.full_name,correo:e,mesa:x.technical_tables.name,rol:x.is_coordinator?'Coordinador/a de Mesa':x.member_role||'Integrante de Mesa',estado:'Activo'}));
-  if(['administrador_general','administrador_plataforma'].includes(profile.role))all.push({nombre:profile.full_name,correo:e,mesa:'Administración',rol:profile.role==='administrador_general'?'Administrador General':'Administrador de Plataforma',systemRole:profile.role,estado:'Activo'});
+  if(['administrador_general','administrador_plataforma'].includes(profile.role)||profile.is_platform_admin===true)all.push({nombre:profile.full_name,correo:e,mesa:'Administración',rol:profile.role==='administrador_general'?'Administrador General':'Administrador de Plataforma',systemRole:profile.role==='administrador_general'?'administrador_general':'administrador_plataforma',estado:'Activo'});
   if(!all.length){msg.textContent='Su perfil todavía no tiene Mesas asignadas. Contacte a Administración.';await sbAuth.auth.signOut();return}
   sessionStorage.setItem('frentePT_real_roles',JSON.stringify(all));
-  const isAdmin=['administrador_general','administrador_plataforma'].includes(profile.role);currentUser={nombre:profile.full_name,correo:e,rol:isAdmin?(profile.role==='administrador_general'?'Administrador General':'Administrador de Plataforma'):all[0].rol,systemRole:profile.role,mesa:isAdmin?'Administración':all[0].mesa,estado:'Activo',supabaseId:profile.id};
+  const isAdmin=['administrador_general','administrador_plataforma'].includes(profile.role)||profile.is_platform_admin===true;const effectiveRole=profile.role==='administrador_general'?'administrador_general':(profile.is_platform_admin===true?'administrador_plataforma':profile.role);currentUser={nombre:profile.full_name,correo:e,rol:isAdmin?(effectiveRole==='administrador_general'?'Administrador General':'Administrador de Plataforma'):all[0].rol,systemRole:effectiveRole,accountRole:profile.role,isPlatformAdmin:profile.is_platform_admin===true,mesa:isAdmin?'Administración':all[0].mesa,estado:'Activo',supabaseId:profile.id};
   sessionStorage.setItem('frentePT_user',JSON.stringify(currentUser));
   /* La cuenta ya fue autenticada por Supabase y el perfil/rol fue validado.
      Habilitar navegación privada antes de abrir Administración o Mi Trabajo. */
