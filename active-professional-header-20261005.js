@@ -37,14 +37,14 @@ async function refresh(){
  const stored=localIdentity();
  const matching=stored && (stored.supabaseId===uid || stored.id===uid || String(stored.email||stored.correo||'').toLowerCase()===String(session.user.email||'').toLowerCase());
  // Render the last verified profile only; stale browser data is not an authorization source.
- if(lastProfile){draw(lastProfile.full_name||'',lastProfile.role||'');return}
+ if(lastProfile){draw(lastProfile.full_name||'',lastProfile.role==='administrador_general'?'administrador_general':(lastProfile.is_platform_admin===true?'administrador_plataforma':lastProfile.role||''));return}
  if(loading)return;
  loading=true;
  try{
-   const {data,error}=await sb.from('profiles').select('id,full_name,role').eq('id',uid).maybeSingle();
+   const {data,error}=await sb.from('profiles').select('id,full_name,role,is_platform_admin').eq('id',uid).maybeSingle();
    if(requestGeneration!==generation)return;
    if(error)console.warn('No se pudo cargar el perfil del profesional',error);
-   if(data){lastProfile=data;draw(data.full_name||stored?.nombre||stored?.full_name||session.user.email||'',data.role||'');}
+   if(data){lastProfile=data;draw(data.full_name||stored?.nombre||stored?.full_name||session.user.email||'',data.role==='administrador_general'?'administrador_general':(data.is_platform_admin===true?'administrador_plataforma':data.role||''));}
    else if(matching){draw(stored.nombre||stored.full_name||stored.name||session.user.email||'',stored.rol||stored.role||'');}
    else draw(session.user.email||'Usuario autenticado','');
  }catch(err){if(requestGeneration===generation){console.warn('No se pudo actualizar el profesional conectado',err);draw(matching?(stored.nombre||stored.full_name||session.user.email):session.user.email,matching?(stored.rol||stored.role):'')}}
