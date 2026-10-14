@@ -1,60 +1,57 @@
+/* Identidad visual del profesional autenticado. La identidad proviene de Supabase,
+   no de datos de sesión del navegador sin verificar. */
 (function(){
-  const STYLE_ID='active-professional-header-style';
-  const BADGE_ID='activeProfessionalHeader';
-
-  function ensureStyle(){
-    if(document.getElementById(STYLE_ID))return;
-    const s=document.createElement('style');
-    s.id=STYLE_ID;
-    s.textContent=`
-      .top{flex-wrap:wrap}
-      .active-professional-header{display:none;align-items:center;gap:8px;margin-left:auto;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:#f7fafc;color:var(--ink);font-size:13px;line-height:1.25;white-space:nowrap}
-      .active-professional-header.visible{display:flex}
-      .active-professional-header .aph-label{color:var(--muted);font-weight:700}
-      .active-professional-header .aph-name{color:var(--blue);font-weight:850}
-      .active-professional-header .aph-role{display:inline-block;padding:3px 7px;border-radius:999px;background:#eaf1f7;color:var(--blue);font-size:11px;font-weight:800}
-      @media(max-width:900px){.active-professional-header{order:3;width:100%;margin:2px 0 0;justify-content:center;white-space:normal;text-align:center;flex-wrap:wrap}}
-      @media(max-width:520px){.active-professional-header{font-size:12px;padding:7px 9px}.active-professional-header .aph-role{font-size:10px}}
-    `;
-    document.head.appendChild(s);
-  }
-
-  function getUser(){
-    try{return JSON.parse(sessionStorage.getItem('frentePT_user')||'null')}catch(e){return null}
-  }
-
-  function ensureBadge(){
-    const top=document.querySelector('header .top');
-    if(!top)return null;
-    let badge=document.getElementById(BADGE_ID);
-    if(!badge){
-      badge=document.createElement('div');
-      badge.id=BADGE_ID;
-      badge.className='active-professional-header';
-      badge.setAttribute('aria-live','polite');
-      const nav=document.getElementById('publicNav');
-      if(nav)top.insertBefore(badge,nav);else top.appendChild(badge);
-    }
-    return badge;
-  }
-
-  function render(){
-    ensureStyle();
-    const badge=ensureBadge();
-    if(!badge)return;
-    const user=getUser();
-    if(!user||!user.nombre){
-      badge.classList.remove('visible');
-      badge.innerHTML='';
-      return;
-    }
-    const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    badge.innerHTML='<span class="aph-label">Profesional conectado:</span><span class="aph-name">'+esc(user.nombre)+'</span>'+(user.rol?'<span class="aph-role">'+esc(user.rol)+'</span>':'');
-    badge.classList.add('visible');
-  }
-
-  render();
-  document.addEventListener('click',()=>setTimeout(render,80),true);
-  window.addEventListener('storage',render);
-  setInterval(render,700);
+'use strict';
+const ID='activeProfessionalHeader';
+const LABELS={administrador_general:'Administrador General',administrador_plataforma:'Administrador de Plataforma',integrante:'Integrante',coordinador:'Coordinador',secretario_tecnico:'Secretario Técnico'};
+let generation=0, lastId='', lastProfile=null, loading=false;
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function localIdentity(){try{return JSON.parse(sessionStorage.getItem('frentePT_user')||'null')}catch(_){return null}}
+function supabase(){try{return typeof sbAuth!=='undefined'?sbAuth:null}catch(_){return null}}
+function badge(){
+ const top=document.querySelector('header .top');if(!top)return null;
+ let node=document.getElementById(ID);
+ if(!node){node=document.createElement('div');node.id=ID;node.className='active-professional-header';node.setAttribute('aria-live','polite');const nav=document.getElementById('publicNav');nav?top.insertBefore(node,nav):top.appendChild(node)}
+ return node;
+}
+function style(){
+ if(document.getElementById('active-professional-header-style'))return;
+ const s=document.createElement('style');s.id='active-professional-header-style';
+ s.textContent='.top{flex-wrap:wrap}.active-professional-header{display:none;align-items:center;gap:8px;margin-left:auto;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:#f7fafc;color:var(--ink);font-size:13px;line-height:1.25;white-space:nowrap}.active-professional-header.visible{display:flex}.active-professional-header .aph-label{color:var(--muted);font-weight:700}.active-professional-header .aph-name{color:var(--blue);font-weight:850}.active-professional-header .aph-role{display:inline-block;padding:3px 7px;border-radius:999px;background:#eaf1f7;color:var(--blue);font-size:11px;font-weight:800}@media(max-width:900px){.active-professional-header{order:3;width:100%;margin:2px 0 0;justify-content:center;white-space:normal;text-align:center;flex-wrap:wrap}}';
+ document.head.appendChild(s);
+}
+function draw(name,role){
+ const node=badge();if(!node)return;
+ if(!name){node.replaceChildren();node.classList.remove('visible');return}
+ node.innerHTML='<span class="aph-label">Profesional conectado:</span><span class="aph-name">'+esc(name)+'</span>'+(role?'<span class="aph-role">'+esc(LABELS[role]||role)+'</span>':'');
+ node.classList.add('visible');
+}
+async function refresh(){
+ const sb=supabase();if(!sb?.auth)return;
+ let session=null;
+ try{const result=await sb.auth.getSession();session=result?.data?.session}catch(_){}
+ const uid=session?.user?.id;
+ if(!uid){lastId='';lastProfile=null;generation++;draw('','');return}
+ if(lastId!==uid){lastId=uid;lastProfile=null;generation++}
+ const requestGeneration=generation;
+ const stored=localIdentity();
+ const matching=stored && (stored.supabaseId===uid || stored.id===uid || String(stored.email||stored.correo||'').toLowerCase()===String(session.user.email||'').toLowerCase());
+ // Render the last verified profile only; stale browser data is not an authorization source.
+ if(lastProfile){draw(lastProfile.full_name||'',lastProfile.role||'');return}
+ if(loading)return;
+ loading=true;
+ try{
+   const {data,error}=await sb.from('profiles').select('id,full_name,role').eq('id',uid).maybeSingle();
+   if(requestGeneration!==generation)return;
+   if(error)console.warn('No se pudo cargar el perfil del profesional',error);
+   if(data){lastProfile=data;draw(data.full_name||stored?.nombre||stored?.full_name||session.user.email||'',data.role||'');}
+   else if(matching){draw(stored.nombre||stored.full_name||stored.name||session.user.email||'',stored.rol||stored.role||'');}
+   else draw(session.user.email||'Usuario autenticado','');
+ }catch(err){if(requestGeneration===generation){console.warn('No se pudo actualizar el profesional conectado',err);draw(matching?(stored.nombre||stored.full_name||session.user.email):session.user.email,matching?(stored.rol||stored.role):'')}}
+ finally{loading=false}
+}
+style();refresh();
+document.addEventListener('click',()=>setTimeout(refresh,100),true);
+setInterval(refresh,2500);
+setTimeout(()=>{try{supabase()?.auth?.onAuthStateChange?.(()=>{lastProfile=null;generation++;setTimeout(refresh,0)})}catch(_){}},500);
 })();
