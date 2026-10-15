@@ -437,7 +437,7 @@ function renderAdminShell(){
  if(!isAnyAdmin()){shell.innerHTML='<div class="notice">Debe ingresar con una cuenta administrativa autorizada.</div>';return}
  const general=isAdminGeneral();
  const title=general?'Administración General':'Administración de Plataforma';
- const sensitive=general?'<button onclick="adminPresidencia()">🗣️ Mensaje de Presidencia</button><button onclick="adminSeguridadLimites()">🛡️ Seguridad y límites</button>':'';
+ const sensitive=general?'<button onclick="adminEstadisticas()">📈 Estadísticas de visitas</button><button onclick="adminPresidencia()">🗣️ Mensaje de Presidencia</button><button onclick="adminSeguridadLimites()">🛡️ Seguridad y límites</button>':'';
  shell.innerHTML='<div class="sidebar-layout"><aside class="side"><b>'+title+'</b>'+
  '<button onclick="adminHome()">🏠 Inicio</button>'+
  '<button onclick="adminUsuarios()">👥 Integrantes y asignaciones</button>'+
@@ -2025,6 +2025,86 @@ async function cambiarEstadoContacto(id,estado){
     if(error)throw error;
     await adminContactos();
   }catch(err){console.error(err);alert('No fue posible actualizar el estado del mensaje.')}
+}
+
+
+/* Estadísticas internas de gestión, vigentes desde el 21 de octubre de 2026 */
+let __visitId=null,__visitIdentity=null,__lastActivity=Date.now(),__lastBeat=Date.now();
+const __visitStart=Date.parse('2026-10-21T03:00:00Z');
+['pointerdown','keydown','scroll','touchstart'].forEach(evt=>document.addEventListener(evt,()=>{__lastActivity=Date.now()},{passive:true}));
+async function registrarVisita(){
+ if(!sbAuth||Date.now()<__visitStart||document.visibilityState!=='visible')return;
+ try{
+  const {data:{user}}=await sbAuth.auth.getUser();
+  const identity=user?.id||'publico';
+  if(identity!==__visitIdentity){__visitId=crypto.randomUUID();__visitIdentity=identity;__lastBeat=Date.now()}
+  if(!__visitId)__visitId=crypto.randomUUID();
+  const now=Date.now(),elapsed=Math.min(60,Math.max(0,Math.round((now-__lastBeat)/1000)));
+  const active=now-__lastActivity<90000?elapsed:0;
+  const section=document.querySelector('.page.active')?.id||'inicio';
+  const {error}=await sbAuth.rpc('track_visit',{p_id:__visitId,p_seconds:active,p_section:section});
+  if(!error)__lastBeat=now;
+ }catch(e){console.warn('No se pudo registrar la visita',e)}
+}
+setTimeout(registrarVisita,2500);
+setInterval(registrarVisita,30000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){__lastBeat=Date.now();registrarVisita()}});
+async function adminEstadisticas(){
+ if(!requireAdmin(true))return;
+ const c=$('admincontent');if(!c)return;
+ c.innerHTML='<div class="kicker">Gestión interna — acceso exclusivo Administración General</div><h1 class="section-title">📈 Estadísticas de visitas y participación</h1><p>Registros disponibles a partir del 21 de octubre de 2026. Las visitas públicas no identifican a personas.</p><label>Desde <input type="date" id="visDesde" value="2026-10-21" min="2026-10-21"></label> <label>Hasta <input type="date" id="visHasta"></label> <button class="btn" onclick="cargarEstadisticas()">Consultar</button> <button class="btn" onclick="exportarEstadisticas()">Descargar CSV</button><div id="visResultado" style="margin-top:18px">Consultando…</div>';
+ $('visHasta').value=new Date().toLocaleDateString('en-CA',{timeZone:'America/Santiago'});
+ await cargarEstadisticas();
+}
+let __visExport=[];
+async function cargarEstadisticas(){
+ if(!isAdminGeneral())return;
+ const host=$('visResultado');if(!host)return;
+ const from=$('visDesde').value,to=$('visHasta').value;
+ if(from<'2026-10-21'||to<from){host.textContent='Revise el rango de fechas.';return}
+ host.textContent='Cargando datos…';
+ try{
+  const lower=new Date(from+'T00:00:00-03:00').toISOString();
+  const upper=new Date(new Date(to+'T00:00:00-03:00').getTime()+86400000).toISOString();
+  let rows=[],offset=0,chunk;
+  do{
+   const {data,error}=await sbAuth.from('visit_sessions').select('user_id,started_at,active_seconds,last_section').gte('started_at',lower).lt('started_at',upper).order('started_at',{ascending:false}).range(offset,offset+999);
+   if(error)throw error;chunk=data||[];rows.push(...chunk);offset+=chunk.length;
+  }while(chunk.length===1000&&offset<50000);
+  const {data:profiles,error:pe}=await sbAuth.from('profiles').select('id,full_name,email');
+  if(pe)throw pe;
+  const names=Object.fromEntries((profiles||[]).map(p=>[p.id,p.full_name||p.email||'Sin nombre']));
+  let publicas=0,autenticadas=0,totalSeconds=0;
+  const users=new Map(),days=new Map();
+  rows.forEach(r=>{
+   const day=new Date(r.started_at).toLocaleDateString('en-CA',{timeZone:'America/Santiago'});
+   days.set(day,(days.get(day)||0)+1);
+   if(!r.user_id){publicas++;return}
+   autenticadas++;totalSeconds+=r.active_seconds||0;
+   const v=users.get(r.user_id)||{name:names[r.user_id]||'Usuario registrado',count:0,seconds:0,last:''};
+   v.count++;v.seconds+=r.active_seconds||0;if(!v.last||r.started_at>v.last)v.last=r.started_at;users.set(r.user_id,v);
+  });
+  const mins=n=>(n/60).toFixed(1)+' min';
+  const tr=Array.from(users.values()).sort((a,b)=>b.count-a.count);
+  __visExport=tr.map(u=>[u.name,u.count,mins(u.seconds),mins(u.seconds/u.count),new Date(u.last).toLocaleString('es-CL',{timeZone:'America/Santiago'})]);
+  host.innerHTML='<div class="grid3">'+
+   '<div class="card"><h3>'+rows.length+'</h3><p>Visitas generales</p></div>'+
+   '<div class="card"><h3>'+publicas+'</h3><p>Visitas públicas</p></div>'+
+   '<div class="card"><h3>'+autenticadas+'</h3><p>Visitas con contraseña</p></div>'+
+   '<div class="card"><h3>'+users.size+'</h3><p>Profesionales activos</p></div>'+
+   '<div class="card"><h3>'+mins(autenticadas?totalSeconds/autenticadas:0)+'</h3><p>Permanencia promedio por visita autenticada</p></div></div>'+
+   '<h2 class="section-sub">Ingresos por día</h2><div class="card">'+
+   Array.from(days.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([d,n])=>'<p>'+esc(d)+': <b>'+n+'</b></p>').join('')+
+   '</div><h2 class="section-sub">Actividad individual</h2><div style="overflow-x:auto"><table class="table"><thead><tr><th>Profesional</th><th>Visitas</th><th>Tiempo total</th><th>Promedio</th><th>Último ingreso</th></tr></thead><tbody>'+
+   __visExport.map(a=>'<tr>'+a.map(v=>'<td>'+esc(String(v))+'</td>').join('')+'</tr>').join('')+
+   '</tbody></table></div><p class="mini-note">Permanencia estimada por actividad visible en la página, no por tiempo con una pestaña inactiva. Los totales corresponden a sesiones registradas, no a visitantes únicos.</p>';
+ }catch(e){console.error(e);host.textContent='No fue posible cargar las estadísticas. Verifique los permisos de Administración General.'}
+}
+function exportarEstadisticas(){
+ if(!isAdminGeneral())return;
+ const data=[['Profesional','Visitas','Tiempo total','Promedio','Último ingreso'],...__visExport];
+ const csv='\uFEFF'+data.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='visitas-frente-pt.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
 }
 
 </script>
