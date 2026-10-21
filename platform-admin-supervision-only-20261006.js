@@ -52,6 +52,36 @@ window.platformMesaVerAvance=async function(mesaId){
   modal.querySelector('button').onclick=()=>modal.remove();modal.scrollIntoView({behavior:'smooth',block:'start'});
  }catch(e){console.error(e);if(modal.isConnected)modal.querySelector('p').textContent='No fue posible cargar el avance. Compruebe la sesión y reintente.';}
 };
+
+window.platformAdminContact=function(){
+ if(!platformOnly())return;
+ const box=document.getElementById('admincontent');if(!box)return;
+ box.innerHTML='<div class="kicker">Administrador de Plataforma</div><h1 class="section-title">Contactar a Administración General</h1>'+
+ '<div class="notice">Envíe solicitudes o requerimientos a Administración General. El mensaje quedará registrado en Contacto y se notificará por correo.</div>'+
+ '<div class="card" style="max-width:760px;margin-top:18px"><form id="platformAdminContactForm">'+
+ '<label for="pacSubject">Asunto</label><input id="pacSubject" maxlength="240" required placeholder="Solicitud de invitación de profesional">'+
+ '<label for="pacMessage">Mensaje</label><textarea id="pacMessage" rows="7" maxlength="5000" required></textarea>'+
+ '<p><button id="pacSend" type="submit" class="btn primary">Enviar a Administración General</button></p>'+
+ '<p id="pacStatus" role="status" aria-live="polite"></p></form></div>';
+ document.getElementById('platformAdminContactForm').addEventListener('submit',async function(ev){
+  ev.preventDefault();if(!platformOnly())return;
+  const name=String(currentUser?.nombre||'').trim(),email=String(currentUser?.correo||'').trim();
+  const asunto=document.getElementById('pacSubject').value.trim(),mensaje=document.getElementById('pacMessage').value.trim();
+  const status=document.getElementById('pacStatus'),btn=document.getElementById('pacSend');
+  if(!name||!email.includes('@')){status.textContent='No fue posible identificar su cuenta. Actualice la sesión e intente nuevamente.';return;}
+  if(!asunto||!mensaje){status.textContent='Complete asunto y mensaje.';return;}
+  btn.disabled=true;status.textContent='Enviando solicitud…';
+  try{
+   const {data,error}=await sbAuth.functions.invoke('submit-contact',{body:{nombre:name,correo:email,institucion:'Administración de Plataforma',asunto,mensaje}});
+   if(error)throw error;
+   if(!data?.ok)throw Error(data?.error||'No se pudo registrar el mensaje');
+   status.textContent=data.email_sent?'Mensaje registrado y notificación enviada a Administración General.':'Mensaje registrado en Contacto, pero no se confirmó el aviso por correo.';
+   document.getElementById('pacSubject').value='';document.getElementById('pacMessage').value='';
+  }catch(e){console.error('platformAdminContact',e);status.textContent='No fue posible enviar el mensaje. Inténtelo nuevamente.';}
+  finally{btn.disabled=false;}
+ });
+};
+
 window.platformMesaSupervision=supervision;
 const originalShell=window.renderAdminShell;
 window.renderAdminShell=function(){
@@ -60,6 +90,7 @@ window.renderAdminShell=function(){
   shell.innerHTML='<div class="sidebar-layout"><aside class="side"><b>Administrador de Plataforma</b>'+
     '<button onclick="platformMesaSupervision()">🧩 Mesas de Trabajo · Supervisión</button>'+
     '<button onclick="irAMiTrabajo()">🧭 Ir a Mi Trabajo</button>'+
+    '<button onclick="platformAdminContact()">✉️ Contactar a Administración General</button>'+
     '<button onclick="logout()">↩ Salir</button></aside><div id="admincontent"></div></div>';
 };
 const oldHome=window.adminHome;
