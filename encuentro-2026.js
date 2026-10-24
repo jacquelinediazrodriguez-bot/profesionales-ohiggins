@@ -31,7 +31,7 @@ el.innerHTML=`<style>
 </tbody></table></div>
 <div class="erbox"><h2>Registrar mi asistencia</h2><p class="ersub">Complete sus datos para registrar su asistencia. La invitación por correo es opcional.</p>
 <form id="erform"><label>Nombre completo<input required name="full_name" minlength="3" maxlength="120" autocomplete="name"></label><label>Correo electrónico<input required type="email" name="email" autocomplete="email"></label><label>Teléfono / WhatsApp<input name="phone" type="tel" maxlength="40"></label><label>Comuna<input name="commune" maxlength="80"></label><label class="er-consent-label"><input type="checkbox" name="consent_invitation"> También deseo recibir por correo una invitación para acceder a la plataforma (opcional).</label><button class="erbtn" type="submit">Registrar asistencia</button><p id="erresult" role="status" aria-live="polite"></p></form>
-</div>\n<div class="erbox"><h2>Participación a distancia</h2><p>¿No podrá acompañarnos presencialmente en Rengo? Conozca el saludo de bienvenida, el programa y solicite integrarse a una mesa técnica desde su comuna.</p><a class="erbtn" style="display:inline-block;text-decoration:none" href="./participa-encuentro-2026.html">Participar desde mi comuna</a><p class="ersub">Las solicitudes se registran por separado de la asistencia presencial.</p></div>\n<div class="erbox"><h2>Conoce nuestra plataforma</h2><p>Mesas de Salud, Educación, Economía, Trabajo y Agricultura.</p><button class="erbtn" type="button" id="eraccess">Ingresar a la plataforma</button></div>`;
+</div>\n<div class="erbox"><h2>Participación a distancia</h2><p>¿No podrá acompañarnos presencialmente en Rengo? Conozca el saludo de bienvenida, el programa y solicite integrarse a una mesa técnica desde su comuna.</p><a class="erbtn" style="display:inline-block;text-decoration:none" href="./participa-encuentro-2026.html">Participar desde mi comuna</a><p class="ersub">Las solicitudes se registran por separado de la asistencia presencial.</p></div>\n`;
 main.appendChild(el);
 // Entrada pública directa del QR al programa del Encuentro 2026.
 // El enlace habitual de la plataforma conserva su página de inicio.
@@ -47,7 +47,7 @@ document.getElementById('erform').addEventListener('submit',async ev=>{
  if(payload.assisted){const s=await (typeof sbAuth!=='undefined'?sbAuth:null)?.auth.getSession();if(!s?.data?.session?.access_token)throw Error('Debe iniciar sesión con su cuenta autorizada');h.Authorization='Bearer '+s.data.session.access_token;}
  const r=await fetch('https://ozfcvaiatkmbehaokskz.supabase.co/functions/v1/encuentro-2026-registro',{method:'POST',headers:h,body:JSON.stringify(payload)}); const j=await r.json(); if(!r.ok)throw Error(j.error||'No fue posible registrar');out.textContent=j.message;form.reset();}catch(e){out.textContent=String(e.message||e)}finally{button.disabled=false}
 });
-document.getElementById('eraccess').onclick=()=>window.goAccess?.();
+
 
 
 }
